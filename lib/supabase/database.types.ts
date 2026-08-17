@@ -19,16 +19,15 @@ export type Database = {
           account_name: string
           account_type: string
           available_balance: number | null
+          bank_connection_id: string | null
           created_at: string
           current_balance: number
           id: string
           institution_name: string | null
           is_manual: boolean
           last4: string | null
+          provider_account_id: string | null
           status: string
-          teller_access_token_encrypted: string | null
-          teller_account_id: string | null
-          teller_enrollment_id: string | null
           updated_at: string
           user_id: string
         }
@@ -36,16 +35,15 @@ export type Database = {
           account_name: string
           account_type?: string
           available_balance?: number | null
+          bank_connection_id?: string | null
           created_at?: string
           current_balance?: number
           id?: string
           institution_name?: string | null
           is_manual?: boolean
           last4?: string | null
+          provider_account_id?: string | null
           status?: string
-          teller_access_token_encrypted?: string | null
-          teller_account_id?: string | null
-          teller_enrollment_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -53,16 +51,56 @@ export type Database = {
           account_name?: string
           account_type?: string
           available_balance?: number | null
+          bank_connection_id?: string | null
           created_at?: string
           current_balance?: number
           id?: string
           institution_name?: string | null
           is_manual?: boolean
           last4?: string | null
+          provider_account_id?: string | null
           status?: string
-          teller_access_token_encrypted?: string | null
-          teller_account_id?: string | null
-          teller_enrollment_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_bank_connection_id_fkey"
+            columns: ["bank_connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_connections: {
+        Row: {
+          access_url_secret_id: string
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_url_secret_id: string
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_url_secret_id?: string
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          provider?: string
+          status?: string
           updated_at?: string
           user_id?: string
         }
@@ -301,6 +339,7 @@ export type Database = {
       sync_log: {
         Row: {
           account_id: string | null
+          bank_connection_id: string | null
           error_message: string | null
           finished_at: string | null
           id: string
@@ -313,6 +352,7 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          bank_connection_id?: string | null
           error_message?: string | null
           finished_at?: string | null
           id?: string
@@ -325,6 +365,7 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          bank_connection_id?: string | null
           error_message?: string | null
           finished_at?: string | null
           id?: string
@@ -348,6 +389,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "v_account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_log_bank_connection_id_fkey"
+            columns: ["bank_connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
             referencedColumns: ["id"]
           },
         ]
@@ -438,9 +486,9 @@ export type Database = {
           merchant_normalized: string | null
           notes: string | null
           posted_date: string
+          provider_transaction_id: string | null
           source_id: string | null
           status: string
-          teller_transaction_id: string | null
           updated_at: string
           user_id: string
         }
@@ -457,9 +505,9 @@ export type Database = {
           merchant_normalized?: string | null
           notes?: string | null
           posted_date: string
+          provider_transaction_id?: string | null
           source_id?: string | null
           status?: string
-          teller_transaction_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -476,9 +524,9 @@ export type Database = {
           merchant_normalized?: string | null
           notes?: string | null
           posted_date?: string
+          provider_transaction_id?: string | null
           source_id?: string | null
           status?: string
-          teller_transaction_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -684,7 +732,18 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      delete_bank_connection: {
+        Args: { p_connection_id: string }
+        Returns: undefined
+      }
+      get_bank_connection_access_url: {
+        Args: { p_connection_id: string }
+        Returns: string
+      }
+      store_bank_connection_secret: {
+        Args: { p_access_url: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

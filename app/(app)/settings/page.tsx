@@ -44,7 +44,7 @@ export default async function SettingsPage() {
       <div className="rounded-lg border border-dashed border-border bg-surface p-5">
         <p className="font-medium">Connected accounts</p>
         <p className="mt-1 text-sm text-muted">
-          Managed from the Accounts page. Bank sync via Teller isn&apos;t configured yet.
+          Connect and manage banks via SimpleFin from the Accounts page.
         </p>
       </div>
     </div>

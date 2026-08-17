@@ -141,7 +141,7 @@ export async function deleteTransaction(transactionId: string) {
     .from("transactions")
     .delete()
     .eq("id", transactionId)
-    .is("teller_transaction_id", null);
+    .is("provider_transaction_id", null);
   if (error) throw new Error(error.message);
 
   revalidatePath("/transactions");

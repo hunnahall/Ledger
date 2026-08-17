@@ -254,7 +254,7 @@ export default async function TransactionsPage({
                 >
                   Save
                 </button>
-                {!txn.teller_transaction_id && (
+                {!txn.provider_transaction_id && (
                   <button
                     type="submit"
                     formAction={deleteTransaction.bind(null, txn.id)}
