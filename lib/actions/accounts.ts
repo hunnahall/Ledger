@@ -34,6 +34,17 @@ export async function createManualAccount(formData: FormData) {
 
 export async function deleteManualAccount(accountId: string) {
   const supabase = await createClient();
+
+  const { count } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("account_id", accountId);
+  if (count && count > 0) {
+    throw new Error(
+      `This account has ${count} transaction${count === 1 ? "" : "s"}. Delete those first — deleting the account would delete them too.`,
+    );
+  }
+
   const { error } = await supabase
     .from("accounts")
     .delete()

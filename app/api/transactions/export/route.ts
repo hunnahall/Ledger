@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFilteredTransactions, type TransactionFilters } from "@/lib/queries/transactions";
 
-function csvEscape(value: string): string {
+function quoteCsv(value: string): string {
   if (/[",\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
+}
+
+// Neutralize formula injection: a cell starting with =, +, -, or @ can
+// execute as a formula when opened in Excel/Sheets. Only applied to
+// free-text fields the user (or a bank) authored — description, category/
+// source names, notes. Never applied to system-formatted fields like the
+// amount or date columns, where a leading "-" is a legitimate minus sign,
+// not untrusted input.
+function csvEscapeText(value: string): string {
+  if (/^[=+\-@]/.test(value)) {
+    value = `'${value}`;
+  }
+  return quoteCsv(value);
 }
 
 export async function GET(request: NextRequest) {
@@ -35,19 +48,19 @@ export async function GET(request: NextRequest) {
   ];
 
   const rows = transactions.map((t) => [
-    t.posted_date,
-    t.description,
-    (t.accounts as { account_name: string } | null)?.account_name ?? "",
-    t.amount.toFixed(2),
-    (t.categories as { name: string } | null)?.name ?? "",
-    (t.sources as { name: string } | null)?.name ?? "",
+    quoteCsv(t.posted_date),
+    csvEscapeText(t.description),
+    csvEscapeText((t.accounts as { account_name: string } | null)?.account_name ?? ""),
+    quoteCsv(t.amount.toFixed(2)),
+    csvEscapeText((t.categories as { name: string } | null)?.name ?? ""),
+    csvEscapeText((t.sources as { name: string } | null)?.name ?? ""),
     t.is_transfer ? "yes" : "no",
     t.exclude_from_budget ? "yes" : "no",
-    t.notes ?? "",
+    csvEscapeText(t.notes ?? ""),
   ]);
 
-  const csv = [header, ...rows]
-    .map((row) => row.map((cell) => csvEscape(String(cell))).join(","))
+  const csv = [header.map(quoteCsv), ...rows]
+    .map((row) => row.join(","))
     .join("\n");
 
   return new NextResponse(csv, {

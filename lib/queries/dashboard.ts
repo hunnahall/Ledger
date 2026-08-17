@@ -38,8 +38,11 @@ export async function getDashboardData() {
     categories = data ?? [];
   }
 
+  // v_spending_by_category.amount is the raw signed sum (negative = money
+  // out), but "spent" should read as a positive magnitude for comparison
+  // against monthly_amount and for display.
   const spendingByCategory = new Map(
-    (spending ?? []).map((s) => [s.category_id, s.amount ?? 0]),
+    (spending ?? []).map((s) => [s.category_id, -(s.amount ?? 0)]),
   );
 
   const categorySpending = categories.map((c) => ({

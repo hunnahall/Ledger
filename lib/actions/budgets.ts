@@ -36,6 +36,13 @@ export async function setCurrentBudget(budgetId: string) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: target } = await supabase
+    .from("budgets")
+    .select("id")
+    .eq("id", budgetId)
+    .maybeSingle();
+  if (!target) throw new Error("Budget not found.");
+
   const { error: unsetError } = await supabase
     .from("budgets")
     .update({ is_current: false })
@@ -74,9 +81,10 @@ export async function deleteBudget(budgetId: string) {
     .from("budgets")
     .select("is_current")
     .eq("id", budgetId)
-    .single();
+    .maybeSingle();
+  if (!budget) throw new Error("Budget not found.");
 
-  if (budget?.is_current) {
+  if (budget.is_current) {
     throw new Error("Set a different budget as current before deleting this one.");
   }
 

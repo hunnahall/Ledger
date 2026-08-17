@@ -59,7 +59,7 @@ export default async function DashboardPage() {
             {data.categorySpending.map((c) => {
               const pct =
                 c.monthly_amount > 0
-                  ? Math.min(100, Math.round((c.spent / c.monthly_amount) * 100))
+                  ? Math.max(0, Math.min(100, Math.round((c.spent / c.monthly_amount) * 100)))
                   : 0;
               const over = c.spent > c.monthly_amount && c.monthly_amount > 0;
               return (

@@ -25,7 +25,9 @@ export async function getBudgetWithCategories(budgetId: string) {
   const supabase = await createClient();
   const [{ data: budget, error: budgetError }, { data: categories, error: categoriesError }] =
     await Promise.all([
-      supabase.from("budgets").select("*").eq("id", budgetId).single(),
+      // maybeSingle (not single): a missing or not-owned budget should
+      // resolve to null so the page can render a clean 404, not throw.
+      supabase.from("budgets").select("*").eq("id", budgetId).maybeSingle(),
       supabase
         .from("categories")
         .select("*")

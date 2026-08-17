@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/server";
 export async function createCategory(budgetId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const monthlyAmount = Number(formData.get("monthly_amount") ?? 0);
-  const rollover = formData.get("rollover") === "on";
   if (!name) return;
 
   const supabase = await createClient();
@@ -21,7 +20,6 @@ export async function createCategory(budgetId: string, formData: FormData) {
     budget_id: budgetId,
     name,
     monthly_amount: monthlyAmount,
-    rollover,
   });
   if (error) throw new Error(error.message);
 
@@ -35,13 +33,12 @@ export async function updateCategory(
 ) {
   const name = String(formData.get("name") ?? "").trim();
   const monthlyAmount = Number(formData.get("monthly_amount") ?? 0);
-  const rollover = formData.get("rollover") === "on";
   if (!name) return;
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("categories")
-    .update({ name, monthly_amount: monthlyAmount, rollover })
+    .update({ name, monthly_amount: monthlyAmount })
     .eq("id", categoryId);
   if (error) throw new Error(error.message);
 

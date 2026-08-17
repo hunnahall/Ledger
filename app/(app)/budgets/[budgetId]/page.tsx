@@ -67,7 +67,6 @@ export default async function BudgetDetailPage({
             <tr className="border-b border-border text-left text-xs text-muted">
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Monthly amount</th>
-              <th className="px-4 py-3 font-medium">Rollover</th>
               <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
@@ -77,7 +76,7 @@ export default async function BudgetDetailPage({
                 key={`${category.id}-${category.updated_at}`}
                 className="border-b border-border last:border-0"
               >
-                <td colSpan={4} className="px-4 py-3">
+                <td colSpan={3} className="px-4 py-3">
                   <form
                     action={updateCategory.bind(null, category.id, budgetId)}
                     className="flex flex-wrap items-center gap-3"
@@ -97,14 +96,6 @@ export default async function BudgetDetailPage({
                       defaultValue={category.monthly_amount}
                       className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
                     />
-                    <label className="flex items-center gap-1.5 text-muted">
-                      <input
-                        type="checkbox"
-                        name="rollover"
-                        defaultChecked={category.rollover}
-                      />
-                      Rollover
-                    </label>
                     <button
                       type="submit"
                       className="rounded-md border border-border px-3 py-1.5 hover:bg-background"
@@ -124,7 +115,7 @@ export default async function BudgetDetailPage({
             ))}
             {categories.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-muted">
+                <td colSpan={3} className="px-4 py-6 text-center text-muted">
                   No categories yet.
                 </td>
               </tr>
@@ -157,10 +148,6 @@ export default async function BudgetDetailPage({
             defaultValue={0}
             className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
           />
-        </label>
-        <label className="flex items-center gap-1.5 pb-2 text-sm text-muted">
-          <input type="checkbox" name="rollover" />
-          Rollover
         </label>
         <button
           type="submit"

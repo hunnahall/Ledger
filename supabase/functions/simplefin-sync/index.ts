@@ -140,7 +140,7 @@ async function syncConnection(
         user_id: connection.user_id,
         account_id: accountRow.id,
         provider_transaction_id: tx.id,
-        posted_date: new Date((tx.posted ?? tx.transacted_at ?? Date.now() / 1000) * 1000)
+        posted_date: new Date((tx.posted || tx.transacted_at || Date.now() / 1000) * 1000)
           .toISOString()
           .slice(0, 10),
         amount: Number(tx.amount),
@@ -202,7 +202,12 @@ async function syncConnection(
       error_message: errlist.length > 0 ? JSON.stringify(errlist) : null,
     });
 
-    return { connection_id: connection.id, status: "success", transactionsFetched };
+    return {
+      connection_id: connection.id,
+      status: errlist.length > 0 ? "error" : "success",
+      transactionsFetched,
+      error: errlist.length > 0 ? JSON.stringify(errlist) : undefined,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await serviceClient.from("bank_connections").update({ status: "error" }).eq(
@@ -276,6 +281,7 @@ Deno.serve(async (req: Request) => {
 
   const result = await syncConnection(serviceClient, connection, "manual");
   return new Response(JSON.stringify(result), {
+    status: result.status === "error" ? 502 : 200,
     headers: { "Content-Type": "application/json" },
   });
 });

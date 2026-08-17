@@ -113,8 +113,9 @@ export async function assignTransaction(transactionId: string, formData: FormDat
     .from("transactions")
     .select("merchant_normalized")
     .eq("id", transactionId)
-    .single();
+    .maybeSingle();
   if (fetchError) throw new Error(fetchError.message);
+  if (!txn) throw new Error("Transaction not found.");
 
   const { error } = await supabase
     .from("transactions")
@@ -171,6 +172,15 @@ export async function saveSplits(
     });
   }
 
+  if (rows.length > 0) {
+    const total = rows.reduce((sum, r) => sum + r.amount, 0);
+    if (Math.round(total * 100) !== Math.round(transactionAmount * 100)) {
+      throw new Error(
+        `Split amounts (${total.toFixed(2)}) must sum to the transaction amount (${transactionAmount.toFixed(2)}).`,
+      );
+    }
+  }
+
   const { error: deleteError } = await supabase
     .from("transaction_splits")
     .delete()
@@ -185,13 +195,6 @@ export async function saveSplits(
     if (error) throw new Error(error.message);
     revalidatePath("/transactions");
     return;
-  }
-
-  const total = rows.reduce((sum, r) => sum + r.amount, 0);
-  if (Math.round(total * 100) !== Math.round(transactionAmount * 100)) {
-    throw new Error(
-      `Split amounts (${total.toFixed(2)}) must sum to the transaction amount (${transactionAmount.toFixed(2)}).`,
-    );
   }
 
   const { error: insertError } = await supabase.from("transaction_splits").insert(

@@ -141,7 +141,6 @@ export type Database = {
           id: string
           monthly_amount: number
           name: string
-          rollover: boolean
           sort_order: number
           updated_at: string
           user_id: string
@@ -153,7 +152,6 @@ export type Database = {
           id?: string
           monthly_amount?: number
           name: string
-          rollover?: boolean
           sort_order?: number
           updated_at?: string
           user_id: string
@@ -165,7 +163,6 @@ export type Database = {
           id?: string
           monthly_amount?: number
           name?: string
-          rollover?: boolean
           sort_order?: number
           updated_at?: string
           user_id?: string
@@ -176,50 +173,6 @@ export type Database = {
             columns: ["budget_id"]
             isOneToOne: false
             referencedRelation: "budgets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      category_periods: {
-        Row: {
-          allowance: number
-          carried_forward: number
-          category_id: string
-          created_at: string
-          id: string
-          spent: number
-          updated_at: string
-          user_id: string
-          year_month: string
-        }
-        Insert: {
-          allowance?: number
-          carried_forward?: number
-          category_id: string
-          created_at?: string
-          id?: string
-          spent?: number
-          updated_at?: string
-          user_id: string
-          year_month: string
-        }
-        Update: {
-          allowance?: number
-          carried_forward?: number
-          category_id?: string
-          created_at?: string
-          id?: string
-          spent?: number
-          updated_at?: string
-          user_id?: string
-          year_month?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "category_periods_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]
