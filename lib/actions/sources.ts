@@ -7,11 +7,15 @@ import { validateSourceInput } from "@/lib/sources/validate-source";
 
 export async function createSource(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  const type = String(formData.get("type") ?? "budget");
+  const type = String(formData.get("type") ?? "past_payment");
   const startingBalance = Number(formData.get("balance") ?? 0);
   const depositDateInput = String(formData.get("deposit_date") ?? "").trim();
   const fundIds = formData.getAll("fund_ids").map(String).filter(Boolean);
   if (!name) return;
+
+  if (type === "budget") {
+    throw new Error("Budget sources are managed automatically per budget.");
+  }
 
   const depositDate =
     type === "past_payment" || type === "future_repayment" ? depositDateInput || null : null;

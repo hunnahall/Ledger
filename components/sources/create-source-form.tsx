@@ -4,14 +4,13 @@ import { useState } from "react";
 import { createSource } from "@/lib/actions/sources";
 
 const TYPE_LABELS: Record<string, string> = {
-  budget: "Budget",
   past_payment: "Past payment",
   future_repayment: "Future repayment",
   fund: "Fund",
 };
 
 export function CreateSourceForm({ funds }: { funds: { id: string; name: string }[] }) {
-  const [type, setType] = useState("budget");
+  const [type, setType] = useState("past_payment");
 
   return (
     <form
@@ -44,7 +43,7 @@ export function CreateSourceForm({ funds }: { funds: { id: string; name: string 
         </select>
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Starting balance
+        Balance
         <input
           type="number"
           name="balance"

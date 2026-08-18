@@ -92,4 +92,5 @@ export async function deleteBudget(budgetId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/budgets");
+  redirect("/budgets");
 }

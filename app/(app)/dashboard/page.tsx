@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/queries/settings";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDate } from "@/lib/format";
 import { computeProgress } from "@/lib/progress";
 import { ProgressBar } from "@/components/ui/progress-bar";
 
@@ -22,25 +22,23 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-          <p className="text-xs text-muted">Inflow this month</p>
+          <p className="text-xs text-muted">Inflow</p>
           <p className="mt-1 text-xl font-semibold text-positive">{money(data.inflow)}</p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-          <p className="text-xs text-muted">Outflow this month</p>
-          <p className="mt-1 text-xl font-semibold text-negative">{money(data.outflow)}</p>
+          <p className="text-xs text-muted">Budgeted Outflow</p>
+          <p className="mt-1 text-xl font-semibold text-negative">{money(data.budgetedOutflow)}</p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-          <p className="text-xs text-muted">Net this month</p>
-          <p className="mt-1 text-xl font-semibold">{money(data.inflow + data.outflow)}</p>
+          <p className="text-xs text-muted">Other Outflow</p>
+          <p className="mt-1 text-xl font-semibold text-negative">{money(data.otherOutflow)}</p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-          <p className="text-xs text-muted">Float outstanding</p>
+          <p className="text-xs text-muted">Total Net</p>
           <p
-            className={`mt-1 text-xl font-semibold ${
-              data.floatOutstanding < 0 ? "text-negative" : ""
-            }`}
+            className={`mt-1 text-xl font-semibold ${data.totalNet < 0 ? "text-negative" : ""}`}
           >
-            {money(data.floatOutstanding)}
+            {money(data.totalNet)}
           </p>
         </div>
       </div>
@@ -126,7 +124,12 @@ export default async function DashboardPage() {
           <div className="flex flex-col gap-2 text-sm">
             {data.reimbursementsPending.map((r) => (
               <div key={r.id} className="flex justify-between">
-                <span>{r.name}</span>
+                <div>
+                  <span>{r.name}</span>
+                  {r.deposit_date && (
+                    <span className="ml-2 text-xs text-muted">{formatDate(r.deposit_date)}</span>
+                  )}
+                </div>
                 <span className={(r.balance ?? 0) < 0 ? "text-negative" : "text-positive"}>
                   {money(r.balance ?? 0)}
                 </span>

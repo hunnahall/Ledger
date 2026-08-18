@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { currentMonthISO } from "@/lib/dates";
 import { spentFromRawAmount } from "@/lib/progress";
+import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 
 export async function getDashboardData() {
   const supabase = await createClient();
@@ -10,17 +11,17 @@ export async function getDashboardData() {
     { data: currentBudget },
     { data: spending },
     { data: inflowOutflow },
+    { data: outflowByBucket },
     { data: accountBalances },
     { data: sourceBalances },
-    { data: floatOutstanding },
     { data: reimbursementsPending },
   ] = await Promise.all([
     supabase.from("budgets").select("id, name").eq("is_current", true).maybeSingle(),
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
+    supabase.from("v_outflow_by_bucket").select("*").eq("month", month),
     supabase.from("v_account_balances").select("*"),
     supabase.from("v_source_balances").select("*"),
-    supabase.from("v_float_outstanding").select("*").maybeSingle(),
     supabase.from("v_reimbursements_pending").select("*"),
   ]);
 
@@ -44,14 +45,19 @@ export async function getDashboardData() {
     spent: spendingByCategory.get(c.id) ?? 0,
   }));
 
+  const budgetedOutflowRaw = outflowByBucket?.find((b) => b.bucket === "budget")?.amount ?? null;
+  const otherOutflowRaw = outflowByBucket?.find((b) => b.bucket === "other")?.amount ?? null;
+
   return {
     currentBudget,
     categorySpending,
-    inflow: inflowOutflow?.inflow ?? 0,
-    outflow: inflowOutflow?.outflow ?? 0,
+    ...computeDashboardTotals({
+      inflow: inflowOutflow?.inflow ?? 0,
+      budgetedOutflowRaw,
+      otherOutflowRaw,
+    }),
     accountBalances: accountBalances ?? [],
     sourceBalances: sourceBalances ?? [],
-    floatOutstanding: floatOutstanding?.float_outstanding ?? 0,
     reimbursementsPending: reimbursementsPending ?? [],
   };
 }

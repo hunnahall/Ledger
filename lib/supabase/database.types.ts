@@ -285,6 +285,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           balance: number
+          budget_id: string | null
           created_at: string
           deposit_date: string | null
           id: string
@@ -296,6 +297,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           balance?: number
+          budget_id?: string | null
           created_at?: string
           deposit_date?: string | null
           id?: string
@@ -307,6 +309,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           balance?: number
+          budget_id?: string | null
           created_at?: string
           deposit_date?: string | null
           id?: string
@@ -315,7 +318,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sources_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sync_log: {
         Row: {
@@ -665,6 +676,15 @@ export type Database = {
           inflow: number | null
           month: string | null
           outflow: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      v_outflow_by_bucket: {
+        Row: {
+          amount: number | null
+          bucket: string | null
+          month: string | null
           user_id: string | null
         }
         Relationships: []
