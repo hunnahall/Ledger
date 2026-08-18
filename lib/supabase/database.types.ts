@@ -177,6 +177,36 @@ export type Database = {
           },
         ]
       }
+      funds: {
+        Row: {
+          archived_at: string | null
+          balance: number
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          balance?: number
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          balance?: number
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           created_at: string
@@ -198,54 +228,52 @@ export type Database = {
         }
         Relationships: []
       }
-      source_contributions: {
+      source_funds: {
         Row: {
-          amount: number
           created_at: string
+          fund_id: string
           id: string
-          pulled_forward: boolean
           source_id: string
-          target_month: string
-          updated_at: string
           user_id: string
         }
         Insert: {
-          amount: number
           created_at?: string
+          fund_id: string
           id?: string
-          pulled_forward?: boolean
           source_id: string
-          target_month: string
-          updated_at?: string
           user_id: string
         }
         Update: {
-          amount?: number
           created_at?: string
+          fund_id?: string
           id?: string
-          pulled_forward?: boolean
           source_id?: string
-          target_month?: string
-          updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "source_contributions_source_id_fkey"
+            foreignKeyName: "source_funds_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_funds_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "sources"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "source_contributions_source_id_fkey"
+            foreignKeyName: "source_funds_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "v_reimbursements_pending"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "source_contributions_source_id_fkey"
+            foreignKeyName: "source_funds_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "v_source_balances"
@@ -258,8 +286,8 @@ export type Database = {
           archived_at: string | null
           balance: number
           created_at: string
+          deposit_date: string | null
           id: string
-          is_reimbursement: boolean
           name: string
           type: string
           updated_at: string
@@ -269,8 +297,8 @@ export type Database = {
           archived_at?: string | null
           balance?: number
           created_at?: string
+          deposit_date?: string | null
           id?: string
-          is_reimbursement?: boolean
           name: string
           type?: string
           updated_at?: string
@@ -280,8 +308,8 @@ export type Database = {
           archived_at?: string | null
           balance?: number
           created_at?: string
+          deposit_date?: string | null
           id?: string
-          is_reimbursement?: boolean
           name?: string
           type?: string
           updated_at?: string
@@ -644,18 +672,21 @@ export type Database = {
       v_reimbursements_pending: {
         Row: {
           balance: number | null
+          deposit_date: string | null
           id: string | null
           name: string | null
           user_id: string | null
         }
         Insert: {
           balance?: number | null
+          deposit_date?: string | null
           id?: string | null
           name?: string | null
           user_id?: string | null
         }
         Update: {
           balance?: number | null
+          deposit_date?: string | null
           id?: string | null
           name?: string | null
           user_id?: string | null
@@ -664,10 +695,9 @@ export type Database = {
       }
       v_source_balances: {
         Row: {
-          available_balance: number | null
           balance: number | null
+          deposit_date: string | null
           id: string | null
-          is_reimbursement: boolean | null
           name: string | null
           type: string | null
           user_id: string | null
@@ -696,6 +726,10 @@ export type Database = {
       store_bank_connection_secret: {
         Args: { p_access_url: string }
         Returns: string
+      }
+      sync_source_or_fund_balance: {
+        Args: { p_delta: number; p_source_id: string }
+        Returns: undefined
       }
     }
     Enums: {

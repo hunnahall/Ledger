@@ -1,25 +1,26 @@
-import { getSourcesWithContributions } from "@/lib/queries/sources";
+import { getSourcesWithBalance, getFunds } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
 import {
   archiveSource,
-  createContribution,
-  createSource,
-  deleteContribution,
-  togglePullForward,
+  adjustSourceBalance,
+  createFund,
+  archiveFund,
+  adjustFundBalance,
 } from "@/lib/actions/sources";
+import { CreateSourceForm } from "@/components/sources/create-source-form";
 import { formatMoney } from "@/lib/format";
 
 const TYPE_LABELS: Record<string, string> = {
-  general: "General",
-  current_budget: "Current budget",
-  advance: "Advance",
-  reimbursement: "Reimbursement",
-  sinking_fund: "Sinking fund",
+  budget: "Budget",
+  past_payment: "Past payment",
+  future_repayment: "Future repayment",
+  fund: "Fund",
 };
 
 export default async function SourcesPage() {
-  const [sources, settings] = await Promise.all([
-    getSourcesWithContributions(),
+  const [sources, funds, settings] = await Promise.all([
+    getSourcesWithBalance(),
+    getFunds(),
     getSettings(),
   ]);
   const decimalPlaces = settings.decimal_places;
@@ -29,8 +30,8 @@ export default async function SourcesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Sources</h1>
         <p className="mt-1 text-sm text-muted">
-          Buckets that pay for transactions. Balances can go negative; scheduled
-          contributions can be pulled forward into this month.
+          Buckets that pay for transactions. Balances update automatically from
+          transactions and can also be adjusted by hand. Balances can go negative.
         </p>
       </div>
 
@@ -47,11 +48,23 @@ export default async function SourcesPage() {
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
                     {TYPE_LABELS[source.type] ?? source.type}
                   </span>
-                  {source.is_reimbursement && (
+                  {source.type === "fund" && source.fundName && (
                     <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-                      Reimbursement
+                      Fund: {source.fundName}
                     </span>
                   )}
+                  {(source.type === "past_payment" || source.type === "future_repayment") &&
+                    source.deposit_date && (
+                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+                        {source.type === "past_payment" ? "Deposited" : "Expected"}{" "}
+                        {new Date(source.deposit_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        })}
+                      </span>
+                    )}
                 </div>
                 <p
                   className={`mt-1 text-lg font-semibold ${
@@ -60,12 +73,6 @@ export default async function SourcesPage() {
                 >
                   {formatMoney(source.balance, decimalPlaces)}
                 </p>
-                {source.availableBalance !== source.balance && (
-                  <p className="text-xs text-muted">
-                    {formatMoney(source.availableBalance, decimalPlaces)} available with
-                    pulled-forward contributions
-                  </p>
-                )}
               </div>
               <form action={archiveSource.bind(null, source.id)}>
                 <button
@@ -77,143 +84,139 @@ export default async function SourcesPage() {
               </form>
             </div>
 
-            <div className="flex flex-col gap-2">
-              {source.contributions.length > 0 && (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted">
-                      <th className="pb-1 font-medium">Target month</th>
-                      <th className="pb-1 font-medium">Amount</th>
-                      <th className="pb-1 font-medium"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {source.contributions.map((c) => (
-                      <tr key={c.id} className="border-t border-border">
-                        <td className="py-1.5">
-                          {new Date(c.target_month).toLocaleDateString("en-US", {
-                            month: "short",
-                            year: "numeric",
-                            timeZone: "UTC",
-                          })}
-                        </td>
-                        <td className="py-1.5">{formatMoney(c.amount, decimalPlaces)}</td>
-                        <td className="py-1.5 text-right">
-                          <form
-                            action={togglePullForward.bind(null, c.id, c.pulled_forward)}
-                            className="inline"
-                          >
-                            <button
-                              type="submit"
-                              className={`rounded-md border border-border px-2 py-1 text-xs hover:bg-background ${
-                                c.pulled_forward ? "bg-foreground text-surface" : ""
-                              }`}
-                            >
-                              {c.pulled_forward ? "Available now" : "Pull forward"}
-                            </button>
-                          </form>
-                          <form
-                            action={deleteContribution.bind(null, c.id)}
-                            className="ml-1 inline"
-                          >
-                            <button
-                              type="submit"
-                              className="rounded-md border border-border px-2 py-1 text-xs text-negative hover:bg-background"
-                            >
-                              &times;
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-
+            {source.type !== "fund" && (
               <form
-                action={createContribution.bind(null, source.id)}
-                className="flex flex-wrap items-end gap-2 border-t border-border pt-3"
+                action={adjustSourceBalance.bind(null, source.id)}
+                className="flex items-end gap-2 border-t border-border pt-3"
               >
                 <label className="flex flex-col gap-1 text-xs text-muted">
-                  Target month
-                  <input
-                    type="month"
-                    name="target_month"
-                    required
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted">
-                  Amount
+                  Adjust balance
                   <input
                     type="number"
                     name="amount"
                     step="0.01"
-                    required
-                    className="w-24 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                    placeholder="e.g. 800 or -50"
+                    className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                   />
                 </label>
                 <button
                   type="submit"
                   className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
                 >
-                  Schedule
+                  Apply
+                </button>
+              </form>
+            )}
+            {source.type === "fund" && (
+              <p className="border-t border-border pt-3 text-xs text-muted">
+                Balance is managed on the linked fund below.
+              </p>
+            )}
+          </div>
+        ))}
+        {sources.length === 0 && (
+          <p className="text-sm text-muted">No sources yet — create one below.</p>
+        )}
+      </div>
+
+      <CreateSourceForm funds={funds.map((f) => ({ id: f.id, name: f.name }))} />
+
+      <div className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Funds</h2>
+          <p className="mt-1 text-sm text-muted">
+            Sinking funds that Fund-type sources draw from — e.g. a Travel Fund a
+            transaction can be paid out of.
+          </p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          {funds.map((fund) => (
+            <div
+              key={fund.id}
+              className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 shadow-sm"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-medium">{fund.name}</p>
+                  <p
+                    className={`mt-1 text-lg font-semibold ${
+                      fund.balance < 0 ? "text-negative" : ""
+                    }`}
+                  >
+                    {formatMoney(fund.balance, decimalPlaces)}
+                  </p>
+                </div>
+                <form action={archiveFund.bind(null, fund.id)}>
+                  <button
+                    type="submit"
+                    className="rounded-md border border-border px-2 py-1 text-xs text-negative hover:bg-background"
+                  >
+                    Archive
+                  </button>
+                </form>
+              </div>
+
+              <form
+                action={adjustFundBalance.bind(null, fund.id)}
+                className="flex items-end gap-2 border-t border-border pt-3"
+              >
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Adjust balance
+                  <input
+                    type="number"
+                    name="amount"
+                    step="0.01"
+                    placeholder="e.g. 800 or -50"
+                    className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
+                >
+                  Apply
                 </button>
               </form>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+          {funds.length === 0 && (
+            <p className="text-sm text-muted">No funds yet — create one below.</p>
+          )}
+        </div>
 
-      <form
-        action={createSource}
-        className="flex max-w-2xl flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
-      >
-        <label className="flex flex-col gap-1 text-sm">
-          New source name
-          <input
-            type="text"
-            name="name"
-            required
-            placeholder="e.g. Advance, Reimbursement"
-            className="w-44 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Type
-          <select
-            name="type"
-            defaultValue="general"
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-          >
-            {Object.entries(TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Starting balance
-          <input
-            type="number"
-            name="balance"
-            step="0.01"
-            defaultValue={0}
-            className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </label>
-        <label className="flex items-center gap-1.5 pb-2 text-sm text-muted">
-          <input type="checkbox" name="is_reimbursement" />
-          Reimbursement-style
-        </label>
-        <button
-          type="submit"
-          className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface"
+        <form
+          action={createFund}
+          className="flex max-w-lg flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
         >
-          Create
-        </button>
-      </form>
+          <label className="flex flex-col gap-1 text-sm">
+            New fund name
+            <input
+              type="text"
+              name="name"
+              required
+              placeholder="e.g. Travel Fund"
+              className="w-44 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Starting balance
+            <input
+              type="number"
+              name="balance"
+              step="0.01"
+              defaultValue={0}
+              className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface"
+          >
+            Create
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

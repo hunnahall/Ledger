@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/queries/settings";
 import { formatMoney } from "@/lib/format";
+import { computeProgress } from "@/lib/progress";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 export default async function DashboardPage() {
   const [data, settings] = await Promise.all([getDashboardData(), getSettings()]);
@@ -57,11 +59,7 @@ export default async function DashboardPage() {
           )}
           <div className="flex flex-col gap-3">
             {data.categorySpending.map((c) => {
-              const pct =
-                c.monthly_amount > 0
-                  ? Math.max(0, Math.min(100, Math.round((c.spent / c.monthly_amount) * 100)))
-                  : 0;
-              const over = c.spent > c.monthly_amount && c.monthly_amount > 0;
+              const { over } = computeProgress({ total: c.monthly_amount, spent: c.spent });
               return (
                 <div key={c.id}>
                   <div className="flex justify-between text-sm">
@@ -70,11 +68,8 @@ export default async function DashboardPage() {
                       {money(c.spent)} / {money(c.monthly_amount)}
                     </span>
                   </div>
-                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-background">
-                    <div
-                      className={`h-full ${over ? "bg-negative" : "bg-foreground"}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                  <div className="mt-1">
+                    <ProgressBar total={c.monthly_amount} spent={c.spent} />
                   </div>
                 </div>
               );

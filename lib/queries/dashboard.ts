@@ -1,9 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-
-function currentMonthISO() {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
-}
+import { currentMonthISO } from "@/lib/dates";
+import { spentFromRawAmount } from "@/lib/progress";
 
 export async function getDashboardData() {
   const supabase = await createClient();
@@ -38,11 +35,8 @@ export async function getDashboardData() {
     categories = data ?? [];
   }
 
-  // v_spending_by_category.amount is the raw signed sum (negative = money
-  // out), but "spent" should read as a positive magnitude for comparison
-  // against monthly_amount and for display.
   const spendingByCategory = new Map(
-    (spending ?? []).map((s) => [s.category_id, -(s.amount ?? 0)]),
+    (spending ?? []).map((s) => [s.category_id, spentFromRawAmount(s.amount)]),
   );
 
   const categorySpending = categories.map((c) => ({

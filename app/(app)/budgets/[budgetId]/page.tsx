@@ -7,6 +7,9 @@ import {
   updateCategory,
 } from "@/lib/actions/categories";
 import { renameBudget } from "@/lib/actions/budgets";
+import { getSettings } from "@/lib/queries/settings";
+import { formatMoney } from "@/lib/format";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 export default async function BudgetDetailPage({
   params,
@@ -14,7 +17,11 @@ export default async function BudgetDetailPage({
   params: Promise<{ budgetId: string }>;
 }) {
   const { budgetId } = await params;
-  const { budget, categories } = await getBudgetWithCategories(budgetId);
+  const [{ budget, categories }, settings] = await Promise.all([
+    getBudgetWithCategories(budgetId),
+    getSettings(),
+  ]);
+  const decimalPlaces = settings.decimal_places;
 
   if (!budget) notFound();
 
@@ -110,6 +117,19 @@ export default async function BudgetDetailPage({
                       Archive
                     </button>
                   </form>
+                  <div className="mt-2 max-w-sm">
+                    <div className="flex justify-between text-xs">
+                      <span className={category.over ? "text-negative" : "text-muted"}>
+                        {formatMoney(category.spent, decimalPlaces)} spent
+                      </span>
+                      <span className="text-muted">
+                        {formatMoney(category.remaining, decimalPlaces)} remaining
+                      </span>
+                    </div>
+                    <div className="mt-1">
+                      <ProgressBar total={category.monthly_amount} spent={category.spent} />
+                    </div>
+                  </div>
                 </td>
               </tr>
             ))}

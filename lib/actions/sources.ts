@@ -3,22 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
-const SOURCE_TYPES = [
-  "general",
-  "current_budget",
-  "advance",
-  "reimbursement",
-  "sinking_fund",
-] as const;
+import { validateSourceInput } from "@/lib/sources/validate-source";
 
 export async function createSource(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  const type = String(formData.get("type") ?? "general");
-  const isReimbursement = formData.get("is_reimbursement") === "on";
-  const balance = Number(formData.get("balance") ?? 0);
+  const type = String(formData.get("type") ?? "budget");
+  const startingBalance = Number(formData.get("balance") ?? 0);
+  const depositDateInput = String(formData.get("deposit_date") ?? "").trim();
+  const fundIds = formData.getAll("fund_ids").map(String).filter(Boolean);
   if (!name) return;
-  if (!SOURCE_TYPES.includes(type as (typeof SOURCE_TYPES)[number])) return;
+
+  const depositDate =
+    type === "past_payment" || type === "future_repayment" ? depositDateInput || null : null;
+
+  const validation = validateSourceInput({ type, fundIds, depositDate });
+  if (!validation.ok) throw new Error(validation.error);
 
   const supabase = await createClient();
   const {
@@ -26,14 +25,27 @@ export async function createSource(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { error } = await supabase.from("sources").insert({
-    user_id: user.id,
-    name,
-    type,
-    is_reimbursement: isReimbursement,
-    balance,
-  });
+  const { data: source, error } = await supabase
+    .from("sources")
+    .insert({
+      user_id: user.id,
+      name,
+      type,
+      balance: startingBalance,
+      deposit_date: depositDate,
+    })
+    .select("id")
+    .single();
   if (error) throw new Error(error.message);
+
+  if (type === "fund") {
+    const { error: linkError } = await supabase.from("source_funds").insert({
+      user_id: user.id,
+      source_id: source.id,
+      fund_id: fundIds[0],
+    });
+    if (linkError) throw new Error(linkError.message);
+  }
 
   revalidatePath("/sources");
 }
@@ -49,12 +61,32 @@ export async function archiveSource(sourceId: string) {
   revalidatePath("/sources");
 }
 
-export async function createContribution(sourceId: string, formData: FormData) {
+export async function adjustSourceBalance(sourceId: string, formData: FormData) {
   const amount = Number(formData.get("amount") ?? 0);
-  const targetMonthInput = String(formData.get("target_month") ?? "");
-  if (!amount || !targetMonthInput) return;
+  if (!amount) return;
 
-  const targetMonth = `${targetMonthInput}-01`;
+  const supabase = await createClient();
+  const { data: source, error: fetchError } = await supabase
+    .from("sources")
+    .select("balance")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!source) throw new Error("Source not found.");
+
+  const { error } = await supabase
+    .from("sources")
+    .update({ balance: source.balance + amount })
+    .eq("id", sourceId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/sources");
+}
+
+export async function createFund(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const startingBalance = Number(formData.get("balance") ?? 0);
+  if (!name) return;
 
   const supabase = await createClient();
   const {
@@ -62,37 +94,44 @@ export async function createContribution(sourceId: string, formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { error } = await supabase.from("source_contributions").insert({
+  const { error } = await supabase.from("funds").insert({
     user_id: user.id,
-    source_id: sourceId,
-    amount,
-    target_month: targetMonth,
+    name,
+    balance: startingBalance,
   });
   if (error) throw new Error(error.message);
 
   revalidatePath("/sources");
 }
 
-export async function togglePullForward(
-  contributionId: string,
-  currentlyPulled: boolean,
-) {
+export async function archiveFund(fundId: string) {
   const supabase = await createClient();
   const { error } = await supabase
-    .from("source_contributions")
-    .update({ pulled_forward: !currentlyPulled })
-    .eq("id", contributionId);
+    .from("funds")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", fundId);
   if (error) throw new Error(error.message);
 
   revalidatePath("/sources");
 }
 
-export async function deleteContribution(contributionId: string) {
+export async function adjustFundBalance(fundId: string, formData: FormData) {
+  const amount = Number(formData.get("amount") ?? 0);
+  if (!amount) return;
+
   const supabase = await createClient();
+  const { data: fund, error: fetchError } = await supabase
+    .from("funds")
+    .select("balance")
+    .eq("id", fundId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!fund) throw new Error("Fund not found.");
+
   const { error } = await supabase
-    .from("source_contributions")
-    .delete()
-    .eq("id", contributionId);
+    .from("funds")
+    .update({ balance: fund.balance + amount })
+    .eq("id", fundId);
   if (error) throw new Error(error.message);
 
   revalidatePath("/sources");

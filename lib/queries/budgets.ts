@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { currentMonthISO } from "@/lib/dates";
+import { computeProgress, spentFromRawAmount } from "@/lib/progress";
 
 export async function getBudgets() {
   const supabase = await createClient();
@@ -23,21 +25,39 @@ export async function getCurrentBudget() {
 
 export async function getBudgetWithCategories(budgetId: string) {
   const supabase = await createClient();
-  const [{ data: budget, error: budgetError }, { data: categories, error: categoriesError }] =
-    await Promise.all([
-      // maybeSingle (not single): a missing or not-owned budget should
-      // resolve to null so the page can render a clean 404, not throw.
-      supabase.from("budgets").select("*").eq("id", budgetId).maybeSingle(),
-      supabase
-        .from("categories")
-        .select("*")
-        .eq("budget_id", budgetId)
-        .is("archived_at", null)
-        .order("sort_order", { ascending: true }),
-    ]);
+  const month = currentMonthISO();
+  const [
+    { data: budget, error: budgetError },
+    { data: categories, error: categoriesError },
+    { data: spending, error: spendingError },
+  ] = await Promise.all([
+    // maybeSingle (not single): a missing or not-owned budget should
+    // resolve to null so the page can render a clean 404, not throw.
+    supabase.from("budgets").select("*").eq("id", budgetId).maybeSingle(),
+    supabase
+      .from("categories")
+      .select("*")
+      .eq("budget_id", budgetId)
+      .is("archived_at", null)
+      .order("sort_order", { ascending: true }),
+    supabase.from("v_spending_by_category").select("*").eq("month", month),
+  ]);
 
   if (budgetError) throw new Error(budgetError.message);
   if (categoriesError) throw new Error(categoriesError.message);
+  if (spendingError) throw new Error(spendingError.message);
 
-  return { budget, categories: categories ?? [] };
+  const spendingByCategory = new Map(
+    (spending ?? []).map((s) => [s.category_id, spentFromRawAmount(s.amount)]),
+  );
+
+  const categoriesWithProgress = (categories ?? []).map((category) => ({
+    ...category,
+    ...computeProgress({
+      total: category.monthly_amount,
+      spent: spendingByCategory.get(category.id) ?? 0,
+    }),
+  }));
+
+  return { budget, categories: categoriesWithProgress };
 }
