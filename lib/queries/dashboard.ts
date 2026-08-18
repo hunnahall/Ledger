@@ -2,13 +2,18 @@ import { createClient } from "@/lib/supabase/server";
 import { currentMonthISO } from "@/lib/dates";
 import { spentFromRawAmount } from "@/lib/progress";
 import { computeDashboardTotals } from "@/lib/dashboard-metrics";
+import { getCurrentBudget } from "@/lib/queries/budgets";
 
 export async function getDashboardData() {
   const supabase = await createClient();
   const month = currentMonthISO();
 
+  // Awaited first, not folded into the Promise.all below: it resets the
+  // current budget's linked source balance for the month if due, and
+  // v_source_balances/v_outflow_by_bucket must see that write.
+  const currentBudget = await getCurrentBudget();
+
   const [
-    { data: currentBudget },
     { data: spending },
     { data: inflowOutflow },
     { data: outflowByBucket },
@@ -16,7 +21,6 @@ export async function getDashboardData() {
     { data: sourceBalances },
     { data: reimbursementsPending },
   ] = await Promise.all([
-    supabase.from("budgets").select("id, name").eq("is_current", true).maybeSingle(),
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
     supabase.from("v_outflow_by_bucket").select("*").eq("month", month),

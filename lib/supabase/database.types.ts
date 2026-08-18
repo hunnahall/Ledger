@@ -286,6 +286,7 @@ export type Database = {
           archived_at: string | null
           balance: number
           budget_id: string | null
+          budget_period_start: string | null
           created_at: string
           deposit_date: string | null
           id: string
@@ -298,6 +299,7 @@ export type Database = {
           archived_at?: string | null
           balance?: number
           budget_id?: string | null
+          budget_period_start?: string | null
           created_at?: string
           deposit_date?: string | null
           id?: string
@@ -310,6 +312,7 @@ export type Database = {
           archived_at?: string | null
           balance?: number
           budget_id?: string | null
+          budget_period_start?: string | null
           created_at?: string
           deposit_date?: string | null
           id?: string
@@ -737,6 +740,10 @@ export type Database = {
     Functions: {
       delete_bank_connection: {
         Args: { p_connection_id: string }
+        Returns: undefined
+      }
+      ensure_budget_source_current: {
+        Args: { p_budget_id: string }
         Returns: undefined
       }
       get_bank_connection_access_url: {

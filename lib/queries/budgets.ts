@@ -20,6 +20,18 @@ export async function getCurrentBudget() {
     .eq("is_current", true)
     .maybeSingle();
   if (error) throw new Error(error.message);
+
+  // Resets the current budget's linked source to this month's total
+  // budgeted amount the first time it's touched each month (no-op once
+  // already reset). Every page that displays that balance goes through
+  // this function, so this is the one place that needs to call it.
+  if (data) {
+    const { error: rpcError } = await supabase.rpc("ensure_budget_source_current", {
+      p_budget_id: data.id,
+    });
+    if (rpcError) throw new Error(rpcError.message);
+  }
+
   return data;
 }
 

@@ -103,11 +103,14 @@ function SourceCard({
 }
 
 export default async function SourcesPage() {
-  const [sources, funds, settings, currentBudget] = await Promise.all([
+  // Awaited first, not in the Promise.all below: it resets the current
+  // budget's linked source balance for the month if due, and
+  // getSourcesWithBalance must see that write.
+  const currentBudget = await getCurrentBudget();
+  const [sources, funds, settings] = await Promise.all([
     getSourcesWithBalance(),
     getFunds(),
     getSettings(),
-    getCurrentBudget(),
   ]);
   const decimalPlaces = settings.decimal_places;
   const grouped = groupSourcesByType(sources);
