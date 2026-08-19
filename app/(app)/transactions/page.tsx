@@ -13,6 +13,7 @@ import {
   saveSplits,
 } from "@/lib/actions/transactions";
 import { formatMoney } from "@/lib/format";
+import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 
 type SearchParams = {
   date_from?: string;
@@ -57,6 +58,12 @@ export default async function TransactionsPage({
     getSettings(),
   ]);
   const decimalPlaces = settings.decimal_places;
+
+  const bucketOptions = [
+    ...filterOptions.sources.map((s) => ({ value: encodeBucketOption({ type: "source", id: s.id }), label: s.name })),
+    ...filterOptions.funds.map((f) => ({ value: encodeBucketOption({ type: "fund", id: f.id }), label: `${f.name} (fund)` })),
+  ];
+  const bucketNameByValue = new Map(bucketOptions.map((b) => [b.value, b.label]));
 
   const splits = await getTransactionSplits(transactions.map((t) => t.id));
   const splitsByTransaction = new Map<string, typeof splits>();
@@ -241,12 +248,47 @@ export default async function TransactionsPage({
             Source
             <select
               name="source_id"
+              defaultValue={filterOptions.defaultSourceId ?? ""}
               className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
             >
               <option value="">No source</option>
               {filterOptions.sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 pb-2 text-xs text-muted">
+            <input type="checkbox" name="is_transfer" />
+            Transfer
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Transfer from (optional)
+            <select
+              name="transfer_from"
+              defaultValue=""
+              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">None</option>
+              {bucketOptions.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Transfer to (optional)
+            <select
+              name="transfer_to"
+              defaultValue=""
+              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">None</option>
+              {bucketOptions.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
                 </option>
               ))}
             </select>
@@ -265,6 +307,16 @@ export default async function TransactionsPage({
         <div className="flex flex-col gap-3">
           {transactions.map((txn) => {
             const txnSplits = splitsByTransaction.get(txn.id) ?? [];
+            const currentTransferFrom = txn.transfer_from_source_id
+              ? encodeBucketOption({ type: "source", id: txn.transfer_from_source_id })
+              : txn.transfer_from_fund_id
+                ? encodeBucketOption({ type: "fund", id: txn.transfer_from_fund_id })
+                : "";
+            const currentTransferTo = txn.transfer_to_source_id
+              ? encodeBucketOption({ type: "source", id: txn.transfer_to_source_id })
+              : txn.transfer_to_fund_id
+                ? encodeBucketOption({ type: "fund", id: txn.transfer_to_fund_id })
+                : "";
             return (
               <div
                 key={`${txn.id}-${txn.updated_at}`}
@@ -326,6 +378,30 @@ export default async function TransactionsPage({
                     />
                     Transfer
                   </label>
+                  <select
+                    name="transfer_from"
+                    defaultValue={currentTransferFrom}
+                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                  >
+                    <option value="">Transfer from&hellip;</option>
+                    {bucketOptions.map((b) => (
+                      <option key={b.value} value={b.value}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    name="transfer_to"
+                    defaultValue={currentTransferTo}
+                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                  >
+                    <option value="">Transfer to&hellip;</option>
+                    {bucketOptions.map((b) => (
+                      <option key={b.value} value={b.value}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </select>
                   <label className="flex items-center gap-1.5 text-xs text-muted">
                     <input
                       type="checkbox"
@@ -357,6 +433,13 @@ export default async function TransactionsPage({
                     </button>
                   )}
                 </form>
+                {txn.is_transfer && (currentTransferFrom || currentTransferTo) && (
+                  <p className="mt-2 text-xs text-muted">
+                    Transfer: {formatMoney(Math.abs(txn.amount), decimalPlaces)}{" "}
+                    {bucketNameByValue.get(currentTransferFrom) ?? "outside"} &rarr;{" "}
+                    {bucketNameByValue.get(currentTransferTo) ?? "outside"}
+                  </p>
+                )}
 
                 <details className="mt-3">
                   <summary className="cursor-pointer text-xs text-muted">

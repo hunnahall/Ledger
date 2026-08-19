@@ -5,9 +5,11 @@ import { getCurrentBudget } from "@/lib/queries/budgets";
 import {
   archiveSource,
   adjustSourceBalance,
+  setSourceBalance,
   createFund,
   archiveFund,
   adjustFundBalance,
+  setFundBalance,
 } from "@/lib/actions/sources";
 import { CreateSourceForm } from "@/components/sources/create-source-form";
 import { formatMoney, formatDate } from "@/lib/format";
@@ -71,27 +73,50 @@ function SourceCard({
       </div>
 
       {source.type !== "fund" && (
-        <form
-          action={adjustSourceBalance.bind(null, source.id)}
-          className="flex items-end gap-2 border-t border-border pt-3"
-        >
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Adjust balance
-            <input
-              type="number"
-              name="amount"
-              step="0.01"
-              placeholder="e.g. 800 or -50"
-              className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
+        <div className="flex flex-wrap items-end gap-4 border-t border-border pt-3">
+          <form
+            action={adjustSourceBalance.bind(null, source.id)}
+            className="flex items-end gap-2"
           >
-            Apply
-          </button>
-        </form>
+            <label className="flex flex-col gap-1 text-xs text-muted">
+              Adjust balance by
+              <input
+                type="number"
+                name="amount"
+                step="0.01"
+                placeholder="e.g. 800 or -50"
+                className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
+            >
+              Apply
+            </button>
+          </form>
+          <form
+            action={setSourceBalance.bind(null, source.id)}
+            className="flex items-end gap-2"
+          >
+            <label className="flex flex-col gap-1 text-xs text-muted">
+              Adjust balance to
+              <input
+                type="number"
+                name="amount"
+                step="0.01"
+                placeholder="e.g. 1000"
+                className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
+            >
+              Apply
+            </button>
+          </form>
+        </div>
       )}
       {source.type === "fund" && (
         <p className="border-t border-border pt-3 text-xs text-muted">
@@ -234,27 +259,50 @@ export default async function SourcesPage() {
                 </form>
               </div>
 
-              <form
-                action={adjustFundBalance.bind(null, fund.id)}
-                className="flex items-end gap-2 border-t border-border pt-3"
-              >
-                <label className="flex flex-col gap-1 text-xs text-muted">
-                  Adjust balance
-                  <input
-                    type="number"
-                    name="amount"
-                    step="0.01"
-                    placeholder="e.g. 800 or -50"
-                    className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
+              <div className="flex flex-wrap items-end gap-4 border-t border-border pt-3">
+                <form
+                  action={adjustFundBalance.bind(null, fund.id)}
+                  className="flex items-end gap-2"
                 >
-                  Apply
-                </button>
-              </form>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Adjust balance by
+                    <input
+                      type="number"
+                      name="amount"
+                      step="0.01"
+                      placeholder="e.g. 800 or -50"
+                      className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
+                  >
+                    Apply
+                  </button>
+                </form>
+                <form
+                  action={setFundBalance.bind(null, fund.id)}
+                  className="flex items-end gap-2"
+                >
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Adjust balance to
+                    <input
+                      type="number"
+                      name="amount"
+                      step="0.01"
+                      placeholder="e.g. 1000"
+                      className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
+                  >
+                    Apply
+                  </button>
+                </form>
+              </div>
             </div>
           ))}
           {funds.length === 0 && <p className="text-sm text-muted">No funds yet.</p>}

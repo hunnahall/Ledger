@@ -20,6 +20,7 @@ export async function getDashboardData() {
     { data: accountBalances },
     { data: sourceBalances },
     { data: reimbursementsPending },
+    { data: funds },
   ] = await Promise.all([
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
@@ -27,6 +28,7 @@ export async function getDashboardData() {
     supabase.from("v_account_balances").select("*"),
     supabase.from("v_source_balances").select("*"),
     supabase.from("v_reimbursements_pending").select("*"),
+    supabase.from("funds").select("id, name, balance").is("archived_at", null).order("name"),
   ]);
 
   let categories: { id: string; name: string; monthly_amount: number }[] = [];
@@ -61,7 +63,7 @@ export async function getDashboardData() {
       otherOutflowRaw,
     }),
     accountBalances: accountBalances ?? [],
-    sourceBalances: sourceBalances ?? [],
+    sourceBalances: [...(sourceBalances ?? []), ...(funds ?? [])],
     reimbursementsPending: reimbursementsPending ?? [],
   };
 }

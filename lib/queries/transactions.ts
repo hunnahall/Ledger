@@ -13,7 +13,7 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   const supabase = await createClient();
   let query = supabase
     .from("transactions")
-    .select("*, accounts(account_name), categories(name), sources(name)")
+    .select("*, accounts(account_name), categories(name), sources!source_id(name)")
     .order("posted_date", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -44,20 +44,31 @@ export async function getTransactionSplits(transactionIds: string[]) {
 
 export async function getFilterOptions() {
   const supabase = await createClient();
-  const [{ data: accounts }, { data: budget }] = await Promise.all([
+  const [{ data: accounts }, { data: budget }, { data: funds }] = await Promise.all([
     supabase.from("accounts").select("id, account_name").order("account_name"),
     supabase.from("budgets").select("id").eq("is_current", true).maybeSingle(),
+    supabase.from("funds").select("id, name").is("archived_at", null).order("name"),
   ]);
 
   let categories: { id: string; name: string }[] = [];
+  let defaultSourceId: string | null = null;
   if (budget) {
-    const { data } = await supabase
-      .from("categories")
-      .select("id, name")
-      .eq("budget_id", budget.id)
-      .is("archived_at", null)
-      .order("sort_order");
-    categories = data ?? [];
+    const [{ data: categoryData }, { data: budgetSource }] = await Promise.all([
+      supabase
+        .from("categories")
+        .select("id, name")
+        .eq("budget_id", budget.id)
+        .is("archived_at", null)
+        .order("sort_order"),
+      supabase
+        .from("sources")
+        .select("id")
+        .eq("budget_id", budget.id)
+        .eq("type", "budget")
+        .maybeSingle(),
+    ]);
+    categories = categoryData ?? [];
+    defaultSourceId = budgetSource?.id ?? null;
   }
 
   const { data: sources } = await supabase
@@ -70,5 +81,7 @@ export async function getFilterOptions() {
     accounts: accounts ?? [],
     categories,
     sources: sources ?? [],
+    funds: funds ?? [],
+    defaultSourceId,
   };
 }

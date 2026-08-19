@@ -14,7 +14,6 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Ledger",
-  description: "A source for every swipe.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -87,6 +87,20 @@ export async function adjustSourceBalance(sourceId: string, formData: FormData) 
   revalidatePath("/sources");
 }
 
+export async function setSourceBalance(sourceId: string, formData: FormData) {
+  const amount = formData.get("amount");
+  if (amount === null || amount === "") return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("sources")
+    .update({ balance: Number(amount) })
+    .eq("id", sourceId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/sources");
+}
+
 export async function createFund(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const startingBalance = Number(formData.get("balance") ?? 0);
@@ -135,6 +149,20 @@ export async function adjustFundBalance(fundId: string, formData: FormData) {
   const { error } = await supabase
     .from("funds")
     .update({ balance: fund.balance + amount })
+    .eq("id", fundId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/sources");
+}
+
+export async function setFundBalance(fundId: string, formData: FormData) {
+  const amount = formData.get("amount");
+  if (amount === null || amount === "") return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("funds")
+    .update({ balance: Number(amount) })
     .eq("id", fundId);
   if (error) throw new Error(error.message);
 

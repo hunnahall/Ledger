@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { currentMonthISO } from "@/lib/dates";
 import { computeProgress, spentFromRawAmount } from "@/lib/progress";
+import { monthlySinkingAmount, type SinkingFrequency } from "@/lib/budgets/sinking";
 
 export async function getBudgets() {
   const supabase = await createClient();
@@ -42,6 +43,7 @@ export async function getBudgetWithCategories(budgetId: string) {
     { data: budget, error: budgetError },
     { data: categories, error: categoriesError },
     { data: spending, error: spendingError },
+    { data: sinkingExpenses, error: sinkingError },
   ] = await Promise.all([
     // maybeSingle (not single): a missing or not-owned budget should
     // resolve to null so the page can render a clean 404, not throw.
@@ -53,11 +55,18 @@ export async function getBudgetWithCategories(budgetId: string) {
       .is("archived_at", null)
       .order("sort_order", { ascending: true }),
     supabase.from("v_spending_by_category").select("*").eq("month", month),
+    supabase
+      .from("sinking_expenses")
+      .select("*")
+      .eq("budget_id", budgetId)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (budgetError) throw new Error(budgetError.message);
   if (categoriesError) throw new Error(categoriesError.message);
   if (spendingError) throw new Error(spendingError.message);
+  if (sinkingError) throw new Error(sinkingError.message);
 
   const spendingByCategory = new Map(
     (spending ?? []).map((s) => [s.category_id, spentFromRawAmount(s.amount)]),
@@ -71,5 +80,10 @@ export async function getBudgetWithCategories(budgetId: string) {
     }),
   }));
 
-  return { budget, categories: categoriesWithProgress };
+  const sinkingExpensesWithMonthly = (sinkingExpenses ?? []).map((expense) => ({
+    ...expense,
+    monthly_amount: monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency),
+  }));
+
+  return { budget, categories: categoriesWithProgress, sinkingExpenses: sinkingExpensesWithMonthly };
 }

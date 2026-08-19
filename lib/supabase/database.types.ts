@@ -228,6 +228,60 @@ export type Database = {
         }
         Relationships: []
       }
+      sinking_expenses: {
+        Row: {
+          amount: number
+          archived_at: string | null
+          budget_id: string
+          created_at: string
+          frequency: string
+          fund_id: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          archived_at?: string | null
+          budget_id: string
+          created_at?: string
+          frequency?: string
+          fund_id?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          archived_at?: string | null
+          budget_id?: string
+          created_at?: string
+          frequency?: string
+          fund_id?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sinking_expenses_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sinking_expenses_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "funds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       source_funds: {
         Row: {
           created_at: string
@@ -484,6 +538,10 @@ export type Database = {
           provider_transaction_id: string | null
           source_id: string | null
           status: string
+          transfer_from_fund_id: string | null
+          transfer_from_source_id: string | null
+          transfer_to_fund_id: string | null
+          transfer_to_source_id: string | null
           updated_at: string
           user_id: string
         }
@@ -503,6 +561,10 @@ export type Database = {
           provider_transaction_id?: string | null
           source_id?: string | null
           status?: string
+          transfer_from_fund_id?: string | null
+          transfer_from_source_id?: string | null
+          transfer_to_fund_id?: string | null
+          transfer_to_source_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -522,6 +584,10 @@ export type Database = {
           provider_transaction_id?: string | null
           source_id?: string | null
           status?: string
+          transfer_from_fund_id?: string | null
+          transfer_from_source_id?: string | null
+          transfer_to_fund_id?: string | null
+          transfer_to_source_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -564,6 +630,62 @@ export type Database = {
           {
             foreignKeyName: "transactions_source_id_fkey"
             columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "v_source_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_from_fund_id_fkey"
+            columns: ["transfer_from_fund_id"]
+            isOneToOne: false
+            referencedRelation: "funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_from_source_id_fkey"
+            columns: ["transfer_from_source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_from_source_id_fkey"
+            columns: ["transfer_from_source_id"]
+            isOneToOne: false
+            referencedRelation: "v_reimbursements_pending"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_from_source_id_fkey"
+            columns: ["transfer_from_source_id"]
+            isOneToOne: false
+            referencedRelation: "v_source_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_to_fund_id_fkey"
+            columns: ["transfer_to_fund_id"]
+            isOneToOne: false
+            referencedRelation: "funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_to_source_id_fkey"
+            columns: ["transfer_to_source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_to_source_id_fkey"
+            columns: ["transfer_to_source_id"]
+            isOneToOne: false
+            referencedRelation: "v_reimbursements_pending"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_to_source_id_fkey"
+            columns: ["transfer_to_source_id"]
             isOneToOne: false
             referencedRelation: "v_source_balances"
             referencedColumns: ["id"]

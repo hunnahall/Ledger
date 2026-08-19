@@ -9,7 +9,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
             <p className="text-lg font-semibold tracking-tight">Ledger</p>
-            <p className="text-xs text-muted">A source for every swipe.</p>
           </div>
           <nav className="flex items-center gap-1">
             {NAV_LINKS.map((link) => (

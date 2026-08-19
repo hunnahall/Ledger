@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
+import { decodeBucketOption } from "@/lib/transactions/bucket-option";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -50,6 +51,9 @@ export async function createManualTransaction(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const sourceId = String(formData.get("source_id") ?? "") || null;
+  const isTransfer = formData.get("is_transfer") === "on";
+  const transferFrom = decodeBucketOption(formData.get("transfer_from"));
+  const transferTo = decodeBucketOption(formData.get("transfer_to"));
 
   if (!accountId || !postedDate || !description || Number.isNaN(amount)) return;
 
@@ -61,10 +65,13 @@ export async function createManualTransaction(formData: FormData) {
 
   const merchantNormalized = normalizeMerchant(description);
 
-  let resolvedCategoryId = categoryId;
-  let resolvedSourceId = sourceId;
+  let resolvedCategoryId = isTransfer ? null : categoryId;
+  // A transfer's two buckets are synced by transactions_sync_transfer_balance
+  // off transfer_from/to_*; also setting source_id would double-apply this
+  // transaction's amount through the plain transactions_sync_balance trigger.
+  let resolvedSourceId = isTransfer ? null : sourceId;
 
-  if (!resolvedCategoryId && merchantNormalized) {
+  if (!isTransfer && !resolvedCategoryId && merchantNormalized) {
     const { data: rule } = await supabase
       .from("vendor_category_rules")
       .select("category_id, source_id")
@@ -86,6 +93,11 @@ export async function createManualTransaction(formData: FormData) {
     merchant_normalized: merchantNormalized,
     category_id: resolvedCategoryId,
     source_id: resolvedSourceId,
+    is_transfer: isTransfer,
+    transfer_from_source_id: transferFrom?.type === "source" ? transferFrom.id : null,
+    transfer_from_fund_id: transferFrom?.type === "fund" ? transferFrom.id : null,
+    transfer_to_source_id: transferTo?.type === "source" ? transferTo.id : null,
+    transfer_to_fund_id: transferTo?.type === "fund" ? transferTo.id : null,
   });
   if (error) throw new Error(error.message);
 
@@ -94,6 +106,8 @@ export async function createManualTransaction(formData: FormData) {
   }
 
   revalidatePath("/transactions");
+  revalidatePath("/sources");
+  revalidatePath("/dashboard");
 }
 
 export async function assignTransaction(transactionId: string, formData: FormData) {
@@ -102,6 +116,8 @@ export async function assignTransaction(transactionId: string, formData: FormDat
   const isTransfer = formData.get("is_transfer") === "on";
   const excludeFromBudget = formData.get("exclude_from_budget") === "on";
   const notes = String(formData.get("notes") ?? "") || null;
+  const transferFrom = decodeBucketOption(formData.get("transfer_from"));
+  const transferTo = decodeBucketOption(formData.get("transfer_to"));
 
   const supabase = await createClient();
   const {
@@ -121,10 +137,17 @@ export async function assignTransaction(transactionId: string, formData: FormDat
     .from("transactions")
     .update({
       category_id: isTransfer ? null : categoryId,
-      source_id: sourceId,
+      // See createManualTransaction: a transfer's buckets are synced via
+      // transfer_from/to_*, so source_id must stay null to avoid double-
+      // applying this transaction's amount through the plain sync trigger.
+      source_id: isTransfer ? null : sourceId,
       is_transfer: isTransfer,
       exclude_from_budget: excludeFromBudget,
       notes,
+      transfer_from_source_id: isTransfer && transferFrom?.type === "source" ? transferFrom.id : null,
+      transfer_from_fund_id: isTransfer && transferFrom?.type === "fund" ? transferFrom.id : null,
+      transfer_to_source_id: isTransfer && transferTo?.type === "source" ? transferTo.id : null,
+      transfer_to_fund_id: isTransfer && transferTo?.type === "fund" ? transferTo.id : null,
     })
     .eq("id", transactionId);
   if (error) throw new Error(error.message);
@@ -134,6 +157,8 @@ export async function assignTransaction(transactionId: string, formData: FormDat
   }
 
   revalidatePath("/transactions");
+  revalidatePath("/sources");
+  revalidatePath("/dashboard");
 }
 
 export async function deleteTransaction(transactionId: string) {

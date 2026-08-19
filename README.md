@@ -1,7 +1,5 @@
 # Ledger
 
-_A source for every swipe._
-
 A personal budgeting app: every transaction gets a **Category** (what it is) and a **Source** (what pays for it). Supports monthly budgets, sinking funds, present/future source balances, and bank sync via SimpleFin.
 
 ## Stack
