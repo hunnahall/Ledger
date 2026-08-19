@@ -14,6 +14,9 @@ import {
 } from "@/lib/actions/transactions";
 import { formatMoney } from "@/lib/format";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Money } from "@/components/ui/money";
 
 type SearchParams = {
   date_from?: string;
@@ -91,10 +94,10 @@ export default async function TransactionsPage({
       </div>
 
       <section className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Filters</p>
+        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Filters</p>
         <form
           method="get"
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
+          className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
         >
           <label className="flex flex-col gap-1 text-xs text-muted">
             From
@@ -167,12 +170,9 @@ export default async function TransactionsPage({
             />
             Uncategorized only
           </label>
-          <button
-            type="submit"
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
-          >
+          <Button type="submit" size="sm">
             Filter
-          </button>
+          </Button>
           <a href="/transactions" className="text-sm text-muted hover:underline">
             Clear
           </a>
@@ -180,12 +180,12 @@ export default async function TransactionsPage({
       </section>
 
       <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">
           Manual transactions
         </p>
         <form
           action={createManualTransaction}
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
+          className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
         >
           <label className="flex flex-col gap-1 text-xs text-muted">
             Date
@@ -293,17 +293,14 @@ export default async function TransactionsPage({
               ))}
             </select>
           </label>
-          <button
-            type="submit"
-            className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface"
-          >
+          <Button type="submit" variant="primary">
             Add
-          </button>
+          </Button>
         </form>
       </section>
 
       <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
+        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
         <div className="flex flex-col gap-3">
           {transactions.map((txn) => {
             const txnSplits = splitsByTransaction.get(txn.id) ?? [];
@@ -320,7 +317,7 @@ export default async function TransactionsPage({
             return (
               <div
                 key={`${txn.id}-${txn.updated_at}`}
-                className="rounded-lg border border-border bg-surface p-4 shadow-sm"
+                className="rounded-lg border border-border bg-surface p-4"
               >
                 <form
                   action={assignTransaction.bind(null, txn.id)}
@@ -344,7 +341,7 @@ export default async function TransactionsPage({
                       txn.amount < 0 ? "text-negative" : "text-positive"
                     }`}
                   >
-                    {formatMoney(txn.amount, decimalPlaces)}
+                    <Money amount={txn.amount} decimalPlaces={decimalPlaces} />
                   </div>
                   <select
                     name="category_id"
@@ -417,20 +414,18 @@ export default async function TransactionsPage({
                     placeholder="Notes"
                     className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                   />
-                  <button
-                    type="submit"
-                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
-                  >
+                  <Button type="submit" size="sm">
                     Save
-                  </button>
+                  </Button>
                   {!txn.provider_transaction_id && (
-                    <button
+                    <Button
                       type="submit"
+                      size="sm"
+                      tone="negative"
                       formAction={deleteTransaction.bind(null, txn.id)}
-                      className="rounded-md border border-border px-3 py-1.5 text-sm text-negative hover:bg-background"
                     >
                       Delete
-                    </button>
+                    </Button>
                   )}
                 </form>
                 {txn.is_transfer && (currentTransferFrom || currentTransferTo) && (
@@ -507,9 +502,9 @@ export default async function TransactionsPage({
             );
           })}
           {transactions.length === 0 && (
-            <div className="rounded-lg border border-border bg-surface p-6 text-center text-sm text-muted shadow-sm">
+            <Card className="text-center text-sm text-muted">
               No transactions match these filters.
-            </div>
+            </Card>
           )}
         </div>
       </section>

@@ -11,7 +11,7 @@ export function NavLink({ href, label }: (typeof NAV_LINKS)[number]) {
   return (
     <Link
       href={href}
-      className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+      className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ${
         isActive
           ? "bg-foreground text-surface"
           : "text-foreground hover:bg-border/60"

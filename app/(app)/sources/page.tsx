@@ -12,8 +12,12 @@ import {
   setFundBalance,
 } from "@/lib/actions/sources";
 import { CreateSourceForm } from "@/components/sources/create-source-form";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { groupSourcesByType } from "@/lib/sources/group-sources";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Money } from "@/components/ui/money";
 
 const TYPE_LABELS: Record<string, string> = {
   budget: "Budget",
@@ -30,28 +34,21 @@ function SourceCard({
   decimalPlaces: number;
 }) {
   return (
-    <div
-      key={source.id}
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 shadow-sm"
-    >
+    <Card key={source.id} className="flex flex-col gap-4 p-5">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
             <p className="font-medium">{source.name}</p>
-            <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-              {TYPE_LABELS[source.type] ?? source.type}
-            </span>
+            <Badge>{TYPE_LABELS[source.type] ?? source.type}</Badge>
             {source.type === "fund" && source.fundName && (
-              <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-                Fund: {source.fundName}
-              </span>
+              <Badge>Fund: {source.fundName}</Badge>
             )}
             {(source.type === "past_payment" || source.type === "future_repayment") &&
               source.deposit_date && (
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+                <Badge>
                   {source.type === "past_payment" ? "Deposited" : "Expected"}{" "}
                   {formatDate(source.deposit_date)}
-                </span>
+                </Badge>
               )}
           </div>
           <p
@@ -59,16 +56,13 @@ function SourceCard({
               source.balance < 0 ? "text-negative" : ""
             }`}
           >
-            {formatMoney(source.balance, decimalPlaces)}
+            <Money amount={source.balance} decimalPlaces={decimalPlaces} />
           </p>
         </div>
         <form action={archiveSource.bind(null, source.id)}>
-          <button
-            type="submit"
-            className="rounded-md border border-border px-2 py-1 text-xs text-negative hover:bg-background"
-          >
+          <Button type="submit" variant="secondary" tone="negative" size="sm" className="px-2 py-1 text-xs">
             Archive
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -88,12 +82,9 @@ function SourceCard({
                 className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
             </label>
-            <button
-              type="submit"
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
-            >
+            <Button type="submit" variant="secondary" size="sm">
               Apply
-            </button>
+            </Button>
           </form>
           <form
             action={setSourceBalance.bind(null, source.id)}
@@ -109,12 +100,9 @@ function SourceCard({
                 className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
             </label>
-            <button
-              type="submit"
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
-            >
+            <Button type="submit" variant="secondary" size="sm">
               Apply
-            </button>
+            </Button>
           </form>
         </div>
       )}
@@ -123,7 +111,7 @@ function SourceCard({
           Balance is managed on the linked fund below.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -200,44 +188,37 @@ export default async function SourcesPage() {
       <section className="flex flex-col gap-4 border-t-2 border-border pt-6">
         <h2 className="text-xl font-semibold tracking-tight">Funds</h2>
 
-        <form
-          action={createFund}
-          className="flex max-w-lg flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
-        >
-          <label className="flex flex-col gap-1 text-sm">
-            New fund name
-            <input
-              type="text"
-              name="name"
-              required
-              placeholder="e.g. Travel Fund"
-              className="w-44 rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Balance
-            <input
-              type="number"
-              name="balance"
-              step="0.01"
-              defaultValue={0}
-              className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface"
-          >
-            Create
-          </button>
-        </form>
+        <Card className="max-w-lg p-4">
+          <form action={createFund} className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              New fund name
+              <input
+                type="text"
+                name="name"
+                required
+                placeholder="e.g. Travel Fund"
+                className="w-44 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              Balance
+              <input
+                type="number"
+                name="balance"
+                step="0.01"
+                defaultValue={0}
+                className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <Button type="submit" variant="primary">
+              Create
+            </Button>
+          </form>
+        </Card>
 
         <div className="grid gap-4 lg:grid-cols-2">
           {funds.map((fund) => (
-            <div
-              key={fund.id}
-              className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 shadow-sm"
-            >
+            <Card key={fund.id} className="flex flex-col gap-4 p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-medium">{fund.name}</p>
@@ -246,16 +227,13 @@ export default async function SourcesPage() {
                       fund.balance < 0 ? "text-negative" : ""
                     }`}
                   >
-                    {formatMoney(fund.balance, decimalPlaces)}
+                    <Money amount={fund.balance} decimalPlaces={decimalPlaces} />
                   </p>
                 </div>
                 <form action={archiveFund.bind(null, fund.id)}>
-                  <button
-                    type="submit"
-                    className="rounded-md border border-border px-2 py-1 text-xs text-negative hover:bg-background"
-                  >
+                  <Button type="submit" variant="secondary" tone="negative" size="sm" className="px-2 py-1 text-xs">
                     Archive
-                  </button>
+                  </Button>
                 </form>
               </div>
 
@@ -274,12 +252,9 @@ export default async function SourcesPage() {
                       className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                     />
                   </label>
-                  <button
-                    type="submit"
-                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
-                  >
+                  <Button type="submit" variant="secondary" size="sm">
                     Apply
-                  </button>
+                  </Button>
                 </form>
                 <form
                   action={setFundBalance.bind(null, fund.id)}
@@ -295,22 +270,19 @@ export default async function SourcesPage() {
                       className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                     />
                   </label>
-                  <button
-                    type="submit"
-                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
-                  >
+                  <Button type="submit" variant="secondary" size="sm">
                     Apply
-                  </button>
+                  </Button>
                 </form>
               </div>
-            </div>
+            </Card>
           ))}
           {funds.length === 0 && <p className="text-sm text-muted">No funds yet.</p>}
         </div>
 
         {grouped.fund.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">
               Sources linked to a fund
             </p>
             <div className="grid gap-4 lg:grid-cols-2">

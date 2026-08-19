@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/queries/settings";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { computeProgress } from "@/lib/progress";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { Card } from "@/components/ui/card";
+import { Money } from "@/components/ui/money";
 
 export default async function DashboardPage() {
   const [data, settings] = await Promise.all([getDashboardData(), getSettings()]);
   const decimalPlaces = settings.decimal_places;
-  const money = (n: number) => formatMoney(n, decimalPlaces);
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,30 +22,36 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <Card className="p-5">
           <p className="text-xs text-muted">Inflow</p>
-          <p className="mt-1 text-xl font-semibold text-positive">{money(data.inflow)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <p className="mt-1 text-xl font-semibold text-positive">
+            <Money amount={data.inflow} decimalPlaces={decimalPlaces} />
+          </p>
+        </Card>
+        <Card className="p-5">
           <p className="text-xs text-muted">Budgeted Outflow</p>
-          <p className="mt-1 text-xl font-semibold text-negative">{money(data.budgetedOutflow)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <p className="mt-1 text-xl font-semibold text-negative">
+            <Money amount={data.budgetedOutflow} decimalPlaces={decimalPlaces} />
+          </p>
+        </Card>
+        <Card className="p-5">
           <p className="text-xs text-muted">Other Outflow</p>
-          <p className="mt-1 text-xl font-semibold text-negative">{money(data.otherOutflow)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <p className="mt-1 text-xl font-semibold text-negative">
+            <Money amount={data.otherOutflow} decimalPlaces={decimalPlaces} />
+          </p>
+        </Card>
+        <Card className="p-5">
           <p className="text-xs text-muted">Total Net</p>
           <p
             className={`mt-1 text-xl font-semibold ${data.totalNet < 0 ? "text-negative" : ""}`}
           >
-            {money(data.totalNet)}
+            <Money amount={data.totalNet} decimalPlaces={decimalPlaces} />
           </p>
-        </div>
+        </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <Card className="p-5">
           <p className="mb-3 font-medium">Spending by category</p>
           {data.categorySpending.length === 0 && (
             <p className="text-sm text-muted">
@@ -63,7 +70,8 @@ export default async function DashboardPage() {
                   <div className="flex justify-between text-sm">
                     <span>{c.name}</span>
                     <span className={over ? "text-negative" : "text-muted"}>
-                      {money(c.spent)} / {money(c.monthly_amount)}
+                      <Money amount={c.spent} decimalPlaces={decimalPlaces} /> /{" "}
+                      <Money amount={c.monthly_amount} decimalPlaces={decimalPlaces} />
                     </span>
                   </div>
                   <div className="mt-1">
@@ -73,15 +81,17 @@ export default async function DashboardPage() {
               );
             })}
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <Card className="p-5">
           <p className="mb-3 font-medium">Account balances</p>
           <div className="flex flex-col gap-2 text-sm">
             {data.accountBalances.map((a) => (
               <div key={a.id} className="flex justify-between">
                 <span>{a.account_name}</span>
-                <span>{money(a.current_balance ?? 0)}</span>
+                <span>
+                  <Money amount={a.current_balance ?? 0} decimalPlaces={decimalPlaces} />
+                </span>
               </div>
             ))}
             {data.accountBalances.length === 0 && (
@@ -94,16 +104,16 @@ export default async function DashboardPage() {
               </p>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <Card className="p-5">
           <p className="mb-3 font-medium">Source balances</p>
           <div className="flex flex-col gap-2 text-sm">
             {data.sourceBalances.map((s) => (
               <div key={s.id} className="flex justify-between">
                 <span>{s.name}</span>
                 <span className={(s.balance ?? 0) < 0 ? "text-negative" : ""}>
-                  {money(s.balance ?? 0)}
+                  <Money amount={s.balance ?? 0} decimalPlaces={decimalPlaces} />
                 </span>
               </div>
             ))}
@@ -117,9 +127,9 @@ export default async function DashboardPage() {
               </p>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <Card className="p-5">
           <p className="mb-3 font-medium">Reimbursements pending</p>
           <div className="flex flex-col gap-2 text-sm">
             {data.reimbursementsPending.map((r) => (
@@ -131,7 +141,7 @@ export default async function DashboardPage() {
                   )}
                 </div>
                 <span className={(r.balance ?? 0) < 0 ? "text-negative" : "text-positive"}>
-                  {money(r.balance ?? 0)}
+                  <Money amount={r.balance ?? 0} decimalPlaces={decimalPlaces} />
                 </span>
               </div>
             ))}
@@ -139,7 +149,7 @@ export default async function DashboardPage() {
               <p className="text-muted">Nothing outstanding.</p>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

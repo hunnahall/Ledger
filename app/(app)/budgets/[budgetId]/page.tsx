@@ -12,9 +12,11 @@ import {
 } from "@/lib/actions/sinking-expenses";
 import { renameBudget, createBudget, setCurrentBudget, deleteBudget } from "@/lib/actions/budgets";
 import { getSettings } from "@/lib/queries/settings";
-import { formatMoney } from "@/lib/format";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { BudgetSwitcher } from "@/components/budgets/budget-switcher";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Money } from "@/components/ui/money";
 import { SINKING_FREQUENCIES, SINKING_FREQUENCY_LABELS } from "@/lib/budgets/sinking";
 
 export default async function BudgetDetailPage({
@@ -51,12 +53,9 @@ export default async function BudgetDetailPage({
             </span>
           ) : (
             <form action={setCurrentBudget.bind(null, budgetId)}>
-              <button
-                type="submit"
-                className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background"
-              >
+              <Button type="submit" size="sm">
                 Set current
-              </button>
+              </Button>
             </form>
           )}
           <details className="relative">
@@ -65,7 +64,7 @@ export default async function BudgetDetailPage({
             </summary>
             <form
               action={renameBudget.bind(null, budgetId)}
-              className="absolute left-0 z-10 mt-2 flex w-72 items-end gap-2 rounded-lg border border-border bg-surface p-4 shadow-sm"
+              className="absolute left-0 z-10 mt-2 flex w-72 items-end gap-2 rounded-lg border border-border bg-surface p-4 shadow-elevated"
             >
               <label className="flex flex-1 flex-col gap-1 text-sm">
                 Budget name
@@ -77,22 +76,14 @@ export default async function BudgetDetailPage({
                   className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
               </label>
-              <button
-                type="submit"
-                className="rounded-md border border-border px-3 py-2 text-sm hover:bg-background"
-              >
-                Save
-              </button>
+              <Button type="submit">Save</Button>
             </form>
           </details>
           {!budget.is_current && (
             <form action={deleteBudget.bind(null, budgetId)}>
-              <button
-                type="submit"
-                className="rounded-md border border-border px-3 py-1.5 text-sm text-negative hover:bg-background"
-              >
+              <Button type="submit" size="sm" tone="negative">
                 Delete
-              </button>
+              </Button>
             </form>
           )}
           {!atLimit && (
@@ -102,7 +93,7 @@ export default async function BudgetDetailPage({
               </summary>
               <form
                 action={createBudget}
-                className="absolute left-0 z-10 mt-2 flex w-72 flex-col gap-2 rounded-lg border border-border bg-surface p-4 shadow-sm"
+                className="absolute left-0 z-10 mt-2 flex w-72 flex-col gap-2 rounded-lg border border-border bg-surface p-4 shadow-elevated"
               >
                 <label className="flex flex-col gap-1 text-sm">
                   New budget name
@@ -114,12 +105,9 @@ export default async function BudgetDetailPage({
                     className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                   />
                 </label>
-                <button
-                  type="submit"
-                  className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface"
-                >
+                <Button type="submit" variant="primary">
                   Create
-                </button>
+                </Button>
               </form>
             </details>
           )}
@@ -137,7 +125,7 @@ export default async function BudgetDetailPage({
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="flex flex-col gap-6">
           <h2 className="text-lg font-semibold tracking-tight">Monthly Expenses</h2>
-          <div className="rounded-lg border border-border bg-surface shadow-sm">
+          <div className="rounded-lg border border-border bg-surface">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
@@ -172,27 +160,25 @@ export default async function BudgetDetailPage({
                           defaultValue={category.monthly_amount}
                           className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
                         />
-                        <button
-                          type="submit"
-                          className="rounded-md border border-border px-3 py-1.5 hover:bg-background"
-                        >
+                        <Button type="submit" size="sm">
                           Save
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="submit"
+                          size="sm"
+                          tone="negative"
                           formAction={archiveCategory.bind(null, category.id, budgetId)}
-                          className="rounded-md border border-border px-3 py-1.5 text-negative hover:bg-background"
                         >
                           Archive
-                        </button>
+                        </Button>
                       </form>
                       <div className="mt-2 max-w-sm">
                         <div className="flex justify-between text-xs">
                           <span className={category.over ? "text-negative" : "text-muted"}>
-                            {formatMoney(category.spent, decimalPlaces)} spent
+                            <Money amount={category.spent} decimalPlaces={decimalPlaces} /> spent
                           </span>
                           <span className="text-muted">
-                            {formatMoney(category.remaining, decimalPlaces)} remaining
+                            <Money amount={category.remaining} decimalPlaces={decimalPlaces} /> remaining
                           </span>
                         </div>
                         <div className="mt-1">
@@ -213,43 +199,39 @@ export default async function BudgetDetailPage({
             </table>
           </div>
 
-          <form
-            action={createCategory.bind(null, budgetId)}
-            className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
-          >
-            <label className="flex flex-col gap-1 text-sm">
-              New category
-              <input
-                type="text"
-                name="name"
-                required
-                placeholder="e.g. Groceries"
-                className="w-40 rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              Monthly amount
-              <input
-                type="number"
-                name="monthly_amount"
-                step="0.01"
-                min="0"
-                defaultValue={0}
-                className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </label>
-            <button
-              type="submit"
-              className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface"
-            >
-              Add category
-            </button>
-          </form>
+          <Card className="flex flex-wrap items-end gap-3">
+            <form action={createCategory.bind(null, budgetId)} className="contents">
+              <label className="flex flex-col gap-1 text-sm">
+                New category
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  placeholder="e.g. Groceries"
+                  className="w-40 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                Monthly amount
+                <input
+                  type="number"
+                  name="monthly_amount"
+                  step="0.01"
+                  min="0"
+                  defaultValue={0}
+                  className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </label>
+              <Button type="submit" variant="primary">
+                Add category
+              </Button>
+            </form>
+          </Card>
         </section>
 
         <section className="flex flex-col gap-6">
           <h2 className="text-lg font-semibold tracking-tight">Sinking Expenses</h2>
-          <div className="rounded-lg border border-border bg-surface shadow-sm">
+          <div className="rounded-lg border border-border bg-surface">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
@@ -295,26 +277,25 @@ export default async function BudgetDetailPage({
                             </option>
                           ))}
                         </select>
-                        <button
-                          type="submit"
-                          className="rounded-md border border-border px-3 py-1.5 hover:bg-background"
-                        >
+                        <Button type="submit" size="sm">
                           Save
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="submit"
+                          size="sm"
+                          tone="negative"
                           formAction={archiveSinkingExpense.bind(null, expense.id, budgetId)}
-                          className="rounded-md border border-border px-3 py-1.5 text-negative hover:bg-background"
                         >
                           Archive
-                        </button>
+                        </Button>
                       </form>
                       <p className="mt-2 text-xs text-muted">
-                        {formatMoney(expense.amount, decimalPlaces)}{" "}
+                        <Money amount={expense.amount} decimalPlaces={decimalPlaces} />{" "}
                         {SINKING_FREQUENCY_LABELS[
                           expense.frequency as (typeof SINKING_FREQUENCIES)[number]
                         ].toLowerCase()}{" "}
-                        &middot; set aside {formatMoney(expense.monthly_amount, decimalPlaces)}/month
+                        &middot; set aside{" "}
+                        <Money amount={expense.monthly_amount} decimalPlaces={decimalPlaces} />/month
                       </p>
                     </td>
                   </tr>
@@ -330,52 +311,48 @@ export default async function BudgetDetailPage({
             </table>
           </div>
 
-          <form
-            action={createSinkingExpense.bind(null, budgetId)}
-            className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
-          >
-            <label className="flex flex-col gap-1 text-sm">
-              New sinking expense
-              <input
-                type="text"
-                name="name"
-                required
-                placeholder="e.g. Car insurance"
-                className="w-32 rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              Amount
-              <input
-                type="number"
-                name="amount"
-                step="0.01"
-                min="0"
-                defaultValue={0}
-                className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              Frequency
-              <select
-                name="frequency"
-                defaultValue="annual"
-                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                {SINKING_FREQUENCIES.map((frequency) => (
-                  <option key={frequency} value={frequency}>
-                    {SINKING_FREQUENCY_LABELS[frequency]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="submit"
-              className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface"
-            >
-              Add sinking expense
-            </button>
-          </form>
+          <Card className="flex flex-wrap items-end gap-3">
+            <form action={createSinkingExpense.bind(null, budgetId)} className="contents">
+              <label className="flex flex-col gap-1 text-sm">
+                New sinking expense
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  placeholder="e.g. Car insurance"
+                  className="w-32 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                Amount
+                <input
+                  type="number"
+                  name="amount"
+                  step="0.01"
+                  min="0"
+                  defaultValue={0}
+                  className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                Frequency
+                <select
+                  name="frequency"
+                  defaultValue="annual"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {SINKING_FREQUENCIES.map((frequency) => (
+                    <option key={frequency} value={frequency}>
+                      {SINKING_FREQUENCY_LABELS[frequency]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button type="submit" variant="primary">
+                Add sinking expense
+              </Button>
+            </form>
+          </Card>
         </section>
       </div>
     </div>
