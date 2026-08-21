@@ -45,13 +45,14 @@ export async function updateCategory(
   revalidatePath(`/budgets/${budgetId}`);
 }
 
-export async function archiveCategory(categoryId: string, budgetId: string) {
+export async function deleteCategory(categoryId: string, budgetId: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("categories")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("id", categoryId);
+  // transactions.category_id and transaction_splits.category_id are
+  // `on delete set null`, so affected transactions fall back to Uncategorized.
+  const { error } = await supabase.from("categories").delete().eq("id", categoryId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/transactions");
+  revalidatePath("/dashboard");
 }

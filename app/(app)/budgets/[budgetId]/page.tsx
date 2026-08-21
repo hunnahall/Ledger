@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { getBudgetWithCategories, getBudgets } from "@/lib/queries/budgets";
 import {
-  archiveCategory,
+  deleteCategory,
   createCategory,
   updateCategory,
 } from "@/lib/actions/categories";
 import {
-  archiveSinkingExpense,
+  deleteSinkingExpense,
   createSinkingExpense,
   updateSinkingExpense,
 } from "@/lib/actions/sinking-expenses";
@@ -167,9 +167,9 @@ export default async function BudgetDetailPage({
                           type="submit"
                           size="sm"
                           tone="negative"
-                          formAction={archiveCategory.bind(null, category.id, budgetId)}
+                          formAction={deleteCategory.bind(null, category.id, budgetId)}
                         >
-                          Archive
+                          Delete
                         </Button>
                       </form>
                       <div className="mt-2 max-w-sm">
@@ -284,9 +284,9 @@ export default async function BudgetDetailPage({
                           type="submit"
                           size="sm"
                           tone="negative"
-                          formAction={archiveSinkingExpense.bind(null, expense.id, budgetId)}
+                          formAction={deleteSinkingExpense.bind(null, expense.id, budgetId)}
                         >
-                          Archive
+                          Delete
                         </Button>
                       </form>
                       <p className="mt-2 text-xs text-muted">

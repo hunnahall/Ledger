@@ -14,6 +14,49 @@
   --negative: #a24a4a;
 
   --shadow-elevated: 0 8px 24px rgba(19, 20, 24, 0.1);
+
+  color-scheme: light;
+}
+
+/* Dark palette: same warm-ink/paper relationship as light mode, inverted.
+   Applies when the OS prefers dark and the user hasn't explicitly chosen
+   light, or when the user has explicitly chosen dark via [data-theme]. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #16171b;
+    --surface: #1d1e23;
+    --surface-subtle: #24252b;
+    --foreground: #f2f1ec;
+    --foreground-secondary: #b9bac3;
+    --muted: #888a96;
+    --border: #2f3037;
+    --border-strong: #3c3d45;
+    --accent: #8b97b3;
+    --positive: #7ea888;
+    --negative: #c17b7b;
+
+    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #16171b;
+  --surface: #1d1e23;
+  --surface-subtle: #24252b;
+  --foreground: #f2f1ec;
+  --foreground-secondary: #b9bac3;
+  --muted: #888a96;
+  --border: #2f3037;
+  --border-strong: #3c3d45;
+  --accent: #8b97b3;
+  --positive: #7ea888;
+  --negative: #c17b7b;
+
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
 }
 
 @theme inline {

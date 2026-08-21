@@ -7,6 +7,7 @@ export type TransactionFilters = {
   categoryId?: string;
   sourceId?: string;
   uncategorizedOnly?: boolean;
+  search?: string;
 };
 
 export async function getFilteredTransactions(filters: TransactionFilters) {
@@ -25,6 +26,7 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   if (filters.uncategorizedOnly) {
     query = query.is("category_id", null).eq("is_transfer", false);
   }
+  if (filters.search) query = query.ilike("description", `%${filters.search}%`);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

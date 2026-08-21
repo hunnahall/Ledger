@@ -161,6 +161,37 @@ export async function assignTransaction(transactionId: string, formData: FormDat
   revalidatePath("/dashboard");
 }
 
+export async function bulkUpdateTransactions(
+  transactionIds: string[],
+  updates: { categoryId?: string | null; sourceId?: string | null },
+) {
+  if (transactionIds.length === 0) return;
+
+  const patch: { category_id?: string | null; source_id?: string | null } = {};
+  if (updates.categoryId !== undefined) patch.category_id = updates.categoryId;
+  if (updates.sourceId !== undefined) patch.source_id = updates.sourceId;
+  if (Object.keys(patch).length === 0) return;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Transfers keep category_id/source_id null (see createManualTransaction) —
+  // bulk edits skip them rather than risk double-applying transfer balances.
+  const { error } = await supabase
+    .from("transactions")
+    .update(patch)
+    .in("id", transactionIds)
+    .eq("is_transfer", false);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/transactions");
+  revalidatePath("/sources");
+  revalidatePath("/dashboard");
+}
+
 export async function deleteTransaction(transactionId: string) {
   const supabase = await createClient();
   const { error } = await supabase

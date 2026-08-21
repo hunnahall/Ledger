@@ -57,13 +57,16 @@ export async function updateSinkingExpense(
   revalidatePath(`/budgets/${budgetId}`);
 }
 
-export async function archiveSinkingExpense(sinkingExpenseId: string, budgetId: string) {
+export async function deleteSinkingExpense(sinkingExpenseId: string, budgetId: string) {
   const supabase = await createClient();
+  // The linked Fund (fund_id) isn't deleted along with this — any balance
+  // already set aside stays put, just no longer tied to a sinking expense.
   const { error } = await supabase
     .from("sinking_expenses")
-    .update({ archived_at: new Date().toISOString() })
+    .delete()
     .eq("id", sinkingExpenseId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/sources");
 }

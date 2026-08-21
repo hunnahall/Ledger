@@ -1,33 +1,29 @@
-import { NavLink } from "@/components/ui/nav-link";
-import { NAV_LINKS } from "@/components/ui/nav-links";
+import { AppNav } from "@/components/ui/app-nav";
 import { LedgerMark } from "@/components/ui/mark";
 import { signOut } from "@/lib/actions/auth";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
-      <header className="border-b border-border bg-surface">
+      <header className="relative z-10 border-b border-border bg-surface">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2 text-foreground">
             <LedgerMark size={20} />
             <p className="text-lg font-semibold tracking-tight">Ledger</p>
           </div>
-          <nav className="flex items-center gap-1">
-            {NAV_LINKS.map((link) => (
-              <NavLink key={link.href} {...link} />
-            ))}
+          <AppNav>
             <form action={signOut}>
               <button
                 type="submit"
-                className="ml-2 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-150 hover:bg-border/60"
+                className="rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-150 hover:bg-border/60 md:ml-2"
               >
                 Log out
               </button>
             </form>
-          </nav>
+          </AppNav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 pt-8 pb-20">
         {children}
       </main>
     </div>

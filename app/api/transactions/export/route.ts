@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     categoryId: params.get("category_id") ?? undefined,
     sourceId: params.get("source_id") ?? undefined,
     uncategorizedOnly: params.get("uncategorized") === "on",
+    search: params.get("search") ?? undefined,
   };
 
   const transactions = await getFilteredTransactions(filters);

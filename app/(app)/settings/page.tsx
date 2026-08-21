@@ -2,6 +2,7 @@ import { getSettings } from "@/lib/queries/settings";
 import { updateDecimalPlaces } from "@/lib/actions/settings";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default async function SettingsPage() {
   const settings = await getSettings();
@@ -37,6 +38,14 @@ export default async function SettingsPage() {
             Save
           </Button>
         </form>
+      </Card>
+
+      <Card className="max-w-sm p-5">
+        <p className="text-sm font-medium">Appearance</p>
+        <p className="mt-1 mb-3 text-xs text-muted">
+          System follows your device&apos;s light/dark setting.
+        </p>
+        <ThemeToggle />
       </Card>
 
       <Card className="border-dashed p-5">

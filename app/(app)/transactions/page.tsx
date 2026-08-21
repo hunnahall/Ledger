@@ -6,17 +6,10 @@ import {
 } from "@/lib/queries/transactions";
 import { getAccounts } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
-import {
-  assignTransaction,
-  createManualTransaction,
-  deleteTransaction,
-  saveSplits,
-} from "@/lib/actions/transactions";
-import { formatMoney } from "@/lib/format";
+import { createManualTransaction } from "@/lib/actions/transactions";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Money } from "@/components/ui/money";
+import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 
 type SearchParams = {
   date_from?: string;
@@ -25,6 +18,7 @@ type SearchParams = {
   category_id?: string;
   source_id?: string;
   uncategorized?: string;
+  search?: string;
 };
 
 function buildQueryString(params: SearchParams) {
@@ -35,6 +29,7 @@ function buildQueryString(params: SearchParams) {
   if (params.category_id) usp.set("category_id", params.category_id);
   if (params.source_id) usp.set("source_id", params.source_id);
   if (params.uncategorized) usp.set("uncategorized", params.uncategorized);
+  if (params.search) usp.set("search", params.search);
   return usp.toString();
 }
 
@@ -52,6 +47,7 @@ export default async function TransactionsPage({
     categoryId: params.category_id,
     sourceId: params.source_id,
     uncategorizedOnly: params.uncategorized === "on",
+    search: params.search,
   };
 
   const [transactions, filterOptions, accounts, settings] = await Promise.all([
@@ -66,7 +62,7 @@ export default async function TransactionsPage({
     ...filterOptions.sources.map((s) => ({ value: encodeBucketOption({ type: "source", id: s.id }), label: s.name })),
     ...filterOptions.funds.map((f) => ({ value: encodeBucketOption({ type: "fund", id: f.id }), label: `${f.name} (fund)` })),
   ];
-  const bucketNameByValue = new Map(bucketOptions.map((b) => [b.value, b.label]));
+  const bucketNameByValue = Object.fromEntries(bucketOptions.map((b) => [b.value, b.label]));
 
   const splits = await getTransactionSplits(transactions.map((t) => t.id));
   const splitsByTransaction = new Map<string, typeof splits>();
@@ -75,6 +71,32 @@ export default async function TransactionsPage({
     list.push(split);
     splitsByTransaction.set(split.transaction_id, list);
   }
+
+  const transactionRows: TransactionRowData[] = transactions.map((txn) => ({
+    id: txn.id,
+    updatedAt: txn.updated_at,
+    postedDate: txn.posted_date,
+    description: txn.description,
+    accountName: (txn.accounts as { account_name: string } | null)?.account_name ?? null,
+    amount: txn.amount,
+    categoryId: txn.category_id,
+    sourceId: txn.source_id,
+    isTransfer: txn.is_transfer,
+    transferFromSourceId: txn.transfer_from_source_id,
+    transferFromFundId: txn.transfer_from_fund_id,
+    transferToSourceId: txn.transfer_to_source_id,
+    transferToFundId: txn.transfer_to_fund_id,
+    excludeFromBudget: txn.exclude_from_budget,
+    notes: txn.notes,
+    isSplit: txn.is_split,
+    hasProviderTransactionId: Boolean(txn.provider_transaction_id),
+    splits: (splitsByTransaction.get(txn.id) ?? []).map((s) => ({
+      id: s.id,
+      categoryId: s.category_id,
+      sourceId: s.source_id,
+      amount: s.amount,
+    })),
+  }));
 
   const exportQuery = buildQueryString(params);
 
@@ -99,6 +121,16 @@ export default async function TransactionsPage({
           method="get"
           className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
         >
+          <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-muted">
+            Search
+            <input
+              type="text"
+              name="search"
+              defaultValue={params.search}
+              placeholder="e.g. Trader Joe's"
+              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            />
+          </label>
           <label className="flex flex-col gap-1 text-xs text-muted">
             From
             <input
@@ -301,212 +333,14 @@ export default async function TransactionsPage({
 
       <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
         <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
-        <div className="flex flex-col gap-3">
-          {transactions.map((txn) => {
-            const txnSplits = splitsByTransaction.get(txn.id) ?? [];
-            const currentTransferFrom = txn.transfer_from_source_id
-              ? encodeBucketOption({ type: "source", id: txn.transfer_from_source_id })
-              : txn.transfer_from_fund_id
-                ? encodeBucketOption({ type: "fund", id: txn.transfer_from_fund_id })
-                : "";
-            const currentTransferTo = txn.transfer_to_source_id
-              ? encodeBucketOption({ type: "source", id: txn.transfer_to_source_id })
-              : txn.transfer_to_fund_id
-                ? encodeBucketOption({ type: "fund", id: txn.transfer_to_fund_id })
-                : "";
-            return (
-              <div
-                key={`${txn.id}-${txn.updated_at}`}
-                className="rounded-lg border border-border bg-surface p-4"
-              >
-                <form
-                  action={assignTransaction.bind(null, txn.id)}
-                  className="flex flex-wrap items-center gap-3"
-                >
-                  <div className="w-24 text-sm text-muted">
-                    {new Date(txn.posted_date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      timeZone: "UTC",
-                    })}
-                  </div>
-                  <div className="min-w-40 flex-1">
-                    <p className="text-sm font-medium">{txn.description}</p>
-                    <p className="text-xs text-muted">
-                      {(txn.accounts as { account_name: string } | null)?.account_name}
-                    </p>
-                  </div>
-                  <div
-                    className={`w-24 text-right text-sm font-medium ${
-                      txn.amount < 0 ? "text-negative" : "text-positive"
-                    }`}
-                  >
-                    <Money amount={txn.amount} decimalPlaces={decimalPlaces} />
-                  </div>
-                  <select
-                    name="category_id"
-                    defaultValue={txn.category_id ?? ""}
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                  >
-                    <option value="">Uncategorized</option>
-                    {filterOptions.categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    name="source_id"
-                    defaultValue={txn.source_id ?? ""}
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                  >
-                    <option value="">No source</option>
-                    {filterOptions.sources.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="flex items-center gap-1.5 text-xs text-muted">
-                    <input
-                      type="checkbox"
-                      name="is_transfer"
-                      defaultChecked={txn.is_transfer}
-                    />
-                    Transfer
-                  </label>
-                  <select
-                    name="transfer_from"
-                    defaultValue={currentTransferFrom}
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-                  >
-                    <option value="">Transfer from&hellip;</option>
-                    {bucketOptions.map((b) => (
-                      <option key={b.value} value={b.value}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    name="transfer_to"
-                    defaultValue={currentTransferTo}
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-                  >
-                    <option value="">Transfer to&hellip;</option>
-                    {bucketOptions.map((b) => (
-                      <option key={b.value} value={b.value}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="flex items-center gap-1.5 text-xs text-muted">
-                    <input
-                      type="checkbox"
-                      name="exclude_from_budget"
-                      defaultChecked={txn.exclude_from_budget}
-                    />
-                    Exclude from budget
-                  </label>
-                  <input
-                    type="text"
-                    name="notes"
-                    defaultValue={txn.notes ?? ""}
-                    placeholder="Notes"
-                    className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                  />
-                  <Button type="submit" size="sm">
-                    Save
-                  </Button>
-                  {!txn.provider_transaction_id && (
-                    <Button
-                      type="submit"
-                      size="sm"
-                      tone="negative"
-                      formAction={deleteTransaction.bind(null, txn.id)}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </form>
-                {txn.is_transfer && (currentTransferFrom || currentTransferTo) && (
-                  <p className="mt-2 text-xs text-muted">
-                    Transfer: {formatMoney(Math.abs(txn.amount), decimalPlaces)}{" "}
-                    {bucketNameByValue.get(currentTransferFrom) ?? "outside"} &rarr;{" "}
-                    {bucketNameByValue.get(currentTransferTo) ?? "outside"}
-                  </p>
-                )}
-
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-xs text-muted">
-                    {txn.is_split ? `Split into ${txnSplits.length} lines` : "Split transaction"}
-                  </summary>
-                  <form
-                    action={saveSplits.bind(null, txn.id, txn.amount)}
-                    className="mt-2 flex flex-col gap-2"
-                  >
-                    {[1, 2, 3, 4].map((i) => {
-                      const existing = txnSplits[i - 1];
-                      return (
-                        <div
-                          key={existing?.id ?? `new-${i}`}
-                          className="flex flex-wrap items-center gap-2"
-                        >
-                          <select
-                            name={`split_category_${i}`}
-                            defaultValue={existing?.category_id ?? ""}
-                            className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-                          >
-                            <option value="">No category</option>
-                            {filterOptions.categories.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name={`split_source_${i}`}
-                            defaultValue={existing?.source_id ?? ""}
-                            className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-                          >
-                            <option value="">No source</option>
-                            {filterOptions.sources.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            step="0.01"
-                            name={`split_amount_${i}`}
-                            defaultValue={existing?.amount ?? ""}
-                            placeholder="Amount"
-                            className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs"
-                          />
-                        </div>
-                      );
-                    })}
-                    <p className="text-xs text-muted">
-                      Split amounts must sum to {formatMoney(txn.amount, decimalPlaces)}. Leave
-                      all fields blank to remove the split.
-                    </p>
-                    <button
-                      type="submit"
-                      className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
-                    >
-                      Save split
-                    </button>
-                  </form>
-                </details>
-              </div>
-            );
-          })}
-          {transactions.length === 0 && (
-            <Card className="text-center text-sm text-muted">
-              No transactions match these filters.
-            </Card>
-          )}
-        </div>
+        <TransactionList
+          transactions={transactionRows}
+          categories={filterOptions.categories}
+          sources={filterOptions.sources}
+          bucketOptions={bucketOptions}
+          bucketNameByValue={bucketNameByValue}
+          decimalPlaces={decimalPlaces}
+        />
       </section>
     </div>
   );
