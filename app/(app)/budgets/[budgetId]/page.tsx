@@ -132,7 +132,7 @@ export default async function BudgetDetailPage({
                           defaultValue={category.monthly_amount}
                           className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
                         />
-                        <Button type="submit" variant="accent" size="sm">
+                        <Button type="submit" size="sm">
                           Save
                         </Button>
                         <Button
@@ -194,7 +194,7 @@ export default async function BudgetDetailPage({
                   className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
               </label>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="accent">
                 Add category
               </Button>
             </form>
@@ -249,7 +249,7 @@ export default async function BudgetDetailPage({
                             </option>
                           ))}
                         </select>
-                        <Button type="submit" variant="accent" size="sm">
+                        <Button type="submit" size="sm">
                           Save
                         </Button>
                         <Button
