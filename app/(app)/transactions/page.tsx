@@ -81,6 +81,7 @@ export default async function TransactionsPage({
     accountName: (txn.accounts as { account_name: string } | null)?.account_name ?? null,
     amount: txn.amount,
     categoryId: txn.category_id,
+    categorySource: txn.category_source,
     sourceId: txn.source_id,
     isTransfer: txn.is_transfer,
     transferFromSourceId: txn.transfer_from_source_id,

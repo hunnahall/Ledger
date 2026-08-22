@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { createManualTransaction } from "@/lib/actions/transactions";
+import { createManualTransaction, suggestCategoryForDescription } from "@/lib/actions/transactions";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
+
+type Suggestion = { categoryId: string; categoryName: string };
 
 type Option = { id: string; name: string };
 type BucketOption = { value: string; label: string };
@@ -30,6 +32,18 @@ export function ManualTransactionForm({
 }) {
   const [typeChoice, setTypeChoice] = useState<TypeChoice>("expense");
   const [incomeAction, setIncomeAction] = useState<IncomeAction>("include_in_budget");
+  const [categoryId, setCategoryId] = useState("");
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+
+  async function handleDescriptionBlur(description: string) {
+    const trimmed = description.trim();
+    if (!trimmed) {
+      setSuggestion(null);
+      return;
+    }
+    const result = await suggestCategoryForDescription(trimmed);
+    setSuggestion(result);
+  }
 
   return (
     <form
@@ -58,6 +72,7 @@ export function ManualTransactionForm({
           required
           placeholder="e.g. Trader Joe's"
           className={fieldInput}
+          onBlur={(e) => handleDescriptionBlur(e.target.value)}
         />
       </label>
       <label className={fieldLabel}>
@@ -91,14 +106,30 @@ export function ManualTransactionForm({
       {(typeChoice === "expense" || typeChoice === "income") && (
         <label className={fieldLabel}>
           Category
-          <Select name="category_id" uiSize="sm" className="w-36" placeholder="Auto / uncategorized">
-            <option value="">Auto / uncategorized</option>
+          <Select
+            name="category_id"
+            uiSize="sm"
+            className="w-36"
+            value={categoryId}
+            onChange={setCategoryId}
+            placeholder="Uncategorized"
+          >
+            <option value="">Uncategorized</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
           </Select>
+          {suggestion && !categoryId && (
+            <button
+              type="button"
+              onClick={() => setCategoryId(suggestion.categoryId)}
+              className="text-left text-xs text-muted hover:underline"
+            >
+              Suggested: {suggestion.categoryName}
+            </button>
+          )}
         </label>
       )}
 

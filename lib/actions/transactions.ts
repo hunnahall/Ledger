@@ -109,6 +109,11 @@ export async function createManualTransaction(formData: FormData) {
   // already set above — transactions_sync_balance applies it same as any
   // other source-linked transaction.
 
+  // Tracks whether the category came from the user's own pick or was
+  // silently filled from a learned rule, so the transaction list can show
+  // which one happened instead of leaving auto-fill invisible.
+  let categorySource: "manual" | "rule" | null = resolvedCategoryId ? "manual" : null;
+
   if (!isTransfer && !isExcluded && !resolvedCategoryId && merchantNormalized) {
     const { data: rule } = await supabase
       .from("vendor_category_rules")
@@ -119,6 +124,7 @@ export async function createManualTransaction(formData: FormData) {
     if (rule) {
       resolvedCategoryId = rule.category_id;
       resolvedSourceId = resolvedSourceId ?? rule.source_id;
+      categorySource = "rule";
     }
   }
 
@@ -131,6 +137,7 @@ export async function createManualTransaction(formData: FormData) {
     merchant_normalized: merchantNormalized,
     category_id: resolvedCategoryId,
     source_id: resolvedSourceId,
+    category_source: categorySource,
     is_transfer: isTransfer,
     exclude_from_budget: isExcluded,
     transfer_from_source_id: transferFrom?.type === "source" ? transferFrom.id : null,
@@ -147,6 +154,35 @@ export async function createManualTransaction(formData: FormData) {
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+}
+
+// Looks up whether a description would match a learned vendor rule, for the
+// manual-entry form's "Suggested: {category}" hint — same lookup
+// createManualTransaction already does silently when category is left blank.
+export async function suggestCategoryForDescription(
+  description: string,
+): Promise<{ categoryId: string; categoryName: string; sourceId: string | null } | null> {
+  const merchantNormalized = normalizeMerchant(description);
+  if (!merchantNormalized) return null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: rule } = await supabase
+    .from("vendor_category_rules")
+    .select("category_id, source_id, categories(name)")
+    .eq("user_id", user.id)
+    .eq("merchant_normalized", merchantNormalized)
+    .maybeSingle();
+  if (!rule) return null;
+
+  const categoryName = (rule.categories as { name: string } | null)?.name;
+  if (!categoryName) return null;
+
+  return { categoryId: rule.category_id, categoryName, sourceId: rule.source_id };
 }
 
 export async function assignTransaction(transactionId: string, formData: FormData) {
@@ -176,6 +212,9 @@ export async function assignTransaction(transactionId: string, formData: FormDat
     .from("transactions")
     .update({
       category_id: isTransfer ? null : categoryId,
+      // Explicit choice via this form, as opposed to a rule's silent
+      // auto-fill on manual entry — see createManualTransaction.
+      category_source: !isTransfer && categoryId ? "manual" : null,
       // See createManualTransaction: a transfer's buckets are synced via
       // transfer_from/to_*, so source_id must stay null to avoid double-
       // applying this transaction's amount through the plain sync trigger.
@@ -206,8 +245,15 @@ export async function bulkUpdateTransactions(
 ) {
   if (transactionIds.length === 0) return;
 
-  const patch: { category_id?: string | null; source_id?: string | null } = {};
-  if (updates.categoryId !== undefined) patch.category_id = updates.categoryId;
+  const patch: {
+    category_id?: string | null;
+    category_source?: "manual" | null;
+    source_id?: string | null;
+  } = {};
+  if (updates.categoryId !== undefined) {
+    patch.category_id = updates.categoryId;
+    patch.category_source = updates.categoryId ? "manual" : null;
+  }
   if (updates.sourceId !== undefined) patch.source_id = updates.sourceId;
   if (Object.keys(patch).length === 0) return;
 
@@ -225,6 +271,24 @@ export async function bulkUpdateTransactions(
     .in("id", transactionIds)
     .eq("is_transfer", false);
   if (error) throw new Error(error.message);
+
+  // Reinforce learned rules the same way manual entry/assignment do, so a
+  // bulk categorization isn't a dead end for future auto-categorization.
+  if (patch.category_id) {
+    const { data: affected } = await supabase
+      .from("transactions")
+      .select("merchant_normalized, source_id")
+      .in("id", transactionIds)
+      .eq("is_transfer", false)
+      .not("merchant_normalized", "is", null);
+    const seen = new Set<string>();
+    for (const txn of affected ?? []) {
+      const merchant = txn.merchant_normalized;
+      if (!merchant || seen.has(merchant)) continue;
+      seen.add(merchant);
+      await learnVendorRule(supabase, user.id, merchant, patch.category_id, txn.source_id);
+    }
+  }
 
   revalidatePath("/transactions");
   revalidatePath("/sources");

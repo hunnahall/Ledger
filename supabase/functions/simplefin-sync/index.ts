@@ -176,7 +176,11 @@ async function syncConnection(
       if (rule) {
         await serviceClient
           .from("transactions")
-          .update({ category_id: rule.category_id, source_id: rule.source_id })
+          .update({
+            category_id: rule.category_id,
+            source_id: rule.source_id,
+            category_source: "rule",
+          })
           .eq("id", txn.id);
         transactionsNew += 1;
       }

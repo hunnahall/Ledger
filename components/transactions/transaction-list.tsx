@@ -23,6 +23,7 @@ export type TransactionRowData = {
   accountName: string | null;
   amount: number;
   categoryId: string | null;
+  categorySource: string | null;
   sourceId: string | null;
   isTransfer: boolean;
   transferFromSourceId: string | null;
@@ -270,22 +271,32 @@ function TransactionRow({
           <Money amount={txn.amount} decimalPlaces={decimalPlaces} />
         </td>
         <td className="px-2 py-1.5">
-          <Select
-            form={`txn-${txn.id}`}
-            name="category_id"
-            uiSize="sm"
-            className="w-32"
-            defaultValue={txn.categoryId ?? ""}
-            placeholder={isTransfer ? "—" : "Uncategorized"}
-            disabled={isTransfer}
-          >
-            <option value="">Uncategorized</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
+          <div className="flex items-center gap-1.5">
+            <Select
+              form={`txn-${txn.id}`}
+              name="category_id"
+              uiSize="sm"
+              className="w-32"
+              defaultValue={txn.categoryId ?? ""}
+              placeholder={isTransfer ? "—" : "Uncategorized"}
+              disabled={isTransfer}
+            >
+              <option value="">Uncategorized</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+            {txn.categorySource === "rule" && (
+              <span
+                className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
+                title="Auto-categorized from a learned rule"
+              >
+                auto
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-2 py-1.5">
           <Select
