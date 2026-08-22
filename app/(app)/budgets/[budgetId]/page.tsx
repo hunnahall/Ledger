@@ -13,6 +13,7 @@ import {
 import { createBudget, deleteBudget } from "@/lib/actions/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { Select } from "@/components/ui/select";
 import { BudgetSwitcher } from "@/components/budgets/budget-switcher";
 import { BudgetRenameControl } from "@/components/budgets/budget-rename-control";
 import { Button } from "@/components/ui/button";
@@ -238,17 +239,13 @@ export default async function BudgetDetailPage({
                           defaultValue={expense.amount}
                           className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
                         />
-                        <select
-                          name="frequency"
-                          defaultValue={expense.frequency}
-                          className="rounded-md border border-border bg-background px-3 py-1.5"
-                        >
+                        <Select name="frequency" defaultValue={expense.frequency} className="w-32">
                           {SINKING_FREQUENCIES.map((frequency) => (
                             <option key={frequency} value={frequency}>
                               {SINKING_FREQUENCY_LABELS[frequency]}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                         <Button type="submit" size="sm">
                           Save
                         </Button>
@@ -308,17 +305,13 @@ export default async function BudgetDetailPage({
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 Frequency
-                <select
-                  name="frequency"
-                  defaultValue="annual"
-                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                >
+                <Select name="frequency" defaultValue="annual" className="w-36">
                   {SINKING_FREQUENCIES.map((frequency) => (
                     <option key={frequency} value={frequency}>
                       {SINKING_FREQUENCY_LABELS[frequency]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <Button type="submit" variant="accent">
                 Add sinking expense

@@ -9,6 +9,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { AddIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
 
@@ -100,17 +101,13 @@ export default async function AccountsPage() {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Type
-            <select
-              name="account_type"
-              defaultValue="manual"
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-            >
+            <Select name="account_type" defaultValue="manual" className="w-36">
               {Object.entries(TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Starting balance

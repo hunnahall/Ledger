@@ -13,6 +13,36 @@ export function AddIcon({ size = 16, className }: { size?: number; className?: s
   );
 }
 
+export function ChevronDownIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 -960 960 960"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M480-345 240-585l56-56 184 184 184-184 56 56-240 240Z" />
+    </svg>
+  );
+}
+
+export function CheckIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 -960 960 960"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z" />
+    </svg>
+  );
+}
+
 export function ShareIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
     <svg

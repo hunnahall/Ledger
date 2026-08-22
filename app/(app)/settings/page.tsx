@@ -2,6 +2,7 @@ import { getSettings } from "@/lib/queries/settings";
 import { updateDecimalPlaces } from "@/lib/actions/settings";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default async function SettingsPage() {
@@ -20,15 +21,11 @@ export default async function SettingsPage() {
         <form action={updateDecimalPlaces} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm">
             Decimal places
-            <select
-              name="decimal_places"
-              defaultValue={settings.decimal_places}
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-            >
+            <Select name="decimal_places" defaultValue={settings.decimal_places} className="w-full">
               <option value={0}>0 (e.g. $42)</option>
               <option value={1}>1 (e.g. $42.5)</option>
               <option value={2}>2 (e.g. $42.50)</option>
-            </select>
+            </Select>
           </label>
           <p className="text-xs text-muted">
             This only affects display and manual-entry rounding. Amounts synced from your

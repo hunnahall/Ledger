@@ -1,15 +1,11 @@
 import { AppNav } from "@/components/ui/app-nav";
 import { LedgerMark } from "@/components/ui/mark";
-import { PageTransition } from "@/components/ui/page-transition";
 import { signOut } from "@/lib/actions/auth";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-full flex-col">
-      <header
-        className="relative z-10 border-b border-border bg-surface"
-        style={{ viewTransitionName: "site-header" }}
-      >
+    <div className="flex min-h-dvh flex-col">
+      <header className="relative z-10 border-b border-border bg-surface">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-2.5 text-foreground">
             <LedgerMark size={32} />
@@ -27,9 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </AppNav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 pt-8 pb-20">
-        <PageTransition>{children}</PageTransition>
-      </main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 pt-8 pb-20">{children}</main>
     </div>
   );
 }

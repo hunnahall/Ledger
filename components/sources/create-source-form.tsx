@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createSource } from "@/lib/actions/sources";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 const TYPE_LABELS: Record<string, string> = {
   past_payment: "Past payment",
@@ -29,18 +30,13 @@ export function CreateSourceForm({ funds }: { funds: { id: string; name: string 
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Type
-          <select
-            name="type"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-          >
+          <Select name="type" value={type} onChange={setType} className="w-40">
             {Object.entries(TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Balance

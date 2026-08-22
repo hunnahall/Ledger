@@ -130,25 +130,6 @@ h4 {
   outline-offset: 2px;
 }
 
-/* Keep the toolbar fixed in place during route crossfades (see
-   components/ui/page-transition.tsx) instead of animating with the page. */
-::view-transition {
-  pointer-events: none;
-}
-
-::view-transition-group(site-header) {
-  animation: none;
-  z-index: 100;
-}
-
-::view-transition-old(site-header) {
-  display: none;
-}
-
-::view-transition-new(site-header) {
-  animation: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -157,11 +138,5 @@ h4 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation-duration: 0.01ms !important;
   }
 }

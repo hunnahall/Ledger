@@ -130,7 +130,7 @@ export default async function DashboardPage() {
         </Card>
 
         <Card className="p-5">
-          <p className="mb-3 font-medium">Reimbursements pending</p>
+          <p className="mb-3 font-medium">Reimbursements</p>
           <div className="flex flex-col gap-2 text-sm">
             {data.reimbursementsPending.map((r) => (
               <div key={r.id} className="flex justify-between">

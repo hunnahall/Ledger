@@ -2,15 +2,18 @@ import {
   getFilteredTransactions,
   getFilterOptions,
   getTransactionSplits,
+  resolveCategoryFilter,
+  UNCATEGORIZED_FILTER_VALUE,
   type TransactionFilters,
 } from "@/lib/queries/transactions";
 import { getAccounts } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
-import { createManualTransaction } from "@/lib/actions/transactions";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { Button } from "@/components/ui/button";
-import { AddIcon, ShareIcon } from "@/components/ui/icons";
+import { Select } from "@/components/ui/select";
+import { ShareIcon } from "@/components/ui/icons";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
+import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
 
 type SearchParams = {
   date_from?: string;
@@ -18,7 +21,6 @@ type SearchParams = {
   account_id?: string;
   category_id?: string;
   source_id?: string;
-  uncategorized?: string;
   search?: string;
 };
 
@@ -29,7 +31,6 @@ function buildQueryString(params: SearchParams) {
   if (params.account_id) usp.set("account_id", params.account_id);
   if (params.category_id) usp.set("category_id", params.category_id);
   if (params.source_id) usp.set("source_id", params.source_id);
-  if (params.uncategorized) usp.set("uncategorized", params.uncategorized);
   if (params.search) usp.set("search", params.search);
   return usp.toString();
 }
@@ -45,10 +46,9 @@ export default async function TransactionsPage({
     dateFrom: params.date_from,
     dateTo: params.date_to,
     accountId: params.account_id,
-    categoryId: params.category_id,
     sourceId: params.source_id,
-    uncategorizedOnly: params.uncategorized === "on",
     search: params.search,
+    ...resolveCategoryFilter(params.category_id),
   };
 
   const [transactions, filterOptions, accounts, settings] = await Promise.all([
@@ -118,6 +118,19 @@ export default async function TransactionsPage({
       </div>
 
       <section className="flex flex-col gap-3">
+        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">
+          Manual transactions
+        </p>
+        <ManualTransactionForm
+          accounts={accounts.map((a) => ({ id: a.id, name: a.account_name }))}
+          categories={filterOptions.categories}
+          sources={filterOptions.sources}
+          bucketOptions={bucketOptions}
+          defaultSourceId={filterOptions.defaultSourceId}
+        />
+      </section>
+
+      <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
         <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Filters</p>
         <form
           method="get"
@@ -153,183 +166,46 @@ export default async function TransactionsPage({
           </label>
           <label className="flex flex-col gap-1 text-xs text-muted">
             Account
-            <select
-              name="account_id"
-              defaultValue={params.account_id ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
+            <Select name="account_id" uiSize="sm" className="w-36" defaultValue={params.account_id ?? ""} placeholder="All">
               <option value="">All</option>
               {filterOptions.accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.account_name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-muted">
             Category
-            <select
-              name="category_id"
-              defaultValue={params.category_id ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
+            <Select name="category_id" uiSize="sm" className="w-36" defaultValue={params.category_id ?? ""} placeholder="All">
               <option value="">All</option>
+              <option value={UNCATEGORIZED_FILTER_VALUE}>Uncategorized</option>
               {filterOptions.categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-muted">
             Source
-            <select
-              name="source_id"
-              defaultValue={params.source_id ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
+            <Select name="source_id" uiSize="sm" className="w-36" defaultValue={params.source_id ?? ""} placeholder="All">
               <option value="">All</option>
               {filterOptions.sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
-          <label className="flex items-center gap-1.5 pb-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              name="uncategorized"
-              defaultChecked={params.uncategorized === "on"}
-            />
-            Uncategorized only
-          </label>
-          <Button type="submit" variant="accent" size="sm">
-            Filter
-          </Button>
-          <a href="/transactions" className="text-sm text-muted hover:underline">
-            Clear
-          </a>
-        </form>
-      </section>
-
-      <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">
-          Manual transactions
-        </p>
-        <form
-          action={createManualTransaction}
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
-        >
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Date
-            <input
-              type="date"
-              name="posted_date"
-              required
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Account
-            <select
-              name="account_id"
-              required
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.account_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted">
-            Description
-            <input
-              type="text"
-              name="description"
-              required
-              placeholder="e.g. Trader Joe's"
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Amount (negative = expense)
-            <input
-              type="number"
-              name="amount"
-              step="0.01"
-              required
-              className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Category
-            <select
-              name="category_id"
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
-              <option value="">Auto / uncategorized</option>
-              {filterOptions.categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Source
-            <select
-              name="source_id"
-              defaultValue={filterOptions.defaultSourceId ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
-              <option value="">No source</option>
-              {filterOptions.sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5 pb-2 text-xs text-muted">
-            <input type="checkbox" name="is_transfer" />
-            Transfer
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Transfer from (optional)
-            <select
-              name="transfer_from"
-              defaultValue=""
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
-              <option value="">None</option>
-              {bucketOptions.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Transfer to (optional)
-            <select
-              name="transfer_to"
-              defaultValue=""
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            >
-              <option value="">None</option>
-              {bucketOptions.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button type="submit" variant="accent" size="icon" aria-label="Add transaction">
-            <AddIcon />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="submit" variant="accent" size="sm">
+              Filter
+            </Button>
+            <a href="/transactions" className="text-sm text-muted hover:underline">
+              Clear
+            </a>
+          </div>
         </form>
       </section>
 

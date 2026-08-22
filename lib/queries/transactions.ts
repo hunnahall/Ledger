@@ -10,6 +10,21 @@ export type TransactionFilters = {
   search?: string;
 };
 
+// The Category filter offers "Uncategorized" as one of its own options
+// rather than a separate checkbox — this sentinel is what that option
+// submits, and resolveCategoryFilter below translates it back into the
+// uncategorizedOnly flag the query actually uses.
+export const UNCATEGORIZED_FILTER_VALUE = "__uncategorized__";
+
+export function resolveCategoryFilter(
+  categoryId: string | undefined,
+): Pick<TransactionFilters, "categoryId" | "uncategorizedOnly"> {
+  if (categoryId === UNCATEGORIZED_FILTER_VALUE) {
+    return { uncategorizedOnly: true };
+  }
+  return { categoryId };
+}
+
 export async function getFilteredTransactions(filters: TransactionFilters) {
   const supabase = await createClient();
   let query = supabase

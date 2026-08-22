@@ -47,15 +47,23 @@ async function learnVendorRule(
 export async function createManualTransaction(formData: FormData) {
   const accountId = String(formData.get("account_id") ?? "");
   const postedDate = String(formData.get("posted_date") ?? "");
-  const amount = Number(formData.get("amount") ?? NaN);
+  const rawAmount = Number(formData.get("amount") ?? NaN);
   const description = String(formData.get("description") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const sourceId = String(formData.get("source_id") ?? "") || null;
-  const isTransfer = formData.get("is_transfer") === "on";
   const transferFrom = decodeBucketOption(formData.get("transfer_from"));
   const transferTo = decodeBucketOption(formData.get("transfer_to"));
+  // One dropdown picks the sign and the routing all at once. "exclude"
+  // disregards category/source/budget entirely, not just the budget total.
+  const typeChoice = String(formData.get("type_choice") ?? "expense");
+  const isTransfer = typeChoice === "transfer";
+  const isIncome = typeChoice === "income";
+  const isExcluded = typeChoice === "exclude";
+  const incomeAction = String(formData.get("income_action") ?? "include_in_budget");
+  const newSourceName = String(formData.get("new_source_name") ?? "").trim();
+  const newSourceType = String(formData.get("new_source_type") ?? "past_payment");
 
-  if (!accountId || !postedDate || !description || Number.isNaN(amount)) return;
+  if (!accountId || !postedDate || !description || Number.isNaN(rawAmount)) return;
 
   const supabase = await createClient();
   const {
@@ -65,13 +73,43 @@ export async function createManualTransaction(formData: FormData) {
 
   const merchantNormalized = normalizeMerchant(description);
 
-  let resolvedCategoryId = isTransfer ? null : categoryId;
+  let resolvedCategoryId = isTransfer || isExcluded ? null : categoryId;
   // A transfer's two buckets are synced by transactions_sync_transfer_balance
   // off transfer_from/to_*; also setting source_id would double-apply this
   // transaction's amount through the plain transactions_sync_balance trigger.
-  let resolvedSourceId = isTransfer ? null : sourceId;
+  let resolvedSourceId = isTransfer || isExcluded ? null : sourceId;
+  const amount = isTransfer ? rawAmount : isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
 
-  if (!isTransfer && !resolvedCategoryId && merchantNormalized) {
+  if (isIncome && incomeAction === "include_in_budget") {
+    // Tracked for inflow/filtering only (see v_inflow_outflow) — no source.
+    resolvedSourceId = null;
+  } else if (isIncome && incomeAction === "create_source") {
+    if (newSourceType !== "past_payment" && newSourceType !== "future_repayment") {
+      throw new Error("Not a valid source type.");
+    }
+    if (!newSourceName) throw new Error("Enter a name for the new source.");
+    // Insert at balance 0 and let transactions_sync_balance apply `amount`
+    // below via source_id — inserting with balance already set to the
+    // amount would double it once the trigger also runs.
+    const { data: newSource, error: sourceError } = await supabase
+      .from("sources")
+      .insert({
+        user_id: user.id,
+        name: newSourceName,
+        type: newSourceType,
+        balance: 0,
+        deposit_date: postedDate,
+      })
+      .select("id")
+      .single();
+    if (sourceError) throw new Error(sourceError.message);
+    resolvedSourceId = newSource.id;
+  }
+  // "add_to_source" (and plain expenses) keep resolvedSourceId = sourceId,
+  // already set above — transactions_sync_balance applies it same as any
+  // other source-linked transaction.
+
+  if (!isTransfer && !isExcluded && !resolvedCategoryId && merchantNormalized) {
     const { data: rule } = await supabase
       .from("vendor_category_rules")
       .select("category_id, source_id")
@@ -94,6 +132,7 @@ export async function createManualTransaction(formData: FormData) {
     category_id: resolvedCategoryId,
     source_id: resolvedSourceId,
     is_transfer: isTransfer,
+    exclude_from_budget: isExcluded,
     transfer_from_source_id: transferFrom?.type === "source" ? transferFrom.id : null,
     transfer_from_fund_id: transferFrom?.type === "fund" ? transferFrom.id : null,
     transfer_to_source_id: transferTo?.type === "source" ? transferTo.id : null,

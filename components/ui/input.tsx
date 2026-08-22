@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import type { InputHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 type FieldSize = "sm" | "md";
@@ -15,19 +15,6 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 export function Input({ uiSize = "md", className, ...props }: InputProps) {
   return (
     <input
-      className={cn("rounded-md border border-border bg-background", SIZE_CLASSES[uiSize], className)}
-      {...props}
-    />
-  );
-}
-
-export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  uiSize?: FieldSize;
-}
-
-export function Select({ uiSize = "md", className, ...props }: SelectProps) {
-  return (
-    <select
       className={cn("rounded-md border border-border bg-background", SIZE_CLASSES[uiSize], className)}
       {...props}
     />

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { setCurrentBudget } from "@/lib/actions/budgets";
+import { Select } from "@/components/ui/select";
 
 export function BudgetSwitcher({
   budgets,
@@ -18,16 +19,12 @@ export function BudgetSwitcher({
   }
 
   return (
-    <select
-      value={selectedId}
-      onChange={(e) => handleChange(e.target.value)}
-      className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-    >
+    <Select value={selectedId} onChange={handleChange} className="w-40">
       {budgets.map((budget) => (
         <option key={budget.id} value={budget.id}>
           {budget.name}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }

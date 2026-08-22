@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFilteredTransactions, type TransactionFilters } from "@/lib/queries/transactions";
+import {
+  getFilteredTransactions,
+  resolveCategoryFilter,
+  type TransactionFilters,
+} from "@/lib/queries/transactions";
 
 function quoteCsv(value: string): string {
   if (/[",\n]/.test(value)) {
@@ -28,10 +32,9 @@ export async function GET(request: NextRequest) {
     dateFrom: params.get("date_from") ?? undefined,
     dateTo: params.get("date_to") ?? undefined,
     accountId: params.get("account_id") ?? undefined,
-    categoryId: params.get("category_id") ?? undefined,
     sourceId: params.get("source_id") ?? undefined,
-    uncategorizedOnly: params.get("uncategorized") === "on",
     search: params.get("search") ?? undefined,
+    ...resolveCategoryFilter(params.get("category_id") ?? undefined),
   };
 
   const transactions = await getFilteredTransactions(filters);
