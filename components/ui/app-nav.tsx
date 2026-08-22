@@ -21,7 +21,7 @@ export function AppNav({ children }: { children: ReactNode }) {
         onClick={() => setOpen((o) => !o)}
         aria-label="Toggle menu"
         aria-expanded={open}
-        className="rounded-md p-2 text-foreground hover:bg-border/60 md:hidden"
+        className="rounded-md p-2 text-foreground transition-transform duration-150 hover:scale-110 active:scale-95 md:hidden"
       >
         <svg
           width={22}
@@ -49,7 +49,7 @@ export function AppNav({ children }: { children: ReactNode }) {
       </button>
 
       {open && (
-        <div className="absolute inset-x-0 top-full border-b border-border bg-surface md:hidden">
+        <div className="absolute inset-x-0 top-full border-b border-card-border bg-surface shadow-elevated md:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {NAV_LINKS.map((link) => (
               <NavLink key={link.href} {...link} onClick={() => setOpen(false)} />

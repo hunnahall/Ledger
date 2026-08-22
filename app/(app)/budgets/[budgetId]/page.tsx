@@ -16,6 +16,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { BudgetSwitcher } from "@/components/budgets/budget-switcher";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AddIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
 import { SINKING_FREQUENCIES, SINKING_FREQUENCY_LABELS } from "@/lib/budgets/sinking";
 
@@ -47,11 +48,7 @@ export default async function BudgetDetailPage({
             budgets={allBudgets.map((b) => ({ id: b.id, name: b.name }))}
             selectedId={budgetId}
           />
-          {budget.is_current ? (
-            <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-medium text-surface">
-              Current
-            </span>
-          ) : (
+          {!budget.is_current && (
             <form action={setCurrentBudget.bind(null, budgetId)}>
               <Button type="submit" size="sm">
                 Set current
@@ -64,7 +61,7 @@ export default async function BudgetDetailPage({
             </summary>
             <form
               action={renameBudget.bind(null, budgetId)}
-              className="absolute left-0 z-10 mt-2 flex w-72 items-end gap-2 rounded-lg border border-border bg-surface p-4 shadow-elevated"
+              className="absolute left-0 z-10 mt-2 flex w-72 items-end gap-2 rounded-lg border border-card-border bg-surface p-4 shadow-elevated"
             >
               <label className="flex flex-1 flex-col gap-1 text-sm">
                 Budget name
@@ -88,12 +85,15 @@ export default async function BudgetDetailPage({
           )}
           {!atLimit && (
             <details className="relative">
-              <summary className="cursor-pointer list-none rounded-md border border-border px-3 py-2 text-sm hover:bg-background">
-                + New budget
+              <summary
+                aria-label="New budget"
+                className="flex cursor-pointer list-none items-center justify-center rounded-md border border-border p-2 hover:bg-background"
+              >
+                <AddIcon className="text-accent" />
               </summary>
               <form
                 action={createBudget}
-                className="absolute left-0 z-10 mt-2 flex w-72 flex-col gap-2 rounded-lg border border-border bg-surface p-4 shadow-elevated"
+                className="absolute left-0 z-10 mt-2 flex w-72 flex-col gap-2 rounded-lg border border-card-border bg-surface p-4 shadow-elevated"
               >
                 <label className="flex flex-col gap-1 text-sm">
                   New budget name

@@ -9,6 +9,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AddIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -121,8 +122,8 @@ export default async function AccountsPage() {
               className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
           </label>
-          <Button type="submit" variant="primary">
-            Add manual account
+          <Button type="submit" variant="secondary" size="icon" aria-label="Add account">
+            <AddIcon className="text-accent" />
           </Button>
         </form>
       </Card>

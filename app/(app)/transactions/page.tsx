@@ -9,6 +9,7 @@ import { getSettings } from "@/lib/queries/settings";
 import { createManualTransaction } from "@/lib/actions/transactions";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { Button } from "@/components/ui/button";
+import { AddIcon, CsvIcon } from "@/components/ui/icons";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 
 type SearchParams = {
@@ -109,9 +110,10 @@ export default async function TransactionsPage({
         </div>
         <a
           href={`/api/transactions/export${exportQuery ? `?${exportQuery}` : ""}`}
-          className="rounded-md border border-border px-3 py-2 text-sm hover:bg-background"
+          aria-label="Export CSV"
+          className="flex items-center justify-center rounded-md border border-border p-2 hover:bg-background"
         >
-          Export CSV
+          <CsvIcon className="text-accent" />
         </a>
       </div>
 
@@ -325,8 +327,8 @@ export default async function TransactionsPage({
               ))}
             </select>
           </label>
-          <Button type="submit" variant="primary">
-            Add
+          <Button type="submit" variant="secondary" size="icon" aria-label="Add transaction">
+            <AddIcon className="text-accent" />
           </Button>
         </form>
       </section>

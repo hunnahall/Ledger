@@ -11,7 +11,7 @@ export function LedgerMark({
       height={size}
       viewBox="0 0 160 160"
       fill="none"
-      stroke="currentColor"
+      stroke="var(--mark)"
       strokeWidth={10}
       strokeLinecap="round"
       strokeLinejoin="round"

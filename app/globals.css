@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf9f6;
+  --background: #fafafa;
   --surface: #ffffff;
   --surface-subtle: #f3f3f0;
-  --foreground: #131418;
+  --foreground: #0a0a0a;
   --foreground-secondary: #4a4d59;
   --muted: #7c7f8c;
   --border: #e6e7ea;
@@ -12,7 +12,13 @@
   --accent: #364156;
   --positive: #4f7358;
   --negative: #a24a4a;
+  --mark: #e9d985;
 
+  /* Depth layering: the page sits on --background (off-white), and any
+     raised surface (card, panel, dropdown, modal) uses --surface (pure
+     white) plus this border/shadow pair so it reads as lifted above it. */
+  --card-border: rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-elevated: 0 8px 24px rgba(19, 20, 24, 0.1);
 
   color-scheme: light;
@@ -35,6 +41,7 @@
     --positive: #7ea888;
     --negative: #c17b7b;
 
+    --card-border: var(--border);
     --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45);
 
     color-scheme: dark;
@@ -54,6 +61,7 @@
   --positive: #7ea888;
   --negative: #c17b7b;
 
+  --card-border: var(--border);
   --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45);
 
   color-scheme: dark;
@@ -71,12 +79,15 @@
   --color-accent: var(--accent);
   --color-positive: var(--positive);
   --color-negative: var(--negative);
+  --color-mark: var(--mark);
+  --color-card-border: var(--card-border);
 
   /* Covenant Works' zero-radius rule, softened: controls stay tight (4px),
      cards/panels get a touch more (8px) — Tailwind's own defaults already
      land close to this, this just makes the smaller size explicit. */
   --radius-md: 0.25rem;
 
+  --shadow-card: var(--shadow-card);
   --shadow-elevated: var(--shadow-elevated);
 
   --font-sans: var(--font-inter);
@@ -86,7 +97,10 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: url("/noise.svg");
+  background-repeat: repeat;
+  background-size: 700px 700px;
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
@@ -109,4 +123,40 @@ h4 {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Keep the toolbar fixed in place during route crossfades (see
+   components/ui/page-transition.tsx) instead of animating with the page. */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(site-header) {
+  display: none;
+}
+
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+  }
 }

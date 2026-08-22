@@ -16,10 +16,8 @@ export function NavLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ${
-        isActive
-          ? "bg-foreground text-surface"
-          : "text-foreground hover:bg-border/60"
+      className={`px-3 py-2 text-sm font-medium text-foreground underline decoration-2 underline-offset-4 transition-colors duration-150 ${
+        isActive ? "decoration-mark" : "decoration-transparent hover:decoration-mark"
       }`}
     >
       {label}
