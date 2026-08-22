@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-type ButtonVariant = "primary" | "secondary" | "tertiary";
+type ButtonVariant = "primary" | "secondary" | "tertiary" | "accent";
 type ButtonTone = "default" | "negative";
 type ButtonSize = "sm" | "md" | "icon";
 
@@ -17,6 +17,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   secondary:
     "border border-border bg-transparent hover:bg-background hover:-translate-y-0.5 hover:shadow-elevated active:translate-y-0 active:scale-[0.98]",
   tertiary: "px-0 py-0 h-auto hover:underline underline-offset-4",
+  accent:
+    "bg-mark text-mark-foreground hover:brightness-95 hover:-translate-y-0.5 hover:shadow-elevated active:translate-y-0 active:scale-[0.98]",
 };
 
 const TONE_CLASSES: Record<ButtonTone, string> = {

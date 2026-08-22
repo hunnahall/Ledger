@@ -13,6 +13,10 @@
   --positive: #4f7358;
   --negative: #a24a4a;
   --mark: #e9d985;
+  /* The mark's gold stays constant across themes (see --mark below), so
+     anything painted on top of it needs a fixed ink too, not --foreground
+     (which flips to near-white in dark mode and would vanish on gold). */
+  --mark-foreground: #131418;
 
   /* Depth layering: the page sits on --background (off-white), and any
      raised surface (card, panel, dropdown, modal) uses --surface (pure
@@ -80,6 +84,7 @@
   --color-positive: var(--positive);
   --color-negative: var(--negative);
   --color-mark: var(--mark);
+  --color-mark-foreground: var(--mark-foreground);
   --color-card-border: var(--card-border);
 
   /* Covenant Works' zero-radius rule, softened: controls stay tight (4px),

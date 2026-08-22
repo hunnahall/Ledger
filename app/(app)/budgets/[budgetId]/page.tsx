@@ -87,9 +87,9 @@ export default async function BudgetDetailPage({
             <details className="relative">
               <summary
                 aria-label="New budget"
-                className="flex cursor-pointer list-none items-center justify-center rounded-md border border-border p-2 hover:bg-background"
+                className="flex cursor-pointer list-none items-center justify-center rounded-md bg-mark p-2 text-mark-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-elevated hover:brightness-95 active:translate-y-0 active:scale-[0.98]"
               >
-                <AddIcon className="text-accent" />
+                <AddIcon />
               </summary>
               <form
                 action={createBudget}

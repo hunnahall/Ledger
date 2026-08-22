@@ -111,9 +111,9 @@ export default async function TransactionsPage({
         <a
           href={`/api/transactions/export${exportQuery ? `?${exportQuery}` : ""}`}
           aria-label="Export CSV"
-          className="flex items-center justify-center rounded-md border border-border p-2 hover:bg-background"
+          className="flex items-center justify-center rounded-md bg-mark p-2 text-mark-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-elevated hover:brightness-95 active:translate-y-0 active:scale-[0.98]"
         >
-          <CsvIcon className="text-accent" />
+          <CsvIcon />
         </a>
       </div>
 
@@ -327,8 +327,8 @@ export default async function TransactionsPage({
               ))}
             </select>
           </label>
-          <Button type="submit" variant="secondary" size="icon" aria-label="Add transaction">
-            <AddIcon className="text-accent" />
+          <Button type="submit" variant="accent" size="icon" aria-label="Add transaction">
+            <AddIcon />
           </Button>
         </form>
       </section>

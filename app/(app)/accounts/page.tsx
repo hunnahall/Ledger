@@ -122,8 +122,8 @@ export default async function AccountsPage() {
               className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
           </label>
-          <Button type="submit" variant="secondary" size="icon" aria-label="Add account">
-            <AddIcon className="text-accent" />
+          <Button type="submit" variant="accent" size="icon" aria-label="Add account">
+            <AddIcon />
           </Button>
         </form>
       </Card>
