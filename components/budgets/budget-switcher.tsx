@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { setCurrentBudget } from "@/lib/actions/budgets";
 
 export function BudgetSwitcher({
   budgets,
@@ -11,10 +12,15 @@ export function BudgetSwitcher({
 }) {
   const router = useRouter();
 
+  async function handleChange(nextId: string) {
+    await setCurrentBudget(nextId);
+    router.push(`/budgets/${nextId}`);
+  }
+
   return (
     <select
       value={selectedId}
-      onChange={(e) => router.push(`/budgets/${e.target.value}`)}
+      onChange={(e) => handleChange(e.target.value)}
       className="rounded-md border border-border bg-background px-3 py-2 text-sm"
     >
       {budgets.map((budget) => (

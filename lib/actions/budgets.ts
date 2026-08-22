@@ -77,6 +77,11 @@ export async function renameBudget(budgetId: string, formData: FormData) {
 
 export async function deleteBudget(budgetId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
   const { data: budget } = await supabase
     .from("budgets")
     .select("is_current")
@@ -84,13 +89,30 @@ export async function deleteBudget(budgetId: string) {
     .maybeSingle();
   if (!budget) throw new Error("Budget not found.");
 
-  if (budget.is_current) {
-    throw new Error("Set a different budget as current before deleting this one.");
-  }
-
   const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
   if (error) throw new Error(error.message);
 
+  // Viewing a budget makes it current (see setCurrentBudget), so deleting
+  // the one you're looking at is the common case, not the exception —
+  // promote another budget to current rather than leaving none set.
+  if (budget.is_current) {
+    const { data: next } = await supabase
+      .from("budgets")
+      .select("id")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (next) {
+      const { error: promoteError } = await supabase
+        .from("budgets")
+        .update({ is_current: true })
+        .eq("id", next.id);
+      if (promoteError) throw new Error(promoteError.message);
+    }
+  }
+
   revalidatePath("/budgets");
+  revalidatePath("/dashboard");
   redirect("/budgets");
 }

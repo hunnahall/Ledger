@@ -10,10 +10,11 @@ import {
   createSinkingExpense,
   updateSinkingExpense,
 } from "@/lib/actions/sinking-expenses";
-import { renameBudget, createBudget, setCurrentBudget, deleteBudget } from "@/lib/actions/budgets";
+import { createBudget, deleteBudget } from "@/lib/actions/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { BudgetSwitcher } from "@/components/budgets/budget-switcher";
+import { BudgetRenameControl } from "@/components/budgets/budget-rename-control";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AddIcon } from "@/components/ui/icons";
@@ -48,41 +49,12 @@ export default async function BudgetDetailPage({
             budgets={allBudgets.map((b) => ({ id: b.id, name: b.name }))}
             selectedId={budgetId}
           />
-          {!budget.is_current && (
-            <form action={setCurrentBudget.bind(null, budgetId)}>
-              <Button type="submit" size="sm">
-                Set current
-              </Button>
-            </form>
-          )}
-          <details className="relative">
-            <summary className="cursor-pointer list-none rounded-md border border-border px-3 py-1.5 text-sm hover:bg-background">
-              Rename
-            </summary>
-            <form
-              action={renameBudget.bind(null, budgetId)}
-              className="absolute left-0 z-10 mt-2 flex w-72 items-end gap-2 rounded-lg border border-card-border bg-surface p-4 shadow-elevated"
-            >
-              <label className="flex flex-1 flex-col gap-1 text-sm">
-                Budget name
-                <input
-                  type="text"
-                  name="name"
-                  defaultValue={budget.name}
-                  required
-                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                />
-              </label>
-              <Button type="submit">Save</Button>
-            </form>
-          </details>
-          {!budget.is_current && (
-            <form action={deleteBudget.bind(null, budgetId)}>
-              <Button type="submit" size="sm" tone="negative">
-                Delete
-              </Button>
-            </form>
-          )}
+          <BudgetRenameControl budgetId={budgetId} name={budget.name} />
+          <form action={deleteBudget.bind(null, budgetId)}>
+            <Button type="submit" size="sm" tone="negative">
+              Delete
+            </Button>
+          </form>
           {!atLimit && (
             <details className="relative">
               <summary
