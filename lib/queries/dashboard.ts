@@ -14,13 +14,13 @@ export async function getDashboardData() {
   const currentBudget = await getCurrentBudget();
 
   const [
-    { data: spending },
-    { data: inflowOutflow },
-    { data: outflowByBucket },
-    { data: accountBalances },
-    { data: sourceBalances },
-    { data: reimbursementsPending },
-    { data: funds },
+    { data: spending, error: spendingError },
+    { data: inflowOutflow, error: inflowOutflowError },
+    { data: outflowByBucket, error: outflowByBucketError },
+    { data: accountBalances, error: accountBalancesError },
+    { data: sourceBalances, error: sourceBalancesError },
+    { data: reimbursementsPending, error: reimbursementsPendingError },
+    { data: funds, error: fundsError },
   ] = await Promise.all([
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
@@ -31,14 +31,27 @@ export async function getDashboardData() {
     supabase.from("funds").select("id, name, balance").is("archived_at", null).order("name"),
   ]);
 
+  for (const error of [
+    spendingError,
+    inflowOutflowError,
+    outflowByBucketError,
+    accountBalancesError,
+    sourceBalancesError,
+    reimbursementsPendingError,
+    fundsError,
+  ]) {
+    if (error) throw new Error(error.message);
+  }
+
   let categories: { id: string; name: string; monthly_amount: number }[] = [];
   if (currentBudget) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("categories")
       .select("id, name, monthly_amount")
       .eq("budget_id", currentBudget.id)
       .is("archived_at", null)
       .order("sort_order");
+    if (error) throw new Error(error.message);
     categories = data ?? [];
   }
 

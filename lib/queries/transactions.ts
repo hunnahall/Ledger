@@ -61,16 +61,26 @@ export async function getTransactionSplits(transactionIds: string[]) {
 
 export async function getFilterOptions() {
   const supabase = await createClient();
-  const [{ data: accounts }, { data: budget }, { data: funds }] = await Promise.all([
+  const [
+    { data: accounts, error: accountsError },
+    { data: budget, error: budgetError },
+    { data: funds, error: fundsError },
+  ] = await Promise.all([
     supabase.from("accounts").select("id, account_name").order("account_name"),
     supabase.from("budgets").select("id").eq("is_current", true).maybeSingle(),
     supabase.from("funds").select("id, name").is("archived_at", null).order("name"),
   ]);
+  for (const error of [accountsError, budgetError, fundsError]) {
+    if (error) throw new Error(error.message);
+  }
 
   let categories: { id: string; name: string }[] = [];
   let defaultSourceId: string | null = null;
   if (budget) {
-    const [{ data: categoryData }, { data: budgetSource }] = await Promise.all([
+    const [
+      { data: categoryData, error: categoryDataError },
+      { data: budgetSource, error: budgetSourceError },
+    ] = await Promise.all([
       supabase
         .from("categories")
         .select("id, name")
@@ -84,15 +94,18 @@ export async function getFilterOptions() {
         .eq("type", "budget")
         .maybeSingle(),
     ]);
+    if (categoryDataError) throw new Error(categoryDataError.message);
+    if (budgetSourceError) throw new Error(budgetSourceError.message);
     categories = categoryData ?? [];
     defaultSourceId = budgetSource?.id ?? null;
   }
 
-  const { data: sources } = await supabase
+  const { data: sources, error: sourcesError } = await supabase
     .from("sources")
     .select("id, name")
     .is("archived_at", null)
     .order("name");
+  if (sourcesError) throw new Error(sourcesError.message);
 
   return {
     accounts: accounts ?? [],
