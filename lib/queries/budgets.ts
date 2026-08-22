@@ -1,7 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { currentMonthISO } from "@/lib/dates";
+import { currentMonthISO, monthsRemaining } from "@/lib/dates";
 import { computeProgress, spentFromRawAmount } from "@/lib/progress";
-import { monthlySinkingAmount, type SinkingFrequency } from "@/lib/budgets/sinking";
+import {
+  goalMonthlyAmount,
+  monthlySinkingAmount,
+  type SinkingFrequency,
+} from "@/lib/budgets/sinking";
 
 export async function getBudgets() {
   const supabase = await createClient();
@@ -68,6 +72,17 @@ export async function getBudgetWithCategories(budgetId: string) {
   if (spendingError) throw new Error(spendingError.message);
   if (sinkingError) throw new Error(sinkingError.message);
 
+  const fundIds = [...new Set((sinkingExpenses ?? []).map((e) => e.fund_id).filter((id) => id != null))];
+  let fundBalances = new Map<string, number>();
+  if (fundIds.length > 0) {
+    const { data: funds, error: fundsError } = await supabase
+      .from("funds")
+      .select("id, balance")
+      .in("id", fundIds);
+    if (fundsError) throw new Error(fundsError.message);
+    fundBalances = new Map((funds ?? []).map((f) => [f.id, f.balance]));
+  }
+
   const spendingByCategory = new Map(
     (spending ?? []).map((s) => [s.category_id, spentFromRawAmount(s.amount)]),
   );
@@ -82,7 +97,14 @@ export async function getBudgetWithCategories(budgetId: string) {
 
   const sinkingExpensesWithMonthly = (sinkingExpenses ?? []).map((expense) => ({
     ...expense,
-    monthly_amount: monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency),
+    monthly_amount:
+      expense.contribution_type === "goal"
+        ? goalMonthlyAmount(
+            expense.target_amount ?? 0,
+            (expense.fund_id ? fundBalances.get(expense.fund_id) : undefined) ?? 0,
+            monthsRemaining(expense.target_date ?? month, month),
+          )
+        : monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency),
   }));
 
   return { budget, categories: categoriesWithProgress, sinkingExpenses: sinkingExpensesWithMonthly };

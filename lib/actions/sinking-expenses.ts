@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { SINKING_FREQUENCIES, type SinkingFrequency } from "@/lib/budgets/sinking";
+import {
+  SINKING_FREQUENCIES,
+  type SinkingContributionType,
+  type SinkingFrequency,
+} from "@/lib/budgets/sinking";
 
 function parseFrequency(value: FormDataEntryValue | null): SinkingFrequency {
   const frequency = String(value ?? "annual");
@@ -12,10 +16,35 @@ function parseFrequency(value: FormDataEntryValue | null): SinkingFrequency {
     : "annual";
 }
 
+function parseContributionType(value: FormDataEntryValue | null): SinkingContributionType {
+  return value === "goal" ? "goal" : "frequency";
+}
+
+// Mode-specific fields (rows come from a single form): a goal-mode submit
+// must null out frequency, and vice versa, to satisfy the DB's XOR check
+// constraint on (contribution_type, frequency, target_amount, target_date).
+function modeFields(formData: FormData) {
+  const contributionType = parseContributionType(formData.get("contribution_type"));
+  if (contributionType === "goal") {
+    return {
+      contribution_type: "goal" as const,
+      frequency: null,
+      amount: 0,
+      target_amount: Number(formData.get("target_amount") ?? 0),
+      target_date: String(formData.get("target_date") ?? ""),
+    };
+  }
+  return {
+    contribution_type: "frequency" as const,
+    frequency: parseFrequency(formData.get("frequency")),
+    amount: Number(formData.get("amount") ?? 0),
+    target_amount: null,
+    target_date: null,
+  };
+}
+
 export async function createSinkingExpense(budgetId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  const amount = Number(formData.get("amount") ?? 0);
-  const frequency = parseFrequency(formData.get("frequency"));
   if (!name) return;
 
   const supabase = await createClient();
@@ -28,8 +57,7 @@ export async function createSinkingExpense(budgetId: string, formData: FormData)
     user_id: user.id,
     budget_id: budgetId,
     name,
-    amount,
-    frequency,
+    ...modeFields(formData),
   });
   if (error) throw new Error(error.message);
 
@@ -43,14 +71,12 @@ export async function updateSinkingExpense(
   formData: FormData,
 ) {
   const name = String(formData.get("name") ?? "").trim();
-  const amount = Number(formData.get("amount") ?? 0);
-  const frequency = parseFrequency(formData.get("frequency"));
   if (!name) return;
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("sinking_expenses")
-    .update({ name, amount, frequency })
+    .update({ name, ...modeFields(formData) })
     .eq("id", sinkingExpenseId);
   if (error) throw new Error(error.message);
 

@@ -5,22 +5,17 @@ import {
   createCategory,
   updateCategory,
 } from "@/lib/actions/categories";
-import {
-  deleteSinkingExpense,
-  createSinkingExpense,
-  updateSinkingExpense,
-} from "@/lib/actions/sinking-expenses";
 import { createBudget, deleteBudget } from "@/lib/actions/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { Select } from "@/components/ui/select";
 import { BudgetSwitcher } from "@/components/budgets/budget-switcher";
 import { BudgetRenameControl } from "@/components/budgets/budget-rename-control";
+import { SinkingExpenseRow } from "@/components/budgets/sinking-expense-row";
+import { SinkingExpenseForm } from "@/components/budgets/sinking-expense-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AddIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
-import { SINKING_FREQUENCIES, SINKING_FREQUENCY_LABELS } from "@/lib/budgets/sinking";
 
 export default async function BudgetDetailPage({
   params,
@@ -215,59 +210,12 @@ export default async function BudgetDetailPage({
               </thead>
               <tbody>
                 {sinkingExpenses.map((expense) => (
-                  <tr
+                  <SinkingExpenseRow
                     key={`${expense.id}-${expense.updated_at}`}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td colSpan={3} className="px-4 py-3">
-                      <form
-                        action={updateSinkingExpense.bind(null, expense.id, budgetId)}
-                        className="flex flex-wrap items-center gap-3"
-                      >
-                        <input
-                          type="text"
-                          name="name"
-                          defaultValue={expense.name}
-                          required
-                          className="w-32 rounded-md border border-border bg-background px-3 py-1.5"
-                        />
-                        <input
-                          type="number"
-                          name="amount"
-                          step="0.01"
-                          min="0"
-                          defaultValue={expense.amount}
-                          className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
-                        />
-                        <Select name="frequency" defaultValue={expense.frequency} className="w-32">
-                          {SINKING_FREQUENCIES.map((frequency) => (
-                            <option key={frequency} value={frequency}>
-                              {SINKING_FREQUENCY_LABELS[frequency]}
-                            </option>
-                          ))}
-                        </Select>
-                        <Button type="submit" size="sm">
-                          Save
-                        </Button>
-                        <Button
-                          type="submit"
-                          size="sm"
-                          tone="negative"
-                          formAction={deleteSinkingExpense.bind(null, expense.id, budgetId)}
-                        >
-                          Delete
-                        </Button>
-                      </form>
-                      <p className="mt-2 text-xs text-muted">
-                        <Money amount={expense.amount} decimalPlaces={decimalPlaces} />{" "}
-                        {SINKING_FREQUENCY_LABELS[
-                          expense.frequency as (typeof SINKING_FREQUENCIES)[number]
-                        ].toLowerCase()}{" "}
-                        &middot; set aside{" "}
-                        <Money amount={expense.monthly_amount} decimalPlaces={decimalPlaces} />/month
-                      </p>
-                    </td>
-                  </tr>
+                    expense={expense}
+                    budgetId={budgetId}
+                    decimalPlaces={decimalPlaces}
+                  />
                 ))}
                 {sinkingExpenses.length === 0 && (
                   <tr>
@@ -281,42 +229,7 @@ export default async function BudgetDetailPage({
           </div>
 
           <Card className="flex flex-wrap items-end gap-3">
-            <form action={createSinkingExpense.bind(null, budgetId)} className="contents">
-              <label className="flex flex-col gap-1 text-sm">
-                New sinking expense
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder="e.g. Car insurance"
-                  className="w-32 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                Amount
-                <input
-                  type="number"
-                  name="amount"
-                  step="0.01"
-                  min="0"
-                  defaultValue={0}
-                  className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                Frequency
-                <Select name="frequency" defaultValue="annual" className="w-36">
-                  {SINKING_FREQUENCIES.map((frequency) => (
-                    <option key={frequency} value={frequency}>
-                      {SINKING_FREQUENCY_LABELS[frequency]}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <Button type="submit" variant="accent">
-                Add sinking expense
-              </Button>
-            </form>
+            <SinkingExpenseForm budgetId={budgetId} />
           </Card>
         </section>
       </div>

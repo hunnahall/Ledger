@@ -233,11 +233,14 @@ export type Database = {
           amount: number
           archived_at: string | null
           budget_id: string
+          contribution_type: string
           created_at: string
-          frequency: string
+          frequency: string | null
           fund_id: string | null
           id: string
           name: string
+          target_amount: number | null
+          target_date: string | null
           updated_at: string
           user_id: string
         }
@@ -245,11 +248,14 @@ export type Database = {
           amount?: number
           archived_at?: string | null
           budget_id: string
+          contribution_type?: string
           created_at?: string
-          frequency?: string
+          frequency?: string | null
           fund_id?: string | null
           id?: string
           name: string
+          target_amount?: number | null
+          target_date?: string | null
           updated_at?: string
           user_id: string
         }
@@ -257,11 +263,14 @@ export type Database = {
           amount?: number
           archived_at?: string | null
           budget_id?: string
+          contribution_type?: string
           created_at?: string
-          frequency?: string
+          frequency?: string | null
           fund_id?: string | null
           id?: string
           name?: string
+          target_amount?: number | null
+          target_date?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -526,6 +535,7 @@ export type Database = {
           account_id: string
           amount: number
           category_id: string | null
+          category_source: string | null
           created_at: string
           description: string
           exclude_from_budget: boolean
@@ -549,6 +559,7 @@ export type Database = {
           account_id: string
           amount: number
           category_id?: string | null
+          category_source?: string | null
           created_at?: string
           description: string
           exclude_from_budget?: boolean
@@ -572,6 +583,7 @@ export type Database = {
           account_id?: string
           amount?: number
           category_id?: string | null
+          category_source?: string | null
           created_at?: string
           description?: string
           exclude_from_budget?: boolean
