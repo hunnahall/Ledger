@@ -80,7 +80,7 @@ export function CreateSourceForm({ funds }: { funds: { id: string; name: string 
           </div>
         )}
 
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="accent">
           Create
         </Button>
       </form>

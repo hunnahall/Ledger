@@ -204,7 +204,7 @@ export default async function TransactionsPage({
             />
             Uncategorized only
           </label>
-          <Button type="submit" size="sm">
+          <Button type="submit" variant="accent" size="sm">
             Filter
           </Button>
           <a href="/transactions" className="text-sm text-muted hover:underline">

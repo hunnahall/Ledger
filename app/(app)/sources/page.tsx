@@ -210,7 +210,7 @@ export default async function SourcesPage() {
                 className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
               />
             </label>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="accent">
               Create
             </Button>
           </form>
