@@ -9,7 +9,7 @@ import { getSettings } from "@/lib/queries/settings";
 import { createManualTransaction } from "@/lib/actions/transactions";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { Button } from "@/components/ui/button";
-import { AddIcon, CsvIcon } from "@/components/ui/icons";
+import { AddIcon, ShareIcon } from "@/components/ui/icons";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 
 type SearchParams = {
@@ -113,7 +113,7 @@ export default async function TransactionsPage({
           aria-label="Export CSV"
           className="flex items-center justify-center rounded-md bg-mark p-2 text-mark-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-elevated hover:brightness-95 active:translate-y-0 active:scale-[0.98]"
         >
-          <CsvIcon />
+          <ShareIcon />
         </a>
       </div>
 
