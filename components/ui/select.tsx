@@ -99,9 +99,18 @@ export function Select({
       const rect = trigger.getBoundingClientRect();
       const estimatedPanelHeight = Math.min(options.length * 36 + 8, 256);
       const openUp = rect.bottom + estimatedPanelHeight > window.innerHeight && rect.top > estimatedPanelHeight;
+      // The panel can grow up to 320px wide (see maxWidth below), wider
+      // than most triggers — left-aligning it with the trigger unchecked
+      // would push it past the right edge on a narrow screen whenever the
+      // trigger itself sits right-of-center (e.g. the Source select next
+      // to Category in a transaction row). Clamp so it stays on-screen,
+      // preferring to hang right off the trigger but sliding left as
+      // needed, with an 8px margin on either edge as a last resort.
+      const estimatedPanelWidth = Math.max(rect.width, 320);
+      const left = Math.min(rect.left, window.innerWidth - estimatedPanelWidth - 8);
       setPlacement({
         top: openUp ? rect.top : rect.bottom,
-        left: rect.left,
+        left: Math.max(8, left),
         width: rect.width,
         openUp,
       });

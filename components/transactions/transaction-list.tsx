@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
+import { memo, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
   assignTransaction,
   bulkUpdateTransactions,
@@ -65,6 +66,12 @@ export function TransactionList({
   const [bulkSource, setBulkSource] = useState("");
   const [isPending, startTransition] = useTransition();
   const selectAllRef = useRef<HTMLInputElement>(null);
+  // State (not a ref) so its value can be read during render below — a
+  // ref's `.current` can't be, since it isn't tracked by React and reading
+  // it during render risks seeing a stale value. This is set from the list
+  // div's own ref callback once it mounts (see below), which is the
+  // supported way to measure a DOM node right after it exists.
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
 
   const allSelected = transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id));
   const someSelected = selectedIds.size > 0 && !allSelected;
@@ -72,6 +79,22 @@ export function TransactionList({
   useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
   }, [someSelected]);
+
+  // Rendering hundreds of rows at once was the main cost on this page — each
+  // one mounts two of the custom Select dropdowns, and hydrating all of them
+  // up front (measured: ~1.6s of the ~2.6s Dashboard→Transactions nav time)
+  // dwarfed the ~1s the actual data fetch took. Only mounting the rows near
+  // the viewport cuts that down to whatever a screenful actually costs.
+  // Window-scrolled (not an inner scroll box) since the page itself scrolls;
+  // dynamic sizing (rather than a fixed estimate) because a row's real
+  // height varies by breakpoint (stacked card vs. single line) and by
+  // whether it's expanded.
+  const rowVirtualizer = useWindowVirtualizer({
+    count: transactions.length,
+    estimateSize: () => 48,
+    overscan: 10,
+    scrollMargin: listEl?.offsetTop ?? 0,
+  });
 
   // Stable identity (via useCallback) so it can be passed straight through
   // to each memoized TransactionRow without defeating memoization — an
@@ -169,37 +192,57 @@ export function TransactionList({
       {transactions.length === 0 ? (
         <Card className="text-center text-sm text-muted">No transactions match these filters.</Card>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-subtle text-left text-xs text-muted">
-                <th className="w-8 px-2 py-2"></th>
-                <th className="px-2 py-2 font-medium">Date</th>
-                <th className="px-2 py-2 font-medium">Account</th>
-                <th className="px-2 py-2 font-medium">Description</th>
-                <th className="px-2 py-2 text-right font-medium">Amount</th>
-                <th className="px-2 py-2 font-medium">Category</th>
-                <th className="px-2 py-2 font-medium">Source</th>
-                <th className="w-8 px-2 py-2"></th>
-                <th className="w-20 px-2 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((txn) => (
-                <TransactionRow
+        // Below md, each transaction renders as a stacked card instead of a
+        // table row — a real <table> forces every column onto one line, which
+        // on a phone-width screen either overflows (forcing sideways
+        // scrolling to see the amount) or truncates everything unreadably.
+        // Rows use the CSS `contents` trick (see TransactionRow) to reflow
+        // into a single-line table on wider screens without duplicating any
+        // fields, so there's one row layout, not two parallel ones to keep in
+        // sync.
+        <div className="rounded-lg border border-border text-sm">
+          <div className="hidden items-center gap-1.5 border-b border-border bg-surface-subtle px-2 py-2 text-left text-xs text-muted md:flex">
+            <span className="w-8 shrink-0"></span>
+            <span className="w-20 shrink-0 font-medium">Date</span>
+            <span className="w-28 shrink-0 font-medium">Account</span>
+            <span className="flex-1 font-medium">Description</span>
+            <span className="w-24 shrink-0 text-right font-medium">Amount</span>
+            <span className="w-32 shrink-0 font-medium">Category</span>
+            <span className="w-32 shrink-0 font-medium">Source</span>
+            <span className="w-8 shrink-0"></span>
+            <span className="w-8 shrink-0"></span>
+          </div>
+          <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const txn = transactions[virtualRow.index];
+              return (
+                <div
                   key={txn.id}
-                  txn={txn}
-                  categories={categories}
-                  sources={sources}
-                  bucketOptions={bucketOptions}
-                  bucketNameByValue={bucketNameByValue}
-                  decimalPlaces={decimalPlaces}
-                  selected={selectedIds.has(txn.id)}
-                  onToggleSelect={toggleSelect}
-                />
-              ))}
-            </tbody>
-          </table>
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                  }}
+                >
+                  <TransactionRow
+                    txn={txn}
+                    categories={categories}
+                    sources={sources}
+                    bucketOptions={bucketOptions}
+                    bucketNameByValue={bucketNameByValue}
+                    decimalPlaces={decimalPlaces}
+                    selected={selectedIds.has(txn.id)}
+                    onToggleSelect={toggleSelect}
+                    isLastRow={virtualRow.index === transactions.length - 1}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -219,6 +262,7 @@ const TransactionRow = memo(function TransactionRow({
   decimalPlaces,
   selected,
   onToggleSelect,
+  isLastRow,
 }: {
   txn: TransactionRowData;
   categories: Option[];
@@ -228,12 +272,19 @@ const TransactionRow = memo(function TransactionRow({
   decimalPlaces: number;
   selected: boolean;
   onToggleSelect: (id: string) => void;
+  // The list is virtualized, so at any moment the DOM's actual last child is
+  // whichever row happens to be at the bottom of the rendered window, not
+  // necessarily the last transaction — a CSS last:border-0 selector would
+  // strip the border off whatever row that happened to be. This is passed
+  // down instead so the real last row is the one that loses it.
+  isLastRow: boolean;
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [expanded, setExpanded] = useState(false);
   const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
   const [sourceId, setSourceId] = useState(txn.sourceId ?? "");
   const { confirm, dialog } = useConfirm();
+  const formRef = useRef<HTMLFormElement>(null);
 
   // The row keeps a stable key (just txn.id) across saves so React updates
   // this DOM subtree in place instead of tearing it down and rebuilding it
@@ -256,31 +307,60 @@ const TransactionRow = memo(function TransactionRow({
     setSourceId(txn.sourceId ?? "");
   }
 
-  async function handleFormSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    if (submitter?.dataset.intent === "delete") {
-      await deleteTransaction(txn.id);
-      return;
-    }
-
+  // Every field in this row autosaves as soon as it changes — there's no
+  // longer an explicit Save button. Reads the rest of the row's current
+  // state straight off the DOM via the form's own FormData (this works even
+  // for fields like Category/Source that live outside the <form> tag, since
+  // they're associated with it through the form= attribute) and overrides
+  // just the field that triggered this save. The override is required for
+  // any field backed by a React-controlled hidden input (the Selects, and
+  // the Transfer checkbox's hidden mirror) — its onChange fires before
+  // React has re-rendered that hidden input with the new value, so reading
+  // the DOM alone would still see the stale one. Plain native inputs
+  // (Exclude checkbox, Notes) don't need an override: the browser updates
+  // their DOM value before the change/blur handler runs.
+  async function saveRow(overrides: Record<string, string> = {}) {
+    const form = formRef.current;
+    if (!form) return;
     const formData = new FormData(form);
+    for (const [key, value] of Object.entries(overrides)) {
+      formData.set(key, value);
+    }
+    await assignTransaction(txn.id, formData);
+  }
+
+  async function handleCategoryChange(newCategoryId: string) {
+    setCategoryId(newCategoryId);
+    const overrides: Record<string, string> = { category_id: newCategoryId };
 
     // Only a fresh category pick (changed from what's saved) for a merchant
     // with no existing rule needs the "make this a rule?" prompt — an
     // unchanged category, or one that already matches a learned rule, is
     // just reinforcing what's already there.
-    if (!isTransfer && categoryId && categoryId !== (txn.categoryId ?? "")) {
+    if (!isTransfer && newCategoryId && newCategoryId !== (txn.categoryId ?? "")) {
       const existingRule = await suggestCategoryForDescription(txn.description);
       if (!existingRule) {
-        const categoryName = categories.find((c) => c.id === categoryId)?.name ?? "this category";
+        const categoryName = categories.find((c) => c.id === newCategoryId)?.name ?? "this category";
         const saveRule = await confirm(`Make all "${txn.description}" transactions ${categoryName}?`);
-        formData.set("rule_action", saveRule ? "write" : "skip");
+        overrides.rule_action = saveRule ? "write" : "skip";
       }
     }
 
-    await assignTransaction(txn.id, formData);
+    await saveRow(overrides);
+  }
+
+  async function handleSourceChange(newSourceId: string) {
+    setSourceId(newSourceId);
+    await saveRow({ source_id: newSourceId });
+  }
+
+  async function handleTransferToggle(checked: boolean) {
+    setIsTransfer(checked);
+    await saveRow({ is_transfer: checked ? "on" : "" });
+  }
+
+  async function handleDelete() {
+    await deleteTransaction(txn.id);
   }
 
   const currentTransferFrom = txn.transferFromSourceId
@@ -299,282 +379,294 @@ const TransactionRow = memo(function TransactionRow({
   return (
     <>
       {dialog}
-      <tr className="border-b border-border last:border-0 align-middle">
-        <td className="px-2 py-1.5">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => onToggleSelect(txn.id)}
-            className="h-4 w-4 accent-foreground"
-            aria-label={`Select transaction: ${txn.description}`}
-          />
-        </td>
-        <td className="whitespace-nowrap px-2 py-1.5 text-muted">
-          {new Date(txn.postedDate).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            timeZone: "UTC",
-          })}
-        </td>
-        <td className="max-w-32 truncate px-2 py-1.5 text-muted" title={txn.accountName ?? ""}>
-          {txn.accountName}
-        </td>
-        <td className="max-w-0 w-full truncate px-2 py-1.5 font-medium" title={txn.description}>
-          {txn.description}
-          {typeLabel && (
-            <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
-              {typeLabel}
+      <div className={isLastRow ? "" : "border-b border-border"}>
+        {/* Below md this is a stacked card (each inner group is its own
+            flex row); at md+ every inner group switches to `contents`,
+            which dissolves its own box so its children fall in as direct
+            items of this flex row — same fields, same form associations,
+            just reflowed into one line instead of duplicated. */}
+        <div className="flex flex-col gap-2 p-3 md:flex-row md:items-center md:gap-1.5 md:p-0 md:px-2 md:py-1.5">
+          <div className="flex items-center gap-2 md:contents">
+            <span className="shrink-0 md:flex md:w-8 md:items-center">
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => onToggleSelect(txn.id)}
+                className="h-4 w-4 accent-foreground"
+                aria-label={`Select transaction: ${txn.description}`}
+              />
             </span>
-          )}
-        </td>
-        <td
-          className={`whitespace-nowrap px-2 py-1.5 text-right font-medium ${
-            txn.amount < 0 ? "text-negative" : "text-positive"
-          }`}
-        >
-          <Money amount={txn.amount} decimalPlaces={decimalPlaces} />
-        </td>
-        <td className="px-2 py-1.5">
-          <div className="flex items-center gap-1.5">
+            <span className="shrink-0 text-xs text-muted md:w-20 md:text-sm">
+              {new Date(txn.postedDate).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                timeZone: "UTC",
+              })}
+            </span>
+            <span
+              className="min-w-0 truncate text-xs text-muted md:w-28 md:text-sm"
+              title={txn.accountName ?? ""}
+            >
+              {txn.accountName}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 md:contents">
+            <span className="min-w-0 truncate font-medium md:flex-1" title={txn.description}>
+              {txn.description}
+              {typeLabel && (
+                <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
+                  {typeLabel}
+                </span>
+              )}
+            </span>
+            <span
+              className={`shrink-0 whitespace-nowrap text-right font-medium md:w-24 ${
+                txn.amount < 0 ? "text-negative" : "text-positive"
+              }`}
+            >
+              <Money amount={txn.amount} decimalPlaces={decimalPlaces} />
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 md:contents">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-32 md:flex-none">
+              <Select
+                form={`txn-${txn.id}`}
+                name="category_id"
+                uiSize="sm"
+                className="min-w-0 flex-1 md:w-full"
+                value={categoryId}
+                onChange={handleCategoryChange}
+                placeholder={isTransfer ? "—" : "Uncategorized"}
+                disabled={isTransfer}
+              >
+                <option value="">Uncategorized</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+              {txn.categorySource === "rule" && (
+                <span
+                  className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
+                  title="Auto-categorized from a learned rule"
+                >
+                  auto
+                </span>
+              )}
+            </div>
             <Select
               form={`txn-${txn.id}`}
-              name="category_id"
+              name="source_id"
               uiSize="sm"
-              className="w-32"
-              value={categoryId}
-              onChange={setCategoryId}
-              placeholder={isTransfer ? "—" : "Uncategorized"}
+              className="min-w-0 flex-1 md:w-32 md:flex-none"
+              value={sourceId}
+              onChange={handleSourceChange}
+              placeholder={isTransfer ? "—" : "No source"}
               disabled={isTransfer}
             >
-              <option value="">Uncategorized</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              <option value="">No source</option>
+              {sources.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </Select>
-            {txn.categorySource === "rule" && (
-              <span
-                className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
-                title="Auto-categorized from a learned rule"
-              >
-                auto
-              </span>
-            )}
           </div>
-        </td>
-        <td className="px-2 py-1.5">
-          <Select
-            form={`txn-${txn.id}`}
-            name="source_id"
-            uiSize="sm"
-            className="w-32"
-            value={sourceId}
-            onChange={setSourceId}
-            placeholder={isTransfer ? "—" : "No source"}
-            disabled={isTransfer}
-          >
-            <option value="">No source</option>
-            {sources.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
-        </td>
-        <td className="px-2 py-1.5">
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            aria-label={expanded ? "Collapse details" : "Expand details"}
-            aria-expanded={expanded}
-            className="rounded p-1 text-muted transition-transform duration-150 hover:bg-background"
-          >
-            <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
-          </button>
-        </td>
-        <td className="whitespace-nowrap px-2 py-1.5">
-          <div className="flex items-center gap-1">
+
+          <div className="flex items-center justify-end gap-1 md:contents">
             <button
-              form={`txn-${txn.id}`}
-              type="submit"
-              className="rounded p-1.5 text-muted hover:bg-background"
-              aria-label="Save transaction"
-              title="Save"
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              aria-label={expanded ? "Collapse details" : "Expand details"}
+              aria-expanded={expanded}
+              className="rounded p-1 text-muted transition-transform duration-150 hover:bg-background md:flex md:w-8 md:items-center md:justify-center"
             >
-              <CheckIcon />
+              <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
             </button>
-            {!txn.hasProviderTransactionId && (
-              <button
-                form={`txn-${txn.id}`}
-                type="submit"
-                data-intent="delete"
-                className="rounded p-1.5 text-negative hover:bg-background"
-                aria-label="Delete transaction"
-                title="Delete"
-              >
-                <TrashIcon />
-              </button>
-            )}
-          </div>
-        </td>
-      </tr>
-
-      {/* Always rendered (never unmounted) so the form= references from the
-          main row's Category/Source selects and Save/Delete buttons keep
-          resolving to this form regardless of expand state — only the
-          visibility is toggled. */}
-      <tr className={`border-b border-border bg-surface-subtle last:border-0 ${expanded ? "" : "hidden"}`}>
-          <td colSpan={9} className="px-4 py-3">
-            <form
-              id={`txn-${txn.id}`}
-              onSubmit={handleFormSubmit}
-              className="flex flex-wrap items-end gap-3"
-            >
-              <label className="flex items-center gap-1.5 text-xs text-muted">
-                <input
-                  type="checkbox"
-                  checked={isTransfer}
-                  onChange={(e) => setIsTransfer(e.target.checked)}
-                />
-                <input type="hidden" name="is_transfer" value={isTransfer ? "on" : ""} />
-                Transfer
-              </label>
-
-              {isTransfer && (
-                <>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    Transfer from
-                    <Select name="transfer_from" uiSize="sm" className="w-36" defaultValue={currentTransferFrom} placeholder="None">
-                      <option value="">None</option>
-                      {bucketOptions.map((b) => (
-                        <option key={b.value} value={b.value}>
-                          {b.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    Transfer to
-                    <Select name="transfer_to" uiSize="sm" className="w-36" defaultValue={currentTransferTo} placeholder="None">
-                      <option value="">None</option>
-                      {bucketOptions.map((b) => (
-                        <option key={b.value} value={b.value}>
-                          {b.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                </>
-              )}
-
-              <label className="flex items-center gap-1.5 text-xs text-muted">
-                <input
-                  type="checkbox"
-                  name="exclude_from_budget"
-                  defaultChecked={txn.excludeFromBudget}
-                />
-                Exclude from budget
-              </label>
-              <label className="flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted">
-                Notes
-                <input
-                  type="text"
-                  name="notes"
-                  defaultValue={txn.notes ?? ""}
-                  placeholder="Notes"
-                  className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                />
-              </label>
-            </form>
-
-            {txn.isTransfer && (currentTransferFrom || currentTransferTo) && (
-              <p className="mt-2 text-xs text-muted">
-                Transfer: {formatMoney(Math.abs(txn.amount), decimalPlaces)}{" "}
-                {bucketNameByValue[currentTransferFrom] ?? "outside"} &rarr;{" "}
-                {bucketNameByValue[currentTransferTo] ?? "outside"}
-              </p>
-            )}
-
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs text-muted">
-                {txn.isSplit ? `Split into ${txn.splits.length} lines` : "Split transaction"}
-              </summary>
-              <form
-                action={saveSplits.bind(null, txn.id, txn.amount)}
-                className="mt-2 flex flex-col gap-2"
-              >
-                {Array.from({ length: MAX_SPLIT_ROWS }, (_, i) => i + 1).map((i) => {
-                  const existing = txn.splits[i - 1];
-                  return (
-                    <div
-                      key={existing?.id ?? `new-${i}`}
-                      className="flex flex-wrap items-center gap-2"
-                    >
-                      <Select
-                        name={`split_category_${i}`}
-                        uiSize="sm"
-                        className="w-36 py-1 text-xs"
-                        defaultValue={existing?.categoryId ?? ""}
-                        placeholder="No category"
-                      >
-                        <option value="">No category</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </Select>
-                      <Select
-                        name={`split_source_${i}`}
-                        uiSize="sm"
-                        className="w-36 py-1 text-xs"
-                        defaultValue={existing?.sourceId ?? ""}
-                        placeholder="No source"
-                      >
-                        <option value="">No source</option>
-                        {sources.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </Select>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name={`split_amount_${i}`}
-                        defaultValue={existing?.amount ?? ""}
-                        placeholder="Amount"
-                        className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs"
-                      />
-                    </div>
-                  );
-                })}
-                <p className="text-xs text-muted">
-                  Split amounts must sum to {formatMoney(txn.amount, decimalPlaces)}. Leave all
-                  fields blank to remove the split.
-                </p>
+            <div className="flex items-center gap-1 md:w-8 md:flex-none md:justify-end">
+              {!txn.hasProviderTransactionId && (
                 <button
-                  type="submit"
-                  className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
+                  type="button"
+                  onClick={handleDelete}
+                  className="rounded p-1.5 text-negative hover:bg-background"
+                  aria-label="Delete transaction"
+                  title="Delete"
                 >
-                  Save split
+                  <TrashIcon />
                 </button>
-              </form>
-            </details>
-          </td>
-        </tr>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Always rendered (never unmounted) so the form= references from the
+            main row's Category/Source selects keep resolving to this form
+            regardless of expand state — only the visibility is toggled.
+            Nothing submits this form (every field autosaves individually via
+            its own onChange/onBlur); it exists purely so saveRow's
+            `new FormData(form)` can read the rest of the row's current
+            values, including the remotely-associated Category/Source
+            fields. */}
+        <div className={`border-t border-border bg-surface-subtle px-4 py-3 ${expanded ? "" : "hidden"}`}>
+          <form ref={formRef} id={`txn-${txn.id}`} className="flex flex-wrap items-end gap-3">
+            <label className="flex items-center gap-1.5 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={isTransfer}
+                onChange={(e) => handleTransferToggle(e.target.checked)}
+              />
+              <input type="hidden" name="is_transfer" value={isTransfer ? "on" : ""} />
+              Transfer
+            </label>
+
+            {isTransfer && (
+              <>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Transfer from
+                  <Select
+                    name="transfer_from"
+                    uiSize="sm"
+                    className="w-36"
+                    defaultValue={currentTransferFrom}
+                    onChange={(value) => saveRow({ transfer_from: value })}
+                    placeholder="None"
+                  >
+                    <option value="">None</option>
+                    {bucketOptions.map((b) => (
+                      <option key={b.value} value={b.value}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Transfer to
+                  <Select
+                    name="transfer_to"
+                    uiSize="sm"
+                    className="w-36"
+                    defaultValue={currentTransferTo}
+                    onChange={(value) => saveRow({ transfer_to: value })}
+                    placeholder="None"
+                  >
+                    <option value="">None</option>
+                    {bucketOptions.map((b) => (
+                      <option key={b.value} value={b.value}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              </>
+            )}
+
+            <label className="flex items-center gap-1.5 text-xs text-muted">
+              <input
+                type="checkbox"
+                name="exclude_from_budget"
+                defaultChecked={txn.excludeFromBudget}
+                onChange={() => saveRow()}
+              />
+              Exclude from budget
+            </label>
+            <label className="flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted">
+              Notes
+              <input
+                type="text"
+                name="notes"
+                defaultValue={txn.notes ?? ""}
+                placeholder="Notes"
+                onBlur={() => saveRow()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+                className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+          </form>
+
+          {txn.isTransfer && (currentTransferFrom || currentTransferTo) && (
+            <p className="mt-2 text-xs text-muted">
+              Transfer: {formatMoney(Math.abs(txn.amount), decimalPlaces)}{" "}
+              {bucketNameByValue[currentTransferFrom] ?? "outside"} &rarr;{" "}
+              {bucketNameByValue[currentTransferTo] ?? "outside"}
+            </p>
+          )}
+
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs text-muted">
+              {txn.isSplit ? `Split into ${txn.splits.length} lines` : "Split transaction"}
+            </summary>
+            <form
+              action={saveSplits.bind(null, txn.id, txn.amount)}
+              className="mt-2 flex flex-col gap-2"
+            >
+              {Array.from({ length: MAX_SPLIT_ROWS }, (_, i) => i + 1).map((i) => {
+                const existing = txn.splits[i - 1];
+                return (
+                  <div
+                    key={existing?.id ?? `new-${i}`}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <Select
+                      name={`split_category_${i}`}
+                      uiSize="sm"
+                      className="w-36 py-1 text-xs"
+                      defaultValue={existing?.categoryId ?? ""}
+                      placeholder="No category"
+                    >
+                      <option value="">No category</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      name={`split_source_${i}`}
+                      uiSize="sm"
+                      className="w-36 py-1 text-xs"
+                      defaultValue={existing?.sourceId ?? ""}
+                      placeholder="No source"
+                    >
+                      <option value="">No source</option>
+                      {sources.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name={`split_amount_${i}`}
+                      defaultValue={existing?.amount ?? ""}
+                      placeholder="Amount"
+                      className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs"
+                    />
+                  </div>
+                );
+              })}
+              <p className="text-xs text-muted">
+                Split amounts must sum to {formatMoney(txn.amount, decimalPlaces)}. Leave all
+                fields blank to remove the split.
+              </p>
+              <button
+                type="submit"
+                className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
+              >
+                Save split
+              </button>
+            </form>
+          </details>
+        </div>
+      </div>
     </>
   );
 });
-
-function CheckIcon() {
-  return (
-    <svg width={16} height={16} viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-      <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z" />
-    </svg>
-  );
-}
 
 function TrashIcon() {
   return (
