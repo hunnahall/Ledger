@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { MAX_IMPORT_DAYS, daysBetween } from "@/lib/sources/import-range";
 
 async function claimAccessUrl(setupToken: string): Promise<string> {
   let claimUrl: string;
@@ -104,8 +105,6 @@ export async function syncBankConnection(connectionId: string) {
   revalidatePath("/dashboard");
 }
 
-const MAX_IMPORT_DAYS = 90;
-
 // Backfills one bank connection over an explicit date range (as opposed to
 // syncBankConnection's rolling window since last sync) — see the "Import"
 // control on the Accounts page. Dedup is handled entirely server-side: the
@@ -120,11 +119,7 @@ export async function importBankConnectionRange(
   if (!startDate || !endDate || endDate < startDate) {
     throw new Error("Choose a valid date range.");
   }
-  const days =
-    Math.round(
-      (new Date(`${endDate}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) /
-        86400000,
-    ) + 1;
+  const days = daysBetween(startDate, endDate) ?? 0;
   if (days > MAX_IMPORT_DAYS) {
     throw new Error(`Import range must be ${MAX_IMPORT_DAYS} days or fewer (chose ${days}).`);
   }

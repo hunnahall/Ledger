@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { decodeBucketOption } from "@/lib/transactions/bucket-option";
+import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -351,8 +352,6 @@ export async function deleteTransaction(transactionId: string) {
 
   revalidatePath("/transactions");
 }
-
-const MAX_SPLIT_ROWS = 4;
 
 export async function saveSplits(
   transactionId: string,

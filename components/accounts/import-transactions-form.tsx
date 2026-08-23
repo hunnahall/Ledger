@@ -2,19 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { importBankConnectionRange } from "@/lib/actions/simplefin";
+import { MAX_IMPORT_DAYS, daysBetween } from "@/lib/sources/import-range";
 import { Button } from "@/components/ui/button";
-
-const MAX_IMPORT_DAYS = 90;
-const MS_PER_DAY = 86400000;
-
-function spanDays(startDate: string, endDate: string): number | null {
-  if (!startDate || !endDate) return null;
-  const diff = Math.round(
-    (new Date(`${endDate}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) /
-      MS_PER_DAY,
-  ) + 1;
-  return Number.isFinite(diff) ? diff : null;
-}
 
 export function ImportTransactionsForm({ connectionId }: { connectionId: string }) {
   const [open, setOpen] = useState(false);
@@ -25,7 +14,7 @@ export function ImportTransactionsForm({ connectionId }: { connectionId: string 
     null,
   );
 
-  const days = spanDays(startDate, endDate);
+  const days = daysBetween(startDate, endDate);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

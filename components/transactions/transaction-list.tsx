@@ -9,6 +9,7 @@ import {
   suggestCategoryForDescription,
 } from "@/lib/actions/transactions";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
+import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 import { formatMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -43,7 +44,6 @@ type Option = { id: string; name: string };
 type BucketOption = { value: string; label: string };
 
 const CLEAR = "__clear__";
-const MAX_SPLIT_ROWS = 4;
 
 export function TransactionList({
   transactions,

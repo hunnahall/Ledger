@@ -872,6 +872,14 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_fund_balance: {
+        Args: { p_delta: number; p_fund_id: string }
+        Returns: number
+      }
+      adjust_source_balance: {
+        Args: { p_delta: number; p_source_id: string }
+        Returns: number
+      }
       delete_bank_connection: {
         Args: { p_connection_id: string }
         Returns: undefined

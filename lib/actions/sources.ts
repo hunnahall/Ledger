@@ -70,18 +70,13 @@ export async function adjustSourceBalance(sourceId: string, formData: FormData) 
   if (!amount) return;
 
   const supabase = await createClient();
-  const { data: source, error: fetchError } = await supabase
-    .from("sources")
-    .select("balance")
-    .eq("id", sourceId)
-    .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!source) throw new Error("Source not found.");
-
-  const { error } = await supabase
-    .from("sources")
-    .update({ balance: source.balance + amount })
-    .eq("id", sourceId);
+  // Atomic balance = balance + amount in the DB (see adjust_source_balance)
+  // rather than reading balance then writing it back, which would race two
+  // concurrent adjustments (double-submit, two tabs) into dropping one.
+  const { error } = await supabase.rpc("adjust_source_balance", {
+    p_source_id: sourceId,
+    p_delta: amount,
+  });
   if (error) throw new Error(error.message);
 
   revalidatePath("/sources");
@@ -138,18 +133,12 @@ export async function adjustFundBalance(fundId: string, formData: FormData) {
   if (!amount) return;
 
   const supabase = await createClient();
-  const { data: fund, error: fetchError } = await supabase
-    .from("funds")
-    .select("balance")
-    .eq("id", fundId)
-    .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!fund) throw new Error("Fund not found.");
-
-  const { error } = await supabase
-    .from("funds")
-    .update({ balance: fund.balance + amount })
-    .eq("id", fundId);
+  // See adjustSourceBalance — atomic increment via adjust_fund_balance
+  // instead of a read-then-write that could race a concurrent adjustment.
+  const { error } = await supabase.rpc("adjust_fund_balance", {
+    p_fund_id: fundId,
+    p_delta: amount,
+  });
   if (error) throw new Error(error.message);
 
   revalidatePath("/sources");
