@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
   assignTransaction,
   bulkUpdateTransactions,
@@ -65,6 +66,12 @@ export function TransactionList({
   const [bulkSource, setBulkSource] = useState("");
   const [isPending, startTransition] = useTransition();
   const selectAllRef = useRef<HTMLInputElement>(null);
+  // State (not a ref) so its value can be read during render below — a
+  // ref's `.current` can't be, since it isn't tracked by React and reading
+  // it during render risks seeing a stale value. This is set from the list
+  // div's own ref callback once it mounts (see below), which is the
+  // supported way to measure a DOM node right after it exists.
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
 
   const allSelected = transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id));
   const someSelected = selectedIds.size > 0 && !allSelected;
@@ -72,6 +79,22 @@ export function TransactionList({
   useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
   }, [someSelected]);
+
+  // Rendering hundreds of rows at once was the main cost on this page — each
+  // one mounts two of the custom Select dropdowns, and hydrating all of them
+  // up front (measured: ~1.6s of the ~2.6s Dashboard→Transactions nav time)
+  // dwarfed the ~1s the actual data fetch took. Only mounting the rows near
+  // the viewport cuts that down to whatever a screenful actually costs.
+  // Window-scrolled (not an inner scroll box) since the page itself scrolls;
+  // dynamic sizing (rather than a fixed estimate) because a row's real
+  // height varies by breakpoint (stacked card vs. single line) and by
+  // whether it's expanded.
+  const rowVirtualizer = useWindowVirtualizer({
+    count: transactions.length,
+    estimateSize: () => 48,
+    overscan: 10,
+    scrollMargin: listEl?.offsetTop ?? 0,
+  });
 
   // Stable identity (via useCallback) so it can be passed straight through
   // to each memoized TransactionRow without defeating memoization — an
@@ -189,19 +212,37 @@ export function TransactionList({
             <span className="w-8 shrink-0"></span>
             <span className="w-8 shrink-0"></span>
           </div>
-          {transactions.map((txn) => (
-            <TransactionRow
-              key={txn.id}
-              txn={txn}
-              categories={categories}
-              sources={sources}
-              bucketOptions={bucketOptions}
-              bucketNameByValue={bucketNameByValue}
-              decimalPlaces={decimalPlaces}
-              selected={selectedIds.has(txn.id)}
-              onToggleSelect={toggleSelect}
-            />
-          ))}
+          <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const txn = transactions[virtualRow.index];
+              return (
+                <div
+                  key={txn.id}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                  }}
+                >
+                  <TransactionRow
+                    txn={txn}
+                    categories={categories}
+                    sources={sources}
+                    bucketOptions={bucketOptions}
+                    bucketNameByValue={bucketNameByValue}
+                    decimalPlaces={decimalPlaces}
+                    selected={selectedIds.has(txn.id)}
+                    onToggleSelect={toggleSelect}
+                    isLastRow={virtualRow.index === transactions.length - 1}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -221,6 +262,7 @@ const TransactionRow = memo(function TransactionRow({
   decimalPlaces,
   selected,
   onToggleSelect,
+  isLastRow,
 }: {
   txn: TransactionRowData;
   categories: Option[];
@@ -230,6 +272,12 @@ const TransactionRow = memo(function TransactionRow({
   decimalPlaces: number;
   selected: boolean;
   onToggleSelect: (id: string) => void;
+  // The list is virtualized, so at any moment the DOM's actual last child is
+  // whichever row happens to be at the bottom of the rendered window, not
+  // necessarily the last transaction — a CSS last:border-0 selector would
+  // strip the border off whatever row that happened to be. This is passed
+  // down instead so the real last row is the one that loses it.
+  isLastRow: boolean;
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [expanded, setExpanded] = useState(false);
@@ -331,7 +379,7 @@ const TransactionRow = memo(function TransactionRow({
   return (
     <>
       {dialog}
-      <div className="border-b border-border last:border-0">
+      <div className={isLastRow ? "" : "border-b border-border"}>
         {/* Below md this is a stacked card (each inner group is its own
             flex row); at md+ every inner group switches to `contents`,
             which dissolves its own box so its children fall in as direct
