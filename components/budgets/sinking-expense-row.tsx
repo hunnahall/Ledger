@@ -40,6 +40,18 @@ export function SinkingExpenseRow({
     expense.contribution_type === "goal" ? "goal" : "frequency",
   );
 
+  // The row keeps a stable key (just expense.id) across saves so React
+  // updates this DOM subtree in place rather than remounting it — a full
+  // remount on every save was fighting password-manager extensions that
+  // inject overlays into page inputs. Adjust from fresh props here during
+  // render instead (React's recommended pattern, rather than
+  // setState-in-effect).
+  const [prevContributionType, setPrevContributionType] = useState(expense.contribution_type);
+  if (expense.contribution_type !== prevContributionType) {
+    setPrevContributionType(expense.contribution_type);
+    setMode(expense.contribution_type === "goal" ? "goal" : "frequency");
+  }
+
   return (
     <tr className="border-b border-border last:border-0">
       <td colSpan={3} className="px-4 py-3">
@@ -48,6 +60,7 @@ export function SinkingExpenseRow({
           className="flex flex-wrap items-center gap-3"
         >
           <input
+            key={`name-${expense.updated_at}`}
             type="text"
             name="name"
             defaultValue={expense.name}
@@ -81,6 +94,7 @@ export function SinkingExpenseRow({
           {mode === "frequency" ? (
             <>
               <input
+                key={`amount-${expense.updated_at}`}
                 type="number"
                 name="amount"
                 step="0.01"
@@ -89,6 +103,7 @@ export function SinkingExpenseRow({
                 className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
               />
               <Select
+                key={`frequency-${expense.updated_at}`}
                 name="frequency"
                 defaultValue={expense.frequency ?? "annual"}
                 className="w-32"
@@ -103,6 +118,7 @@ export function SinkingExpenseRow({
           ) : (
             <>
               <input
+                key={`target_amount-${expense.updated_at}`}
                 type="number"
                 name="target_amount"
                 step="0.01"
@@ -112,6 +128,7 @@ export function SinkingExpenseRow({
                 className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
               />
               <input
+                key={`target_date-${expense.updated_at}`}
                 type="date"
                 name="target_date"
                 defaultValue={expense.target_date ?? ""}

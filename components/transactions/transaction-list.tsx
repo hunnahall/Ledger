@@ -181,7 +181,7 @@ export function TransactionList({
             <tbody>
               {transactions.map((txn) => (
                 <TransactionRow
-                  key={`${txn.id}-${txn.updatedAt}`}
+                  key={txn.id}
                   txn={txn}
                   categories={categories}
                   sources={sources}
@@ -222,7 +222,29 @@ function TransactionRow({
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [expanded, setExpanded] = useState(false);
   const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
+  const [sourceId, setSourceId] = useState(txn.sourceId ?? "");
   const { confirm, dialog } = useConfirm();
+
+  // The row keeps a stable key (just txn.id) across saves so React updates
+  // this DOM subtree in place instead of tearing it down and rebuilding it
+  // on every edit — remounting on every save was fighting password-manager
+  // extensions that inject overlays into the page's inputs (they hold
+  // references into DOM nodes that a remount yanks out from under them,
+  // throwing on cleanup and leaving controls looking inert). That means
+  // these fields no longer auto-reset from a changed key, so adjust them
+  // from fresh props here during render instead (React's recommended
+  // pattern for this, rather than setState-in-effect).
+  const [prevTxn, setPrevTxn] = useState(txn);
+  if (
+    txn.isTransfer !== prevTxn.isTransfer ||
+    txn.categoryId !== prevTxn.categoryId ||
+    txn.sourceId !== prevTxn.sourceId
+  ) {
+    setPrevTxn(txn);
+    setIsTransfer(txn.isTransfer);
+    setCategoryId(txn.categoryId ?? "");
+    setSourceId(txn.sourceId ?? "");
+  }
 
   async function handleFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -337,7 +359,8 @@ function TransactionRow({
             name="source_id"
             uiSize="sm"
             className="w-32"
-            defaultValue={txn.sourceId ?? ""}
+            value={sourceId}
+            onChange={setSourceId}
             placeholder={isTransfer ? "—" : "No source"}
             disabled={isTransfer}
           >

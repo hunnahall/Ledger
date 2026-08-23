@@ -105,7 +105,7 @@ export default async function BudgetDetailPage({
               <tbody>
                 {categories.map((category) => (
                   <tr
-                    key={`${category.id}-${category.updated_at}`}
+                    key={category.id}
                     className="border-b border-border last:border-0"
                   >
                     <td colSpan={3} className="px-4 py-3">
@@ -114,6 +114,7 @@ export default async function BudgetDetailPage({
                         className="flex flex-wrap items-center gap-3"
                       >
                         <input
+                          key={`name-${category.updated_at}`}
                           type="text"
                           name="name"
                           defaultValue={category.name}
@@ -121,6 +122,7 @@ export default async function BudgetDetailPage({
                           className="w-40 rounded-md border border-border bg-background px-3 py-1.5"
                         />
                         <input
+                          key={`amount-${category.updated_at}`}
                           type="number"
                           name="monthly_amount"
                           step="0.01"
@@ -211,7 +213,7 @@ export default async function BudgetDetailPage({
               <tbody>
                 {sinkingExpenses.map((expense) => (
                   <SinkingExpenseRow
-                    key={`${expense.id}-${expense.updated_at}`}
+                    key={expense.id}
                     expense={expense}
                     budgetId={budgetId}
                     decimalPlaces={decimalPlaces}
