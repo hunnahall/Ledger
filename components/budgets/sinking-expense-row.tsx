@@ -13,7 +13,7 @@ import {
 } from "@/lib/budgets/sinking";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { AddIcon } from "@/components/ui/icons";
+import { AddIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
 
 type SinkingExpense = {
@@ -41,6 +41,7 @@ export function SinkingExpenseRow({
   isLast: boolean;
   onRequestAdd: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [mode, setMode] = useState<SinkingContributionType>(
     expense.contribution_type === "goal" ? "goal" : "frequency",
   );
@@ -58,9 +59,42 @@ export function SinkingExpenseRow({
   }
 
   return (
-    <tr className="border-b border-border last:border-0">
-      <td colSpan={3} className="px-4 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <>
+      <tr className="border-b border-border last:border-0 align-middle">
+        <td className="px-4 py-3 font-medium">{expense.name}</td>
+        <td className="px-4 py-3">
+          <Money amount={expense.monthly_amount} decimalPlaces={decimalPlaces} />/mo
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              aria-label={expanded ? "Collapse details" : "Edit sinking expense"}
+              aria-expanded={expanded}
+              className="rounded p-1 text-muted transition-transform duration-150 hover:bg-background"
+            >
+              <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
+            </button>
+            {isLast && (
+              <Button
+                type="button"
+                variant="accent"
+                size="icon"
+                aria-label="Add sinking expense"
+                onClick={onRequestAdd}
+              >
+                <AddIcon />
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+
+      {/* Always rendered (never unmounted) so a save doesn't remount this
+          subtree — see the comment above; only visibility toggles. */}
+      <tr className={`border-b border-border bg-surface-subtle last:border-0 ${expanded ? "" : "hidden"}`}>
+        <td colSpan={3} className="px-4 py-3">
           <form
             action={updateSinkingExpense.bind(null, expense.id, budgetId)}
             className="flex flex-wrap items-center gap-3"
@@ -145,37 +179,8 @@ export function SinkingExpenseRow({
               Delete
             </Button>
           </form>
-
-          {isLast && (
-            <Button
-              type="button"
-              variant="accent"
-              size="icon"
-              aria-label="Add sinking expense"
-              onClick={onRequestAdd}
-            >
-              <AddIcon />
-            </Button>
-          )}
-        </div>
-        <p className="mt-2 text-xs text-muted">
-          {expense.contribution_type === "goal" ? (
-            <>
-              <Money amount={expense.target_amount ?? 0} decimalPlaces={decimalPlaces} /> by{" "}
-              {expense.target_date}
-            </>
-          ) : (
-            <>
-              <Money amount={expense.amount} decimalPlaces={decimalPlaces} />{" "}
-              {SINKING_FREQUENCY_LABELS[
-                (expense.frequency ?? "annual") as SinkingFrequency
-              ].toLowerCase()}
-            </>
-          )}{" "}
-          &middot; set aside <Money amount={expense.monthly_amount} decimalPlaces={decimalPlaces} />
-          /month
-        </p>
-      </td>
-    </tr>
+        </td>
+      </tr>
+    </>
   );
 }
