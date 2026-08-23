@@ -169,6 +169,12 @@ async function syncConnection(
       if (txError) throw new Error(txError.message);
     }
 
+    // Flag matching same-user transfer pairs (e.g. a savings-to-checking
+    // move, a credit card payment) before auto-categorizing below, so they
+    // get excluded from both categorization and — via v_inflow_outflow's
+    // own is_transfer filter — the dashboard's inflow/outflow totals.
+    await serviceClient.rpc("match_transfer_pairs", { p_user_id: connection.user_id });
+
     // Auto-categorize anything still uncategorized using this user's
     // learned vendor rules (also retroactively covers older uncategorized
     // rows if a rule was learned since the last sync).
