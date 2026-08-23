@@ -25,11 +25,21 @@ function csvEscapeText(value: string): string {
   return quoteCsv(value);
 }
 
+// "Last 30 days" is computed here (server's current date) rather than
+// passed as an explicit date_from, so the export menu can offer it as a
+// one-click range without the client doing its own date math.
+function last30DaysStart(): string {
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() - 29);
+  return start.toISOString().slice(0, 10);
+}
+
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
+  const range = params.get("range");
 
   const filters: TransactionFilters = {
-    dateFrom: params.get("date_from") ?? undefined,
+    dateFrom: range === "30d" ? last30DaysStart() : params.get("date_from") ?? undefined,
     dateTo: params.get("date_to") ?? undefined,
     accountId: params.get("account_id") ?? undefined,
     sourceId: params.get("source_id") ?? undefined,
@@ -67,10 +77,11 @@ export async function GET(request: NextRequest) {
     .map((row) => row.join(","))
     .join("\n");
 
+  const filenameSuffix = range === "30d" ? "-last-30-days" : "";
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="ledger-transactions-${new Date().toISOString().slice(0, 10)}.csv"`,
+      "Content-Disposition": `attachment; filename="ledger-transactions${filenameSuffix}-${new Date().toISOString().slice(0, 10)}.csv"`,
     },
   });
 }

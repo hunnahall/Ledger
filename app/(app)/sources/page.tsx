@@ -78,7 +78,7 @@ function SourceCard({
                 type="number"
                 name="amount"
                 step="0.01"
-                placeholder="e.g. 800 or -50"
+                placeholder="-500"
                 className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
             </label>
@@ -248,7 +248,7 @@ export default async function SourcesPage() {
                       type="number"
                       name="amount"
                       step="0.01"
-                      placeholder="e.g. 800 or -50"
+                      placeholder="-500"
                       className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                     />
                   </label>

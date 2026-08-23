@@ -24,7 +24,7 @@ export function CreateSourceForm({ funds }: { funds: { id: string; name: string 
             type="text"
             name="name"
             required
-            placeholder="e.g. Checking, Reimbursement"
+            placeholder="Reimbursement"
             className="w-44 rounded-md border border-border bg-background px-3 py-2 text-sm"
           />
         </label>

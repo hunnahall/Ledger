@@ -11,9 +11,9 @@ import { getSettings } from "@/lib/queries/settings";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { ShareIcon } from "@/components/ui/icons";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
+import { ExportMenu } from "@/components/transactions/export-menu";
 
 type SearchParams = {
   date_from?: string;
@@ -23,17 +23,6 @@ type SearchParams = {
   source_id?: string;
   search?: string;
 };
-
-function buildQueryString(params: SearchParams) {
-  const usp = new URLSearchParams();
-  if (params.date_from) usp.set("date_from", params.date_from);
-  if (params.date_to) usp.set("date_to", params.date_to);
-  if (params.account_id) usp.set("account_id", params.account_id);
-  if (params.category_id) usp.set("category_id", params.category_id);
-  if (params.source_id) usp.set("source_id", params.source_id);
-  if (params.search) usp.set("search", params.search);
-  return usp.toString();
-}
 
 export default async function TransactionsPage({
   searchParams,
@@ -100,8 +89,6 @@ export default async function TransactionsPage({
     })),
   }));
 
-  const exportQuery = buildQueryString(params);
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-baseline justify-between">
@@ -109,13 +96,7 @@ export default async function TransactionsPage({
           <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
           <p className="mt-1 text-sm text-muted">{transactions.length} transactions</p>
         </div>
-        <a
-          href={`/api/transactions/export${exportQuery ? `?${exportQuery}` : ""}`}
-          aria-label="Export CSV"
-          className="flex items-center justify-center rounded-md bg-mark p-2 text-mark-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-elevated hover:brightness-95 active:translate-y-0 active:scale-[0.98]"
-        >
-          <ShareIcon />
-        </a>
+        <ExportMenu />
       </div>
 
       <section className="flex flex-col gap-3">
