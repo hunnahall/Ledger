@@ -49,7 +49,7 @@ export function ThemeToggle() {
           onClick={() => handleChange(option)}
           className={`rounded px-3 py-1.5 text-sm font-medium capitalize transition-colors duration-150 ${
             theme === option
-              ? "bg-foreground text-surface"
+              ? "bg-mark text-mark-foreground"
               : "text-foreground hover:bg-border/60"
           }`}
         >
