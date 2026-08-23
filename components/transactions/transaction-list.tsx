@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
+import { memo, useCallback, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import {
   assignTransaction,
   bulkUpdateTransactions,
@@ -73,14 +73,20 @@ export function TransactionList({
     if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
   }, [someSelected]);
 
-  function toggleSelect(id: string) {
+  // Stable identity (via useCallback) so it can be passed straight through
+  // to each memoized TransactionRow without defeating memoization — an
+  // inline `() => toggleSelect(txn.id)` per row would give every row a
+  // fresh callback (and thus force a re-render) on every selection change,
+  // which across hundreds of rows is what made clicking a checkbox feel
+  // slow.
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }
+  }, []);
 
   function toggleSelectAll() {
     setSelectedIds(allSelected ? new Set() : new Set(transactions.map((t) => t.id)));
@@ -189,7 +195,7 @@ export function TransactionList({
                   bucketNameByValue={bucketNameByValue}
                   decimalPlaces={decimalPlaces}
                   selected={selectedIds.has(txn.id)}
-                  onToggleSelect={() => toggleSelect(txn.id)}
+                  onToggleSelect={toggleSelect}
                 />
               ))}
             </tbody>
@@ -200,7 +206,11 @@ export function TransactionList({
   );
 }
 
-function TransactionRow({
+// Memoized so that selecting/deselecting one row (or any other state change
+// in the parent list) doesn't re-render every other row — with hundreds of
+// transactions each rendering two custom dropdown components, that
+// cascading re-render was the main source of UI lag on simple clicks.
+const TransactionRow = memo(function TransactionRow({
   txn,
   categories,
   sources,
@@ -217,7 +227,7 @@ function TransactionRow({
   bucketNameByValue: Record<string, string>;
   decimalPlaces: number;
   selected: boolean;
-  onToggleSelect: () => void;
+  onToggleSelect: (id: string) => void;
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [expanded, setExpanded] = useState(false);
@@ -294,7 +304,7 @@ function TransactionRow({
           <input
             type="checkbox"
             checked={selected}
-            onChange={onToggleSelect}
+            onChange={() => onToggleSelect(txn.id)}
             className="h-4 w-4 accent-foreground"
             aria-label={`Select transaction: ${txn.description}`}
           />
@@ -556,7 +566,7 @@ function TransactionRow({
         </tr>
     </>
   );
-}
+});
 
 function CheckIcon() {
   return (
