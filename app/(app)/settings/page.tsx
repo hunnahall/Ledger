@@ -1,14 +1,19 @@
 import { getSettings } from "@/lib/queries/settings";
 import { getVendorRules } from "@/lib/queries/vendor-rules";
+import { getFilterOptions } from "@/lib/queries/transactions";
 import { updateDecimalPlaces } from "@/lib/actions/settings";
-import { deleteVendorRule } from "@/lib/actions/vendor-rules";
+import { createVendorRule, deleteVendorRule } from "@/lib/actions/vendor-rules";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default async function SettingsPage() {
-  const [settings, vendorRules] = await Promise.all([getSettings(), getVendorRules()]);
+  const [settings, vendorRules, { categories }] = await Promise.all([
+    getSettings(),
+    getVendorRules(),
+    getFilterOptions(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +38,7 @@ export default async function SettingsPage() {
             This only affects display and manual-entry rounding. Amounts synced from your
             bank are always stored at full precision.
           </p>
-          <Button type="submit" variant="primary" className="w-fit">
+          <Button type="submit" variant="accent" className="w-fit">
             Save
           </Button>
         </form>
@@ -55,46 +60,69 @@ export default async function SettingsPage() {
       </Card>
 
       <Card className="p-5">
-        <p className="font-medium">Learned categorization rules</p>
+        <p className="font-medium">Categorization rules</p>
         <p className="mt-1 mb-3 text-sm text-muted">
-          Whenever you categorize a transaction, Ledger remembers the merchant so future
-          transactions from it (manual entry or bank sync) get categorized automatically.
+          Whenever you categorize a transaction and confirm the prompt, Ledger remembers the
+          merchant so future transactions from it (manual entry or bank sync) get categorized
+          automatically.
         </p>
+
+        <form
+          action={createVendorRule}
+          className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border p-3"
+        >
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            If description contains
+            <input
+              type="text"
+              name="merchant"
+              required
+              placeholder="e.g. Trader Joe's"
+              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Then category is
+            <Select name="category_id" required uiSize="sm" className="w-40" placeholder="Choose a category">
+              <option value="">Choose a category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <Button type="submit" variant="accent" size="sm">
+            Add rule
+          </Button>
+        </form>
+
         {vendorRules.length === 0 ? (
-          <p className="text-sm text-muted">No rules learned yet.</p>
+          <p className="text-sm text-muted">No rules yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-subtle text-left text-xs text-muted">
-                  <th className="px-3 py-2 font-medium">Merchant</th>
-                  <th className="px-3 py-2 font-medium">Category</th>
-                  <th className="px-3 py-2 font-medium">Used</th>
-                  <th className="w-16 px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {vendorRules.map((rule) => (
-                  <tr key={rule.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2">{rule.merchant_normalized}</td>
-                    <td className="px-3 py-2">
-                      {(rule.categories as { name: string } | null)?.name ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-muted">
-                      {rule.use_count}&times;
-                    </td>
-                    <td className="px-3 py-2">
-                      <form action={deleteVendorRule.bind(null, rule.id)}>
-                        <Button type="submit" size="sm" tone="negative">
-                          Delete
-                        </Button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="flex flex-col gap-1.5">
+            {vendorRules.map((rule) => (
+              <li
+                key={rule.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <span>
+                  If <span className="font-medium">{rule.merchant_normalized}</span>, then{" "}
+                  <span className="font-medium">
+                    {(rule.categories as { name: string } | null)?.name ?? "—"}
+                  </span>
+                  <span className="ml-2 text-xs text-muted">
+                    used {rule.use_count}&times;
+                  </span>
+                </span>
+                <form action={deleteVendorRule.bind(null, rule.id)}>
+                  <Button type="submit" size="sm" tone="negative">
+                    Delete
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
     </div>

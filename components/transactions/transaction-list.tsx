@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import {
   assignTransaction,
   bulkUpdateTransactions,
   deleteTransaction,
   saveSplits,
+  suggestCategoryForDescription,
 } from "@/lib/actions/transactions";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { formatMoney } from "@/lib/format";
@@ -14,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { ChevronDownIcon } from "@/components/ui/icons";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export type TransactionRowData = {
   id: string;
@@ -219,6 +221,35 @@ function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [expanded, setExpanded] = useState(false);
+  const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
+  const { confirm, dialog } = useConfirm();
+
+  async function handleFormSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    if (submitter?.dataset.intent === "delete") {
+      await deleteTransaction(txn.id);
+      return;
+    }
+
+    const formData = new FormData(form);
+
+    // Only a fresh category pick (changed from what's saved) for a merchant
+    // with no existing rule needs the "make this a rule?" prompt — an
+    // unchanged category, or one that already matches a learned rule, is
+    // just reinforcing what's already there.
+    if (!isTransfer && categoryId && categoryId !== (txn.categoryId ?? "")) {
+      const existingRule = await suggestCategoryForDescription(txn.description);
+      if (!existingRule) {
+        const categoryName = categories.find((c) => c.id === categoryId)?.name ?? "this category";
+        const saveRule = await confirm(`Make all "${txn.description}" transactions ${categoryName}?`);
+        formData.set("rule_action", saveRule ? "write" : "skip");
+      }
+    }
+
+    await assignTransaction(txn.id, formData);
+  }
 
   const currentTransferFrom = txn.transferFromSourceId
     ? encodeBucketOption({ type: "source", id: txn.transferFromSourceId })
@@ -235,6 +266,7 @@ function TransactionRow({
 
   return (
     <>
+      {dialog}
       <tr className="border-b border-border last:border-0 align-middle">
         <td className="px-2 py-1.5">
           <input
@@ -277,7 +309,8 @@ function TransactionRow({
               name="category_id"
               uiSize="sm"
               className="w-32"
-              defaultValue={txn.categoryId ?? ""}
+              value={categoryId}
+              onChange={setCategoryId}
               placeholder={isTransfer ? "—" : "Uncategorized"}
               disabled={isTransfer}
             >
@@ -342,7 +375,7 @@ function TransactionRow({
               <button
                 form={`txn-${txn.id}`}
                 type="submit"
-                formAction={deleteTransaction.bind(null, txn.id)}
+                data-intent="delete"
                 className="rounded p-1.5 text-negative hover:bg-background"
                 aria-label="Delete transaction"
                 title="Delete"
@@ -362,7 +395,7 @@ function TransactionRow({
           <td colSpan={9} className="px-4 py-3">
             <form
               id={`txn-${txn.id}`}
-              action={assignTransaction.bind(null, txn.id)}
+              onSubmit={handleFormSubmit}
               className="flex flex-wrap items-end gap-3"
             >
               <label className="flex items-center gap-1.5 text-xs text-muted">

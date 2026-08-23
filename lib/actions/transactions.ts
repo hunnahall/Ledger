@@ -8,7 +8,7 @@ import { decodeBucketOption } from "@/lib/transactions/bucket-option";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-async function learnVendorRule(
+export async function learnVendorRule(
   supabase: SupabaseServerClient,
   userId: string,
   merchantNormalized: string,
@@ -34,13 +34,40 @@ async function learnVendorRule(
         use_count: existing.use_count + 1,
       })
       .eq("id", existing.id);
-  } else {
-    await supabase.from("vendor_category_rules").insert({
-      user_id: userId,
-      merchant_normalized: merchantNormalized,
-      category_id: categoryId,
-      source_id: sourceId,
-    });
+    return;
+  }
+
+  const { error } = await supabase.from("vendor_category_rules").insert({
+    user_id: userId,
+    merchant_normalized: merchantNormalized,
+    category_id: categoryId,
+    source_id: sourceId,
+  });
+
+  // Unique violation (see the vendor_category_rules_user_merchant_key
+  // constraint) means a concurrent call already created the rule between
+  // our select above and this insert — fall back to updating it instead of
+  // erroring out or leaving a duplicate row for the same merchant.
+  if (error?.code === "23505") {
+    const { data: race } = await supabase
+      .from("vendor_category_rules")
+      .select("id, use_count")
+      .eq("user_id", userId)
+      .eq("merchant_normalized", merchantNormalized)
+      .maybeSingle();
+    if (race) {
+      await supabase
+        .from("vendor_category_rules")
+        .update({
+          category_id: categoryId,
+          source_id: sourceId,
+          last_used_at: new Date().toISOString(),
+          use_count: race.use_count + 1,
+        })
+        .eq("id", race.id);
+    }
+  } else if (error) {
+    throw new Error(error.message);
   }
 }
 
@@ -50,6 +77,13 @@ export async function createManualTransaction(formData: FormData) {
   const rawAmount = Number(formData.get("amount") ?? NaN);
   const description = String(formData.get("description") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
+  const categoryFieldSource = String(formData.get("category_source") ?? "");
+  // Set by the form when the user was prompted to save a new vendor rule and
+  // declined — "skip" means don't touch vendor_category_rules this time.
+  // Left unset (defaults to writing) when accepting an auto-fill or when a
+  // rule already covers this merchant, since that's reinforcement, not the
+  // one-off-merchant noise the prompt exists to avoid.
+  const ruleAction = String(formData.get("rule_action") ?? "");
   const sourceId = String(formData.get("source_id") ?? "") || null;
   const transferFrom = decodeBucketOption(formData.get("transfer_from"));
   const transferTo = decodeBucketOption(formData.get("transfer_to"));
@@ -110,9 +144,16 @@ export async function createManualTransaction(formData: FormData) {
   // other source-linked transaction.
 
   // Tracks whether the category came from the user's own pick or was
-  // silently filled from a learned rule, so the transaction list can show
-  // which one happened instead of leaving auto-fill invisible.
-  let categorySource: "manual" | "rule" | null = resolvedCategoryId ? "manual" : null;
+  // filled from a learned rule, so the transaction list can show which one
+  // happened instead of leaving auto-fill invisible. The form already
+  // auto-fills the select from a rule as the user types the description
+  // (see ManualTransactionForm), flagging that fill via category_source —
+  // trust that hint instead of assuming any non-empty category was manual.
+  let categorySource: "manual" | "rule" | null = resolvedCategoryId
+    ? categoryFieldSource === "auto"
+      ? "rule"
+      : "manual"
+    : null;
 
   if (!isTransfer && !isExcluded && !resolvedCategoryId && merchantNormalized) {
     const { data: rule } = await supabase
@@ -147,7 +188,7 @@ export async function createManualTransaction(formData: FormData) {
   });
   if (error) throw new Error(error.message);
 
-  if (resolvedCategoryId) {
+  if (resolvedCategoryId && ruleAction !== "skip") {
     await learnVendorRule(supabase, user.id, merchantNormalized, resolvedCategoryId, resolvedSourceId);
   }
 
@@ -156,9 +197,10 @@ export async function createManualTransaction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-// Looks up whether a description would match a learned vendor rule, for the
-// manual-entry form's "Suggested: {category}" hint — same lookup
-// createManualTransaction already does silently when category is left blank.
+// Looks up whether a description would match a learned vendor rule, so the
+// manual-entry form can auto-fill the category select as the user types —
+// same lookup createManualTransaction falls back to server-side if the
+// client-set category_id didn't make it into the submitted form.
 export async function suggestCategoryForDescription(
   description: string,
 ): Promise<{ categoryId: string; categoryName: string; sourceId: string | null } | null> {
@@ -187,6 +229,9 @@ export async function suggestCategoryForDescription(
 
 export async function assignTransaction(transactionId: string, formData: FormData) {
   const categoryId = String(formData.get("category_id") ?? "") || null;
+  // See createManualTransaction — "skip" means the user was prompted to
+  // save a new vendor rule for this merchant and declined.
+  const ruleAction = String(formData.get("rule_action") ?? "");
   const sourceId = String(formData.get("source_id") ?? "") || null;
   const isTransfer = formData.get("is_transfer") === "on";
   const excludeFromBudget = formData.get("exclude_from_budget") === "on";
@@ -230,7 +275,7 @@ export async function assignTransaction(transactionId: string, formData: FormDat
     .eq("id", transactionId);
   if (error) throw new Error(error.message);
 
-  if (!isTransfer && categoryId && txn.merchant_normalized) {
+  if (!isTransfer && categoryId && txn.merchant_normalized && ruleAction !== "skip") {
     await learnVendorRule(supabase, user.id, txn.merchant_normalized, categoryId, sourceId);
   }
 
