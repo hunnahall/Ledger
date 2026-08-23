@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { getBudgetWithCategories, getBudgets } from "@/lib/queries/budgets";
+import { getSourceOptions } from "@/lib/queries/sources";
 import { createBudget, deleteBudget } from "@/lib/actions/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { BudgetSwitcher } from "@/components/budgets/budget-switcher";
 import { BudgetRenameControl } from "@/components/budgets/budget-rename-control";
 import { CategoriesTable } from "@/components/budgets/categories-table";
 import { SinkingExpensesTable } from "@/components/budgets/sinking-expenses-table";
+import { SourceTransfersTable } from "@/components/budgets/source-transfers-table";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
 
@@ -15,18 +17,21 @@ export default async function BudgetDetailPage({
   params: Promise<{ budgetId: string }>;
 }) {
   const { budgetId } = await params;
-  const [{ budget, categories, sinkingExpenses }, allBudgets, settings] = await Promise.all([
-    getBudgetWithCategories(budgetId),
-    getBudgets(),
-    getSettings(),
-  ]);
+  const [{ budget, categories, sinkingExpenses, sourceTransfers }, allBudgets, settings, sourceOptions] =
+    await Promise.all([
+      getBudgetWithCategories(budgetId),
+      getBudgets(),
+      getSettings(),
+      getSourceOptions(),
+    ]);
   const decimalPlaces = settings.decimal_places;
 
   if (!budget) notFound();
 
   const categoriesMonthly = categories.reduce((sum, c) => sum + c.monthly_amount, 0);
   const sinkingMonthly = sinkingExpenses.reduce((sum, s) => sum + s.monthly_amount, 0);
-  const totalMonthly = categoriesMonthly + sinkingMonthly;
+  const sourceTransfersMonthly = sourceTransfers.reduce((sum, s) => sum + s.amount, 0);
+  const totalMonthly = categoriesMonthly + sinkingMonthly + sourceTransfersMonthly;
   const atLimit = allBudgets.length >= 3;
 
   return (
@@ -78,7 +83,8 @@ export default async function BudgetDetailPage({
         <h1 className="text-2xl font-semibold tracking-tight">{budget.name}</h1>
         <p className="mt-1 text-sm text-muted">
           {categories.length} categories &middot; {sinkingExpenses.length} sinking expenses
-          &middot; ${totalMonthly.toFixed(2)}/month allocated
+          &middot; {sourceTransfers.length} source transfers &middot; ${totalMonthly.toFixed(2)}/month
+          allocated
         </p>
       </div>
 
@@ -93,6 +99,14 @@ export default async function BudgetDetailPage({
           <SinkingExpensesTable
             sinkingExpenses={sinkingExpenses}
             budgetId={budgetId}
+            decimalPlaces={decimalPlaces}
+          />
+
+          <h2 className="text-lg font-semibold tracking-tight">Source Transfers</h2>
+          <SourceTransfersTable
+            sourceTransfers={sourceTransfers}
+            budgetId={budgetId}
+            sourceOptions={sourceOptions}
             decimalPlaces={decimalPlaces}
           />
         </section>

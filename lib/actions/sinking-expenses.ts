@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logChange } from "@/lib/actions/log";
 import {
   SINKING_FREQUENCIES,
   type SinkingContributionType,
@@ -43,6 +44,22 @@ function modeFields(formData: FormData) {
   };
 }
 
+// One human-readable summary of "however this sinking expense is currently
+// configured" — goal and frequency mode don't share fields, so diffing them
+// individually for the log would mean logging 4 near-meaningless partial
+// changes on every mode switch. One combined line reads better.
+function summarizeConfig(row: {
+  contribution_type: string;
+  amount: number;
+  frequency: string | null;
+  target_amount: number | null;
+  target_date: string | null;
+}): string {
+  return row.contribution_type === "goal"
+    ? `Goal: $${(row.target_amount ?? 0).toFixed(2)} by ${row.target_date ?? "?"}`
+    : `$${row.amount.toFixed(2)} ${row.frequency ?? "annual"}`;
+}
+
 export async function createSinkingExpense(budgetId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
@@ -53,13 +70,23 @@ export async function createSinkingExpense(budgetId: string, formData: FormData)
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const fields = modeFields(formData);
   const { error } = await supabase.from("sinking_expenses").insert({
     user_id: user.id,
     budget_id: budgetId,
     name,
-    ...modeFields(formData),
+    ...fields,
   });
   if (error) throw new Error(error.message);
+
+  await logChange(
+    supabase,
+    user.id,
+    "Budgets",
+    `Sinking expense: ${name}`,
+    null,
+    summarizeConfig(fields),
+  );
 
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/sources");
@@ -74,17 +101,59 @@ export async function updateSinkingExpense(
   if (!name) return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("sinking_expenses")
+    .select("name, contribution_type, amount, frequency, target_amount, target_date")
+    .eq("id", sinkingExpenseId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!existing) throw new Error("Sinking expense not found.");
+
+  const fields = modeFields(formData);
   const { error } = await supabase
     .from("sinking_expenses")
-    .update({ name, ...modeFields(formData) })
+    .update({ name, ...fields })
     .eq("id", sinkingExpenseId);
   if (error) throw new Error(error.message);
+
+  if (existing.name !== name) {
+    await logChange(
+      supabase,
+      user.id,
+      "Budgets",
+      `Sinking expense name (was ${existing.name})`,
+      existing.name,
+      name,
+    );
+  }
+  const oldSummary = summarizeConfig(existing);
+  const newSummary = summarizeConfig(fields);
+  if (oldSummary !== newSummary) {
+    await logChange(supabase, user.id, "Budgets", `${name} — Contribution`, oldSummary, newSummary);
+  }
 
   revalidatePath(`/budgets/${budgetId}`);
 }
 
 export async function deleteSinkingExpense(sinkingExpenseId: string, budgetId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("sinking_expenses")
+    .select("name, contribution_type, amount, frequency, target_amount, target_date")
+    .eq("id", sinkingExpenseId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+
   // The linked Fund (fund_id) isn't deleted along with this — any balance
   // already set aside stays put, just no longer tied to a sinking expense.
   const { error } = await supabase
@@ -92,6 +161,17 @@ export async function deleteSinkingExpense(sinkingExpenseId: string, budgetId: s
     .delete()
     .eq("id", sinkingExpenseId);
   if (error) throw new Error(error.message);
+
+  if (existing) {
+    await logChange(
+      supabase,
+      user.id,
+      "Budgets",
+      `Sinking expense: ${existing.name}`,
+      summarizeConfig(existing),
+      null,
+    );
+  }
 
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/sources");

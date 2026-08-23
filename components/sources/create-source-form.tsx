@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createSource } from "@/lib/actions/sources";
+import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -44,6 +45,7 @@ export function CreateSourceForm({ funds }: { funds: { id: string; name: string 
             type="number"
             name="balance"
             step="0.01"
+            onKeyDown={stepAmountByDollar}
             defaultValue={0}
             className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
           />

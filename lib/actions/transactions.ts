@@ -285,6 +285,65 @@ export async function assignTransaction(transactionId: string, formData: FormDat
   revalidatePath("/dashboard");
 }
 
+// The manual-entry form has a "Create a Source" income action that seeds a
+// new source with the entered amount (see createManualTransaction) — this
+// is the same move for a transaction that's already been recorded rather
+// than one being entered right now. Re-points this transaction's source_id
+// at the new source; transactions_sync_balance (the DB trigger) picks up
+// the change on this UPDATE the same way it would for any other source
+// reassignment, crediting the transaction's amount to the new source and,
+// if one was already linked, removing it from that one first.
+export async function createSourceFromTransaction(transactionId: string, formData: FormData) {
+  const name = String(formData.get("new_source_name") ?? "").trim();
+  const type = String(formData.get("new_source_type") ?? "past_payment");
+  if (!name) throw new Error("Enter a name for the new source.");
+  if (type !== "past_payment" && type !== "future_repayment") {
+    throw new Error("Not a valid source type.");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: txn, error: fetchError } = await supabase
+    .from("transactions")
+    .select("posted_date, is_transfer")
+    .eq("id", transactionId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!txn) throw new Error("Transaction not found.");
+  if (txn.is_transfer) throw new Error("Transfers can't be linked to a new source this way.");
+
+  // Insert at balance 0 and let transactions_sync_balance apply this
+  // transaction's amount below via source_id — inserting with balance
+  // already set to the amount would double it once the trigger also runs
+  // (same reasoning as createManualTransaction's "Create a Source" action).
+  const { data: newSource, error: sourceError } = await supabase
+    .from("sources")
+    .insert({
+      user_id: user.id,
+      name,
+      type,
+      balance: 0,
+      deposit_date: txn.posted_date,
+    })
+    .select("id")
+    .single();
+  if (sourceError) throw new Error(sourceError.message);
+
+  const { error: updateError } = await supabase
+    .from("transactions")
+    .update({ source_id: newSource.id })
+    .eq("id", transactionId);
+  if (updateError) throw new Error(updateError.message);
+
+  revalidatePath("/transactions");
+  revalidatePath("/sources");
+  revalidatePath("/dashboard");
+}
+
 export async function bulkUpdateTransactions(
   transactionIds: string[],
   updates: { categoryId?: string | null; sourceId?: string | null },

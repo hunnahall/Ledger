@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logChange } from "@/lib/actions/log";
 
 export async function createBudget(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -25,6 +26,8 @@ export async function createBudget(formData: FormData) {
   });
 
   if (error) throw new Error(error.message);
+
+  await logChange(supabase, user.id, "Budgets", `Budget: ${name}`, null, "created");
 
   revalidatePath("/budgets");
 }
@@ -65,11 +68,28 @@ export async function renameBudget(budgetId: string, formData: FormData) {
   if (!name) return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("budgets")
+    .select("name")
+    .eq("id", budgetId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!existing) throw new Error("Budget not found.");
+
   const { error } = await supabase
     .from("budgets")
     .update({ name })
     .eq("id", budgetId);
   if (error) throw new Error(error.message);
+
+  if (existing.name !== name) {
+    await logChange(supabase, user.id, "Budgets", "Budget name", existing.name, name);
+  }
 
   revalidatePath("/budgets");
   revalidatePath(`/budgets/${budgetId}`);
@@ -84,13 +104,15 @@ export async function deleteBudget(budgetId: string) {
 
   const { data: budget } = await supabase
     .from("budgets")
-    .select("is_current")
+    .select("name, is_current")
     .eq("id", budgetId)
     .maybeSingle();
   if (!budget) throw new Error("Budget not found.");
 
   const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
   if (error) throw new Error(error.message);
+
+  await logChange(supabase, user.id, "Budgets", `Budget: ${budget.name}`, "existed", null);
 
   // Viewing a budget makes it current (see setCurrentBudget), so deleting
   // the one you're looking at is the common case, not the exception —

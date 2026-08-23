@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
+import { DollarInput } from "@/components/ui/dollar-input";
 
 const TYPE_LABELS: Record<string, string> = {
   budget: "Budget",
@@ -74,10 +75,8 @@ function SourceCard({
           >
             <label className="flex flex-col gap-1 text-xs text-muted">
               Adjust balance by
-              <input
-                type="number"
+              <DollarInput
                 name="amount"
-                step="0.01"
                 placeholder="-500"
                 className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
@@ -92,10 +91,8 @@ function SourceCard({
           >
             <label className="flex flex-col gap-1 text-xs text-muted">
               Adjust balance to
-              <input
-                type="number"
+              <DollarInput
                 name="amount"
-                step="0.01"
                 placeholder="e.g. 1000"
                 className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
@@ -202,10 +199,8 @@ export default async function SourcesPage() {
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Balance
-              <input
-                type="number"
+              <DollarInput
                 name="balance"
-                step="0.01"
                 defaultValue={0}
                 className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
               />
@@ -244,10 +239,8 @@ export default async function SourcesPage() {
                 >
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     Adjust balance by
-                    <input
-                      type="number"
+                    <DollarInput
                       name="amount"
-                      step="0.01"
                       placeholder="-500"
                       className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                     />
@@ -262,10 +255,8 @@ export default async function SourcesPage() {
                 >
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     Adjust balance to
-                    <input
-                      type="number"
+                    <DollarInput
                       name="amount"
-                      step="0.01"
                       placeholder="e.g. 1000"
                       className="w-32 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                     />

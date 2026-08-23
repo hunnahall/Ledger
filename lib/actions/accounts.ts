@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logChange } from "@/lib/actions/log";
 
 const ACCOUNT_TYPES = ["checking", "savings", "credit_card", "manual"] as const;
 
@@ -29,11 +30,24 @@ export async function createManualAccount(formData: FormData) {
   });
   if (error) throw new Error(error.message);
 
+  await logChange(
+    supabase,
+    user.id,
+    "Accounts",
+    `Account: ${accountName}`,
+    null,
+    `$${currentBalance.toFixed(2)}`,
+  );
+
   revalidatePath("/accounts");
 }
 
 export async function deleteManualAccount(accountId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { count } = await supabase
     .from("transactions")
@@ -45,12 +59,30 @@ export async function deleteManualAccount(accountId: string) {
     );
   }
 
+  const { data: account, error: fetchError } = await supabase
+    .from("accounts")
+    .select("account_name, current_balance")
+    .eq("id", accountId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+
   const { error } = await supabase
     .from("accounts")
     .delete()
     .eq("id", accountId)
     .eq("is_manual", true);
   if (error) throw new Error(error.message);
+
+  if (account) {
+    await logChange(
+      supabase,
+      user.id,
+      "Accounts",
+      `Account: ${account.account_name}`,
+      `$${account.current_balance.toFixed(2)}`,
+      null,
+    );
+  }
 
   revalidatePath("/accounts");
 }

@@ -11,6 +11,7 @@ import {
   type SinkingContributionType,
   type SinkingFrequency,
 } from "@/lib/budgets/sinking";
+import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AddIcon, ChevronDownIcon } from "@/components/ui/icons";
@@ -128,6 +129,7 @@ export function SinkingExpenseRow({
                   name="amount"
                   step="0.01"
                   min="0"
+                  onKeyDown={stepAmountByDollar}
                   defaultValue={expense.amount}
                   className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
                 />
@@ -152,6 +154,7 @@ export function SinkingExpenseRow({
                   name="target_amount"
                   step="0.01"
                   min="0"
+                  onKeyDown={stepAmountByDollar}
                   placeholder="Target amount"
                   defaultValue={expense.target_amount ?? 0}
                   className="w-28 rounded-md border border-border bg-background px-3 py-1.5"

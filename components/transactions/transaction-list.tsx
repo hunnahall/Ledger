@@ -5,12 +5,14 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
   assignTransaction,
   bulkUpdateTransactions,
+  createSourceFromTransaction,
   deleteTransaction,
   saveSplits,
   suggestCategoryForDescription,
 } from "@/lib/actions/transactions";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
+import { stepAmountByDollar } from "@/lib/dollar-step";
 import { formatMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -643,6 +645,7 @@ const TransactionRow = memo(function TransactionRow({
                       type="number"
                       step="0.01"
                       name={`split_amount_${i}`}
+                      onKeyDown={stepAmountByDollar}
                       defaultValue={existing?.amount ?? ""}
                       placeholder="Amount"
                       className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs"
@@ -662,6 +665,47 @@ const TransactionRow = memo(function TransactionRow({
               </button>
             </form>
           </details>
+
+          {/* Same move as the manual-entry form's "Create a Source" income
+              action (see ManualTransactionForm), for a transaction that's
+              already been recorded instead of one being entered now.
+              Income-only, like that one — an expense doesn't have an
+              amount that makes sense to seed a source's balance with. */}
+          {!isTransfer && txn.amount > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs text-muted">
+                Create source from this amount
+              </summary>
+              <form
+                action={createSourceFromTransaction.bind(null, txn.id)}
+                className="mt-2 flex flex-wrap items-end gap-3"
+              >
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  New source name
+                  <input
+                    type="text"
+                    name="new_source_name"
+                    required
+                    placeholder="e.g. Bonus"
+                    className="w-40 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Source type
+                  <Select name="new_source_type" uiSize="sm" className="w-40 py-1 text-xs" defaultValue="past_payment">
+                    <option value="past_payment">Past payment</option>
+                    <option value="future_repayment">Future repayment</option>
+                  </Select>
+                </label>
+                <button
+                  type="submit"
+                  className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
+                >
+                  Create source ({formatMoney(txn.amount, decimalPlaces)})
+                </button>
+              </form>
+            </details>
+          )}
         </div>
       </div>
     </>

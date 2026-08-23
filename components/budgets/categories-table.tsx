@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { createCategory, deleteCategory, updateCategory } from "@/lib/actions/categories";
+import { stepAmountByDollar } from "@/lib/dollar-step";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
-import { AddIcon } from "@/components/ui/icons";
+import { AddIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
+
+type SortDirection = "desc" | "asc" | null;
 
 type Category = {
   id: string;
@@ -27,6 +30,22 @@ export function CategoriesTable({
   decimalPlaces: number;
 }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+
+  // Cycle none -> high-to-low -> low-to-high -> none, same three-state
+  // pattern as a typical spreadsheet column header.
+  function cycleSortDirection() {
+    setSortDirection((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null));
+  }
+
+  const sortedCategories =
+    sortDirection === null
+      ? categories
+      : [...categories].sort((a, b) =>
+          sortDirection === "desc"
+            ? b.monthly_amount - a.monthly_amount
+            : a.monthly_amount - b.monthly_amount,
+        );
 
   return (
     <div className="rounded-lg border border-border bg-surface">
@@ -34,12 +53,31 @@ export function CategoriesTable({
         <thead>
           <tr className="border-b border-border text-left text-xs text-muted">
             <th className="px-4 py-3 font-medium">Category</th>
-            <th className="px-4 py-3 font-medium">Monthly amount</th>
+            <th className="px-4 py-3 font-medium">
+              <button
+                type="button"
+                onClick={cycleSortDirection}
+                className="flex items-center gap-1 hover:text-foreground"
+                aria-label={
+                  sortDirection === "desc"
+                    ? "Sorted high to low, click for low to high"
+                    : sortDirection === "asc"
+                      ? "Sorted low to high, click to clear sort"
+                      : "Sort by monthly amount"
+                }
+              >
+                Monthly amount
+                <ChevronDownIcon
+                  size={12}
+                  className={sortDirection === "asc" ? "rotate-180" : sortDirection === null ? "opacity-30" : ""}
+                />
+              </button>
+            </th>
             <th className="px-4 py-3 font-medium"></th>
           </tr>
         </thead>
         <tbody>
-          {categories.map((category, index) => {
+          {sortedCategories.map((category, index) => {
             const isLast = !showAdd && index === categories.length - 1;
             return (
               <tr key={category.id} className="border-b border-border last:border-0">
@@ -63,6 +101,7 @@ export function CategoriesTable({
                         name="monthly_amount"
                         step="0.01"
                         min="0"
+                        onKeyDown={stepAmountByDollar}
                         defaultValue={category.monthly_amount}
                         className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
                       />
@@ -150,6 +189,7 @@ export function CategoriesTable({
                       name="monthly_amount"
                       step="0.01"
                       min="0"
+                      onKeyDown={stepAmountByDollar}
                       defaultValue={0}
                       className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
                     />

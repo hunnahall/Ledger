@@ -73,6 +73,36 @@ export type Database = {
           },
         ]
       }
+      activity_log: {
+        Row: {
+          created_at: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          page: string
+          user_id: string
+          variable: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          page: string
+          user_id: string
+          variable: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          page?: string
+          user_id?: string
+          variable?: string
+        }
+        Relationships: []
+      }
       bank_connections: {
         Row: {
           access_url_secret_id: string
@@ -337,6 +367,71 @@ export type Database = {
           },
           {
             foreignKeyName: "source_funds_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "v_source_balances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_transfers: {
+        Row: {
+          amount: number
+          budget_id: string
+          created_at: string
+          id: string
+          last_applied_month: string | null
+          name: string
+          source_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          budget_id: string
+          created_at?: string
+          id?: string
+          last_applied_month?: string | null
+          name: string
+          source_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          budget_id?: string
+          created_at?: string
+          id?: string
+          last_applied_month?: string | null
+          name?: string
+          source_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_transfers_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_transfers_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_transfers_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "v_reimbursements_pending"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_transfers_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "v_source_balances"
@@ -888,10 +983,15 @@ export type Database = {
         Args: { p_budget_id: string }
         Returns: undefined
       }
+      ensure_source_transfers_current: {
+        Args: { p_budget_id: string }
+        Returns: undefined
+      }
       get_bank_connection_access_url: {
         Args: { p_connection_id: string }
         Returns: string
       }
+      match_transfer_pairs: { Args: { p_user_id: string }; Returns: number }
       store_bank_connection_secret: {
         Args: { p_access_url: string }
         Returns: string

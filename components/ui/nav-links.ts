@@ -4,6 +4,7 @@ import {
   AccountsIcon,
   BudgetsIcon,
   SourcesIcon,
+  LogIcon,
   SettingsIcon,
 } from "./icons";
 
@@ -13,5 +14,6 @@ export const NAV_LINKS = [
   { href: "/accounts", label: "Accounts", icon: AccountsIcon },
   { href: "/budgets", label: "Budgets", icon: BudgetsIcon },
   { href: "/sources", label: "Sources", icon: SourcesIcon },
+  { href: "/log", label: "Log", icon: LogIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;

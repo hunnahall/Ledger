@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { DollarInput } from "@/components/ui/dollar-input";
 import { AddIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
 
@@ -110,10 +111,8 @@ export default async function AccountsPage() {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Starting balance
-            <input
-              type="number"
+            <DollarInput
               name="current_balance"
-              step="0.01"
               defaultValue={0}
               className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
             />

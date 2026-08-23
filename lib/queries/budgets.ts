@@ -43,11 +43,23 @@ export async function getCurrentBudget() {
 export async function getBudgetWithCategories(budgetId: string) {
   const supabase = await createClient();
   const month = currentMonthISO();
+
+  // Lazy monthly apply — no real cron, just a catch-up check on whichever
+  // budget's page loads next (same reasoning as ensure_budget_source_current
+  // above). Awaited on its own before the Promise.all below since a
+  // just-applied transfer's balance change should be visible in this same
+  // request, not stale until the next load.
+  const { error: transferApplyError } = await supabase.rpc("ensure_source_transfers_current", {
+    p_budget_id: budgetId,
+  });
+  if (transferApplyError) throw new Error(transferApplyError.message);
+
   const [
     { data: budget, error: budgetError },
     { data: categories, error: categoriesError },
     { data: spending, error: spendingError },
     { data: sinkingExpenses, error: sinkingError },
+    { data: sourceTransfers, error: sourceTransfersError },
   ] = await Promise.all([
     // maybeSingle (not single): a missing or not-owned budget should
     // resolve to null so the page can render a clean 404, not throw.
@@ -65,12 +77,18 @@ export async function getBudgetWithCategories(budgetId: string) {
       .eq("budget_id", budgetId)
       .is("archived_at", null)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("source_transfers")
+      .select("*, sources(name)")
+      .eq("budget_id", budgetId)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (budgetError) throw new Error(budgetError.message);
   if (categoriesError) throw new Error(categoriesError.message);
   if (spendingError) throw new Error(spendingError.message);
   if (sinkingError) throw new Error(sinkingError.message);
+  if (sourceTransfersError) throw new Error(sourceTransfersError.message);
 
   const fundIds = [...new Set((sinkingExpenses ?? []).map((e) => e.fund_id).filter((id) => id != null))];
   let fundBalances = new Map<string, number>();
@@ -107,5 +125,15 @@ export async function getBudgetWithCategories(budgetId: string) {
         : monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency),
   }));
 
-  return { budget, categories: categoriesWithProgress, sinkingExpenses: sinkingExpensesWithMonthly };
+  const sourceTransfersWithSourceName = (sourceTransfers ?? []).map((transfer) => ({
+    ...transfer,
+    source_name: (transfer.sources as { name: string } | null)?.name ?? "",
+  }));
+
+  return {
+    budget,
+    categories: categoriesWithProgress,
+    sinkingExpenses: sinkingExpensesWithMonthly,
+    sourceTransfers: sourceTransfersWithSourceName,
+  };
 }

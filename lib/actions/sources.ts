@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { validateSourceInput } from "@/lib/sources/validate-source";
+import { logChange } from "@/lib/actions/log";
+
+function money(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
 
 export async function createSource(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -51,16 +56,41 @@ export async function createSource(formData: FormData) {
     if (linkError) throw new Error(linkError.message);
   }
 
+  await logChange(supabase, user.id, "Sources", `Source: ${name}`, null, money(startingBalance));
+
   revalidatePath("/sources");
 }
 
 export async function archiveSource(sourceId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: source, error: fetchError } = await supabase
+    .from("sources")
+    .select("name, balance")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+
   const { error } = await supabase
     .from("sources")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", sourceId);
   if (error) throw new Error(error.message);
+
+  if (source) {
+    await logChange(
+      supabase,
+      user.id,
+      "Sources",
+      `Source: ${source.name}`,
+      `active (${money(source.balance)})`,
+      "archived",
+    );
+  }
 
   revalidatePath("/sources");
 }
@@ -70,6 +100,19 @@ export async function adjustSourceBalance(sourceId: string, formData: FormData) 
   if (!amount) return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: source, error: fetchError } = await supabase
+    .from("sources")
+    .select("name, balance")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!source) throw new Error("Source not found.");
+
   // Atomic balance = balance + amount in the DB (see adjust_source_balance)
   // rather than reading balance then writing it back, which would race two
   // concurrent adjustments (double-submit, two tabs) into dropping one.
@@ -79,6 +122,15 @@ export async function adjustSourceBalance(sourceId: string, formData: FormData) 
   });
   if (error) throw new Error(error.message);
 
+  await logChange(
+    supabase,
+    user.id,
+    "Sources",
+    `${source.name} — Balance`,
+    money(source.balance),
+    money(source.balance + amount),
+  );
+
   revalidatePath("/sources");
 }
 
@@ -87,11 +139,35 @@ export async function setSourceBalance(sourceId: string, formData: FormData) {
   if (amount === null || amount === "") return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: source, error: fetchError } = await supabase
+    .from("sources")
+    .select("name, balance")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!source) throw new Error("Source not found.");
+
   const { error } = await supabase
     .from("sources")
     .update({ balance: Number(amount) })
     .eq("id", sourceId);
   if (error) throw new Error(error.message);
+
+  if (source.balance !== Number(amount)) {
+    await logChange(
+      supabase,
+      user.id,
+      "Sources",
+      `${source.name} — Balance`,
+      money(source.balance),
+      money(Number(amount)),
+    );
+  }
 
   revalidatePath("/sources");
 }
@@ -114,16 +190,41 @@ export async function createFund(formData: FormData) {
   });
   if (error) throw new Error(error.message);
 
+  await logChange(supabase, user.id, "Sources", `Fund: ${name}`, null, money(startingBalance));
+
   revalidatePath("/sources");
 }
 
 export async function archiveFund(fundId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: fund, error: fetchError } = await supabase
+    .from("funds")
+    .select("name, balance")
+    .eq("id", fundId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+
   const { error } = await supabase
     .from("funds")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", fundId);
   if (error) throw new Error(error.message);
+
+  if (fund) {
+    await logChange(
+      supabase,
+      user.id,
+      "Sources",
+      `Fund: ${fund.name}`,
+      `active (${money(fund.balance)})`,
+      "archived",
+    );
+  }
 
   revalidatePath("/sources");
 }
@@ -133,6 +234,19 @@ export async function adjustFundBalance(fundId: string, formData: FormData) {
   if (!amount) return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: fund, error: fetchError } = await supabase
+    .from("funds")
+    .select("name, balance")
+    .eq("id", fundId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!fund) throw new Error("Fund not found.");
+
   // See adjustSourceBalance — atomic increment via adjust_fund_balance
   // instead of a read-then-write that could race a concurrent adjustment.
   const { error } = await supabase.rpc("adjust_fund_balance", {
@@ -140,6 +254,15 @@ export async function adjustFundBalance(fundId: string, formData: FormData) {
     p_delta: amount,
   });
   if (error) throw new Error(error.message);
+
+  await logChange(
+    supabase,
+    user.id,
+    "Sources",
+    `${fund.name} — Balance`,
+    money(fund.balance),
+    money(fund.balance + amount),
+  );
 
   revalidatePath("/sources");
 }
@@ -149,11 +272,35 @@ export async function setFundBalance(fundId: string, formData: FormData) {
   if (amount === null || amount === "") return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: fund, error: fetchError } = await supabase
+    .from("funds")
+    .select("name, balance")
+    .eq("id", fundId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!fund) throw new Error("Fund not found.");
+
   const { error } = await supabase
     .from("funds")
     .update({ balance: Number(amount) })
     .eq("id", fundId);
   if (error) throw new Error(error.message);
+
+  if (fund.balance !== Number(amount)) {
+    await logChange(
+      supabase,
+      user.id,
+      "Sources",
+      `${fund.name} — Balance`,
+      money(fund.balance),
+      money(Number(amount)),
+    );
+  }
 
   revalidatePath("/sources");
 }

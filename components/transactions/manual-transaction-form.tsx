@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { createManualTransaction, suggestCategoryForDescription } from "@/lib/actions/transactions";
+import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
@@ -126,6 +127,7 @@ export function ManualTransactionForm({
             step="0.01"
             min="0"
             required
+            onKeyDown={stepAmountByDollar}
             className={`w-28 ${fieldInput}`}
           />
         </label>

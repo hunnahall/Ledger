@@ -47,3 +47,19 @@ export function formatDate(dateString: string) {
     timeZone: "UTC",
   });
 }
+
+// For an actual timestamptz (activity_log.created_at) rather than a plain
+// date column — includes time, and UTC same as formatDate above for the
+// same reason: this renders on the server (no access to the visitor's
+// timezone there), so every date in the app is consistently shown in UTC
+// rather than silently defaulting to the server's own timezone.
+export function formatDateTime(dateString: string) {
+  return new Date(dateString).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
