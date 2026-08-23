@@ -37,52 +37,50 @@ export default async function AccountsPage() {
       </div>
 
       <Card className="p-0">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted">
-              <th className="px-4 py-3 font-medium">Account</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Balance</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.map((account) => (
-              <tr key={account.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-3">
-                  <div className="font-medium">{account.account_name}</div>
-                  {account.institution_name && (
-                    <div className="text-xs text-muted">{account.institution_name}</div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-muted">
-                  {TYPE_LABELS[account.account_type] ?? account.account_type}
-                </td>
-                <td className="px-4 py-3">
-                  <Money amount={account.current_balance} decimalPlaces={decimalPlaces} />
-                </td>
-                <td className="px-4 py-3 text-muted">{account.status}</td>
-                <td className="px-4 py-3 text-right">
-                  {account.is_manual && (
-                    <form action={deleteManualAccount.bind(null, account.id)}>
-                      <Button type="submit" variant="secondary" tone="negative" size="sm" className="px-2 py-1 text-xs">
-                        Delete
-                      </Button>
-                    </form>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {accounts.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-muted">
-                  No accounts yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {/* Below md this stacks into a card per account instead of a table
+            row — at full table width, Status and the Delete button would
+            otherwise only be reachable by scrolling sideways. */}
+        <div className="hidden items-center gap-3 border-b border-border px-4 py-3 text-left text-xs text-muted md:flex">
+          <span className="flex-1 font-medium">Account</span>
+          <span className="w-28 shrink-0 font-medium">Type</span>
+          <span className="w-28 shrink-0 font-medium">Balance</span>
+          <span className="w-24 shrink-0 font-medium">Status</span>
+          <span className="w-20 shrink-0"></span>
+        </div>
+        {accounts.map((account) => (
+          <div
+            key={account.id}
+            className="flex flex-col gap-2 border-b border-border p-4 last:border-0 md:flex-row md:items-center md:gap-3 md:px-4 md:py-3"
+          >
+            <div className="md:flex-1">
+              <div className="font-medium">{account.account_name}</div>
+              {account.institution_name && (
+                <div className="text-xs text-muted">{account.institution_name}</div>
+              )}
+            </div>
+            <div className="flex items-center justify-between text-sm text-muted md:contents">
+              <span className="md:w-28 md:shrink-0">
+                {TYPE_LABELS[account.account_type] ?? account.account_type}
+              </span>
+              <Money amount={account.current_balance} decimalPlaces={decimalPlaces} className="text-foreground md:w-28 md:shrink-0" />
+            </div>
+            <div className="flex items-center justify-between text-sm md:contents">
+              <span className="text-muted md:w-24 md:shrink-0">{account.status}</span>
+              <span className="md:w-20 md:shrink-0 md:text-right">
+                {account.is_manual && (
+                  <form action={deleteManualAccount.bind(null, account.id)}>
+                    <Button type="submit" variant="secondary" tone="negative" size="sm" className="px-2 py-1 text-xs">
+                      Delete
+                    </Button>
+                  </form>
+                )}
+              </span>
+            </div>
+          </div>
+        ))}
+        {accounts.length === 0 && (
+          <p className="px-4 py-6 text-center text-muted">No accounts yet.</p>
+        )}
       </Card>
 
       <Card className="max-w-2xl p-4">
