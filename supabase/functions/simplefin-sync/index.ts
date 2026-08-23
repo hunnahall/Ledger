@@ -20,6 +20,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+const MAX_IMPORT_DAYS = 90;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 function normalizeMerchant(description: string): string {
   return description
     .toLowerCase()
@@ -73,6 +76,12 @@ async function syncConnection(
   serviceClient: ReturnType<typeof createClient>,
   connection: { id: string; user_id: string; last_synced_at: string | null },
   triggeredBy: "manual" | "cron",
+  // Set for an explicit "Import" backfill of a specific window (YYYY-MM-DD,
+  // inclusive). When present this replaces the rolling last_synced_at-based
+  // window entirely, and — see below — does NOT advance last_synced_at,
+  // since a historical backfill shouldn't affect where the next regular
+  // sync picks up from.
+  importRange?: { startDate: string; endDate: string },
 ) {
   const startedAt = new Date().toISOString();
   let transactionsFetched = 0;
@@ -90,7 +99,12 @@ async function syncConnection(
     const { requestBase, authHeader } = splitAccessUrl(accessUrl as string);
 
     const params = new URLSearchParams({ pending: "1" });
-    if (connection.last_synced_at) {
+    if (importRange) {
+      const start = new Date(`${importRange.startDate}T00:00:00Z`);
+      const end = new Date(`${importRange.endDate}T23:59:59Z`);
+      params.set("start-date", String(Math.floor(start.getTime() / 1000)));
+      params.set("end-date", String(Math.floor(end.getTime() / 1000)));
+    } else if (connection.last_synced_at) {
       // One day of overlap so late-posting transactions aren't missed.
       const startDate = Math.floor(new Date(connection.last_synced_at).getTime() / 1000) - 86400;
       params.set("start-date", String(startDate));
@@ -189,7 +203,7 @@ async function syncConnection(
     await serviceClient
       .from("bank_connections")
       .update({
-        last_synced_at: new Date().toISOString(),
+        ...(importRange ? {} : { last_synced_at: new Date().toISOString() }),
         status: errlist.length > 0 ? "error" : "active",
       })
       .eq("id", connection.id);
@@ -236,6 +250,32 @@ Deno.serve(async (req: Request) => {
   const role = decodeJwtRole(authHeader);
   const body = await req.json().catch(() => ({}));
   const connectionId: string | undefined = body.connection_id;
+  const startDate: string | undefined = body.start_date;
+  const endDate: string | undefined = body.end_date;
+
+  let importRange: { startDate: string; endDate: string } | undefined;
+  if (startDate || endDate) {
+    if (
+      !startDate || !endDate || !DATE_RE.test(startDate) || !DATE_RE.test(endDate) ||
+      endDate < startDate
+    ) {
+      return new Response(
+        JSON.stringify({ error: "start_date/end_date must be valid YYYY-MM-DD dates with end on or after start." }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    const days = Math.round(
+      (new Date(`${endDate}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) /
+        86400000,
+    ) + 1;
+    if (days > MAX_IMPORT_DAYS) {
+      return new Response(
+        JSON.stringify({ error: `Import range must be ${MAX_IMPORT_DAYS} days or fewer (chose ${days}).` }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    importRange = { startDate, endDate };
+  }
 
   const serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -283,7 +323,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const result = await syncConnection(serviceClient, connection, "manual");
+  const result = await syncConnection(serviceClient, connection, "manual", importRange);
   return new Response(JSON.stringify(result), {
     status: result.status === "error" ? 502 : 200,
     headers: { "Content-Type": "application/json" },

@@ -6,6 +6,7 @@ import {
   disconnectBankConnection,
   syncBankConnection,
 } from "@/lib/actions/simplefin";
+import { ImportTransactionsForm } from "@/components/accounts/import-transactions-form";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,7 +130,9 @@ export default async function AccountsPage() {
         <p className="font-medium">Connected banks (SimpleFin)</p>
         <p className="mt-1 text-sm text-muted">
           Each connection can cover multiple accounts. Syncs pull roughly a day of
-          overlap each time, so re-syncing is always safe.
+          overlap each time, so re-syncing is always safe. Use Import to backfill a
+          specific date range (up to 90 days at a time) — re-importing an overlapping
+          range is also safe and won&apos;t create duplicates.
         </p>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -155,12 +158,13 @@ export default async function AccountsPage() {
                     : "Never synced"}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-start gap-2">
                 <form action={syncBankConnection.bind(null, connection.id)}>
                   <Button type="submit" variant="secondary" size="sm">
                     Sync now
                   </Button>
                 </form>
+                <ImportTransactionsForm connectionId={connection.id} />
                 <form action={disconnectBankConnection.bind(null, connection.id)}>
                   <Button type="submit" variant="secondary" tone="negative" size="sm">
                     Disconnect
