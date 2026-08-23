@@ -4,18 +4,13 @@ import { useState, type ReactNode } from "react";
 import { NavLink } from "./nav-link";
 import { NAV_LINKS } from "./nav-links";
 
+// Mobile-only nav (hamburger + dropdown) — md+ uses the persistent Sidebar
+// instead, so this renders nothing there.
 export function AppNav({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <nav className="hidden items-center gap-1 md:flex">
-        {NAV_LINKS.map((link) => (
-          <NavLink key={link.href} {...link} />
-        ))}
-        {children}
-      </nav>
-
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
