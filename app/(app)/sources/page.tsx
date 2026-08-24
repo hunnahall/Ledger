@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getSourcesWithBalance, getFunds } from "@/lib/queries/sources";
+import { getSourcesWithBalance } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
 import { getCurrentBudget } from "@/lib/queries/budgets";
 import { CreateSourceForm } from "@/components/sources/create-source-form";
@@ -12,9 +12,8 @@ export default async function SourcesPage() {
   // budget's linked source balance for the month if due, and
   // getSourcesWithBalance must see that write.
   const currentBudget = await getCurrentBudget();
-  const [sources, funds, settings] = await Promise.all([
+  const [sources, settings] = await Promise.all([
     getSourcesWithBalance(),
-    getFunds(),
     getSettings(),
   ]);
   const decimalPlaces = settings.decimal_places;
@@ -78,10 +77,16 @@ export default async function SourcesPage() {
         <h2 className="text-xl font-semibold tracking-tight">Funds</h2>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          {funds.map((fund) => (
-            <FundCard key={fund.id} fund={fund} decimalPlaces={decimalPlaces} />
+          {grouped.fund.map((source) => (
+            <FundCard
+              key={source.id}
+              fundId={source.fundId}
+              name={source.fundName ?? source.name}
+              balance={source.balance}
+              decimalPlaces={decimalPlaces}
+            />
           ))}
-          {funds.length === 0 && (
+          {grouped.fund.length === 0 && (
             <p className="text-sm text-muted">
               No funds yet. Add one using the &ldquo;Fund&rdquo; type above.
             </p>

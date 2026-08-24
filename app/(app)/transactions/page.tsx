@@ -11,7 +11,6 @@ import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
 import { ExportMenu } from "@/components/transactions/export-menu";
-import { SearchToggle } from "@/components/transactions/search-toggle";
 
 type SearchParams = {
   date_from?: string;
@@ -112,10 +111,7 @@ export default async function TransactionsPage({
       </section>
 
       <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <div className="flex items-baseline justify-between">
-          <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
-          <SearchToggle />
-        </div>
+        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
         <TransactionList
           transactions={transactionRows}
           accounts={filterOptions.accounts}

@@ -20,12 +20,17 @@ export async function getSourcesWithBalance() {
   const fundIdBySourceId = new Map((links ?? []).map((l) => [l.source_id, l.fund_id]));
 
   return (sources ?? []).map((source) => {
-    const linkedFund =
-      source.type === "fund" ? fundById.get(fundIdBySourceId.get(source.id) ?? "") : undefined;
+    // Deliberately not filtered to non-archived funds (unlike getFunds) — a
+    // fund-type Source stays visible/adjustable here as long as the Source
+    // itself is active, even if its linked Fund was archived independently
+    // (e.g. by an older code path that didn't cascade the two together).
+    const linkedFundId = source.type === "fund" ? (fundIdBySourceId.get(source.id) ?? null) : null;
+    const linkedFund = linkedFundId ? fundById.get(linkedFundId) : undefined;
     return {
       ...source,
       balance: linkedFund ? linkedFund.balance : source.balance,
       fundName: linkedFund?.name ?? null,
+      fundId: linkedFundId,
     };
   });
 }

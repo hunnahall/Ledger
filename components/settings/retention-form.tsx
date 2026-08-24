@@ -12,13 +12,13 @@ export function RetentionForm({ retentionDays }: { retentionDays: number }) {
     <form action={formAction} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1 text-sm">
         Keep transactions and activity log for
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex items-end gap-2">
           <Select name="retention_days" defaultValue={retentionDays} className="w-32">
             <option value={60}>60 days</option>
             <option value={90}>90 days</option>
             <option value={120}>120 days</option>
           </Select>
-          <Button type="submit" variant="accent" className="w-fit">
+          <Button type="submit" variant="accent" className="w-fit shrink-0">
             Save
           </Button>
         </div>

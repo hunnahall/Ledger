@@ -22,6 +22,7 @@ import { Money } from "@/components/ui/money";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
+import { SearchToggle } from "./search-toggle";
 
 export type TransactionRowData = {
   id: string;
@@ -235,8 +236,8 @@ export function TransactionList({
               options={accounts.map((a) => ({ value: a.id, label: a.account_name }))}
               className="w-14 shrink-0 font-medium"
             />
-            <span className="md:max-w-[200px] md:flex-1 font-medium">Description</span>
-            <span className="w-24 shrink-0 text-right font-medium">Amount</span>
+            <span className="md:max-w-[260px] md:flex-1 font-medium">Description</span>
+            <span className="md:ml-4 w-24 shrink-0 text-right font-medium">Amount</span>
             <SelectColumnFilter
               label="Category"
               paramKey="category_id"
@@ -254,6 +255,7 @@ export function TransactionList({
             />
             <span className="w-8 shrink-0"></span>
             <span className="w-8 shrink-0"></span>
+            <SearchToggle />
           </div>
           <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -474,7 +476,7 @@ const TransactionRow = memo(function TransactionRow({
 
           <div className="flex items-center justify-between gap-2 md:contents">
             <span
-              className="min-w-0 truncate font-medium md:max-w-[200px] md:flex-1"
+              className="min-w-0 truncate font-medium md:max-w-[260px] md:flex-1"
               title={txn.description}
             >
               {txn.description}
@@ -485,7 +487,7 @@ const TransactionRow = memo(function TransactionRow({
               )}
             </span>
             <span
-              className={`shrink-0 whitespace-nowrap text-right font-medium md:w-24 ${
+              className={`shrink-0 whitespace-nowrap text-right font-medium md:ml-4 md:w-24 ${
                 txn.amount < 0 ? "text-negative" : "text-positive"
               }`}
             >
