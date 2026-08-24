@@ -157,18 +157,6 @@ export function TransactionList({
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex items-center gap-2 text-xs text-muted">
-        <input
-          ref={selectAllRef}
-          type="checkbox"
-          checked={allSelected}
-          onChange={toggleSelectAll}
-          className="h-4 w-4 accent-foreground"
-          aria-label="Select all transactions"
-        />
-        {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
-      </label>
-
       {selectedIds.size > 0 && (
         <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface-subtle p-4">
           <label className="flex flex-col gap-1 text-xs text-muted">
@@ -228,7 +216,16 @@ export function TransactionList({
         // sync.
         <div className="rounded-lg border border-border text-sm">
           <div className="hidden items-center gap-1.5 border-b border-border bg-surface-subtle px-2 py-2 text-left text-sm text-muted md:flex">
-            <span className="w-8 shrink-0"></span>
+            <span className="flex w-8 shrink-0 items-center">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 accent-foreground"
+                aria-label="Select all transactions"
+              />
+            </span>
             <DateRangeColumnFilter label="Date" className="w-20 shrink-0 font-medium" />
             <SelectColumnFilter
               label="Account"
