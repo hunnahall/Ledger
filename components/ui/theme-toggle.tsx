@@ -26,7 +26,7 @@ function subscribe(callback: () => void) {
   };
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ className = "" }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, readTheme, getServerTheme);
 
   function handleChange(next: Theme) {
@@ -41,7 +41,7 @@ export function ThemeToggle() {
   }
 
   return (
-    <div className="flex w-fit gap-1 rounded-md border border-border p-1">
+    <div className={`flex w-fit gap-1 rounded-md border border-border p-1 ${className}`}>
       {OPTIONS.map((option) => (
         <button
           key={option}

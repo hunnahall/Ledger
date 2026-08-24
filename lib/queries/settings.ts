@@ -5,14 +5,14 @@ export async function getSettings() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { decimal_places: 2 };
+  if (!user) return { decimal_places: 2, retention_days: 120 };
 
   const { data, error } = await supabase
     .from("settings")
-    .select("decimal_places")
+    .select("decimal_places, retention_days")
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
 
-  return data ?? { decimal_places: 2 };
+  return data ?? { decimal_places: 2, retention_days: 120 };
 }

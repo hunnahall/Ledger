@@ -241,18 +241,21 @@ export type Database = {
         Row: {
           created_at: string
           decimal_places: number
+          retention_days: number
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           decimal_places?: number
+          retention_days?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           decimal_places?: number
+          retention_days?: number
           updated_at?: string
           user_id?: string
         }
@@ -992,6 +995,10 @@ export type Database = {
         Returns: string
       }
       match_transfer_pairs: { Args: { p_user_id: string }; Returns: number }
+      purge_expired_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       store_bank_connection_secret: {
         Args: { p_access_url: string }
         Returns: string

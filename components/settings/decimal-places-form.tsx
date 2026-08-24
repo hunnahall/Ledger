@@ -18,10 +18,6 @@ export function DecimalPlacesForm({ decimalPlaces }: { decimalPlaces: number }) 
           <option value={2}>2 (e.g. $42.50)</option>
         </Select>
       </label>
-      <p className="text-xs text-muted">
-        This only affects display and manual-entry rounding. Amounts synced from your bank are
-        always stored at full precision.
-      </p>
       <Button type="submit" variant="accent" className="w-fit">
         Save
       </Button>

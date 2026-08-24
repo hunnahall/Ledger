@@ -3,6 +3,7 @@ import { getVendorRules } from "@/lib/queries/vendor-rules";
 import { getFilterOptions } from "@/lib/queries/transactions";
 import { deleteVendorRule } from "@/lib/actions/vendor-rules";
 import { DecimalPlacesForm } from "@/components/settings/decimal-places-form";
+import { RetentionForm } from "@/components/settings/retention-form";
 import { CreateVendorRuleForm } from "@/components/settings/create-vendor-rule-form";
 import { Card } from "@/components/ui/card";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
@@ -19,9 +20,6 @@ export default async function SettingsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted">
-          Preferences that affect how amounts display and how you enter them.
-        </p>
       </div>
 
       <Card className="max-w-sm p-5">
@@ -30,17 +28,11 @@ export default async function SettingsPage() {
 
       <Card className="max-w-sm p-5">
         <p className="text-sm font-medium">Appearance</p>
-        <p className="mt-1 mb-3 text-xs text-muted">
-          System follows your device&apos;s light/dark setting.
-        </p>
-        <ThemeToggle />
+        <ThemeToggle className="mt-3" />
       </Card>
 
-      <Card className="border-dashed p-5">
-        <p className="font-medium">Connected accounts</p>
-        <p className="mt-1 text-sm text-muted">
-          Connect and manage banks via SimpleFin from the Accounts page.
-        </p>
+      <Card className="max-w-sm p-5">
+        <RetentionForm retentionDays={settings.retention_days} />
       </Card>
 
       <Card className="p-5">
