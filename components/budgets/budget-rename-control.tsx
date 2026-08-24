@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 export function BudgetRenameControl({ budgetId, name }: { budgetId: string; name: string }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function commit() {
@@ -18,7 +19,12 @@ export function BudgetRenameControl({ budgetId, name }: { budgetId: string; name
     const formData = new FormData();
     formData.set("name", value);
     startTransition(async () => {
-      await renameBudget(budgetId, formData);
+      const result = await renameBudget(budgetId, formData);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      setError(null);
       setEditing(false);
     });
   }
@@ -41,16 +47,19 @@ export function BudgetRenameControl({ budgetId, name }: { budgetId: string; name
   }
 
   return (
-    <input
-      ref={inputRef}
-      type="text"
-      defaultValue={name}
-      autoFocus
-      disabled={pending}
-      onBlur={commit}
-      onKeyDown={handleKeyDown}
-      onFocus={(e) => e.currentTarget.select()}
-      className="w-48 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-    />
+    <div className="flex flex-col gap-1">
+      <input
+        ref={inputRef}
+        type="text"
+        defaultValue={name}
+        autoFocus
+        disabled={pending}
+        onBlur={commit}
+        onKeyDown={handleKeyDown}
+        onFocus={(e) => e.currentTarget.select()}
+        className="w-48 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+      />
+      {error && <p className="text-xs text-negative">{error}</p>}
+    </div>
   );
 }

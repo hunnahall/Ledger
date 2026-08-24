@@ -1,11 +1,11 @@
 import { getSettings } from "@/lib/queries/settings";
 import { getVendorRules } from "@/lib/queries/vendor-rules";
 import { getFilterOptions } from "@/lib/queries/transactions";
-import { updateDecimalPlaces } from "@/lib/actions/settings";
-import { createVendorRule, deleteVendorRule } from "@/lib/actions/vendor-rules";
+import { deleteVendorRule } from "@/lib/actions/vendor-rules";
+import { DecimalPlacesForm } from "@/components/settings/decimal-places-form";
+import { CreateVendorRuleForm } from "@/components/settings/create-vendor-rule-form";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default async function SettingsPage() {
@@ -25,23 +25,7 @@ export default async function SettingsPage() {
       </div>
 
       <Card className="max-w-sm p-5">
-        <form action={updateDecimalPlaces} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            Decimal places
-            <Select name="decimal_places" defaultValue={settings.decimal_places} className="w-full">
-              <option value={0}>0 (e.g. $42)</option>
-              <option value={1}>1 (e.g. $42.5)</option>
-              <option value={2}>2 (e.g. $42.50)</option>
-            </Select>
-          </label>
-          <p className="text-xs text-muted">
-            This only affects display and manual-entry rounding. Amounts synced from your
-            bank are always stored at full precision.
-          </p>
-          <Button type="submit" variant="accent" className="w-fit">
-            Save
-          </Button>
-        </form>
+        <DecimalPlacesForm decimalPlaces={settings.decimal_places} />
       </Card>
 
       <Card className="max-w-sm p-5">
@@ -67,35 +51,7 @@ export default async function SettingsPage() {
           automatically.
         </p>
 
-        <form
-          action={createVendorRule}
-          className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border p-3"
-        >
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            If description contains
-            <input
-              type="text"
-              name="merchant"
-              required
-              placeholder="e.g. Trader Joe's"
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Then category is
-            <Select name="category_id" required uiSize="sm" className="w-40" placeholder="Choose a category">
-              <option value="">Choose a category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <Button type="submit" variant="accent" size="sm">
-            Add rule
-          </Button>
-        </form>
+        <CreateVendorRuleForm categories={categories} />
 
         {vendorRules.length === 0 ? (
           <p className="text-sm text-muted">No rules yet.</p>
@@ -115,11 +71,9 @@ export default async function SettingsPage() {
                     used {rule.use_count}&times;
                   </span>
                 </span>
-                <form action={deleteVendorRule.bind(null, rule.id)}>
-                  <Button type="submit" size="sm" tone="negative">
-                    Delete
-                  </Button>
-                </form>
+                <ActionButtonForm action={deleteVendorRule.bind(null, rule.id)} size="sm" tone="negative">
+                  Delete
+                </ActionButtonForm>
               </li>
             ))}
           </ul>

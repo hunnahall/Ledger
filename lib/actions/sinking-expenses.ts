@@ -60,9 +60,13 @@ function summarizeConfig(row: {
     : `$${row.amount.toFixed(2)} ${row.frequency ?? "annual"}`;
 }
 
-export async function createSinkingExpense(budgetId: string, formData: FormData) {
+export async function createSinkingExpense(
+  budgetId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the sinking expense." };
 
   const supabase = await createClient();
   const {
@@ -77,7 +81,7 @@ export async function createSinkingExpense(budgetId: string, formData: FormData)
     name,
     ...fields,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(
     supabase,
@@ -90,15 +94,17 @@ export async function createSinkingExpense(budgetId: string, formData: FormData)
 
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/sources");
+  return null;
 }
 
 export async function updateSinkingExpense(
   sinkingExpenseId: string,
   budgetId: string,
+  _prevState: { error: string } | null,
   formData: FormData,
-) {
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the sinking expense." };
 
   const supabase = await createClient();
   const {
@@ -111,15 +117,15 @@ export async function updateSinkingExpense(
     .select("name, contribution_type, amount, frequency, target_amount, target_date")
     .eq("id", sinkingExpenseId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!existing) throw new Error("Sinking expense not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "Sinking expense not found." };
 
   const fields = modeFields(formData);
   const { error } = await supabase
     .from("sinking_expenses")
     .update({ name, ...fields })
     .eq("id", sinkingExpenseId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (existing.name !== name) {
     await logChange(
@@ -138,9 +144,15 @@ export async function updateSinkingExpense(
   }
 
   revalidatePath(`/budgets/${budgetId}`);
+  return null;
 }
 
-export async function deleteSinkingExpense(sinkingExpenseId: string, budgetId: string) {
+export async function deleteSinkingExpense(
+  sinkingExpenseId: string,
+  budgetId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -152,7 +164,7 @@ export async function deleteSinkingExpense(sinkingExpenseId: string, budgetId: s
     .select("name, contribution_type, amount, frequency, target_amount, target_date")
     .eq("id", sinkingExpenseId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
+  if (fetchError) return { error: fetchError.message };
 
   // The linked Fund (fund_id) isn't deleted along with this — any balance
   // already set aside stays put, just no longer tied to a sinking expense.
@@ -160,7 +172,7 @@ export async function deleteSinkingExpense(sinkingExpenseId: string, budgetId: s
     .from("sinking_expenses")
     .delete()
     .eq("id", sinkingExpenseId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (existing) {
     await logChange(
@@ -175,4 +187,5 @@ export async function deleteSinkingExpense(sinkingExpenseId: string, budgetId: s
 
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/sources");
+  return null;
 }

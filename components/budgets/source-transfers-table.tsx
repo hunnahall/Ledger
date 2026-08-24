@@ -1,16 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import {
-  createSourceTransfer,
-  deleteSourceTransfer,
-  updateSourceTransfer,
-} from "@/lib/actions/source-transfers";
+import { useActionState, useState } from "react";
+import { createSourceTransfer } from "@/lib/actions/source-transfers";
+import { SourceTransferRow } from "@/components/budgets/source-transfer-row";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
-import { Money } from "@/components/ui/money";
 
 type SourceTransfer = {
   id: string;
@@ -33,6 +29,7 @@ export function SourceTransfersTable({
   decimalPlaces: number;
 }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [, createAction] = useActionState(createSourceTransfer.bind(null, budgetId), null);
 
   return (
     <div className="rounded-lg border border-border bg-surface">
@@ -45,80 +42,17 @@ export function SourceTransfersTable({
           </tr>
         </thead>
         <tbody>
-          {sourceTransfers.map((transfer, index) => {
-            const isLast = !showAdd && index === sourceTransfers.length - 1;
-            return (
-              <tr key={transfer.id} className="border-b border-border last:border-0">
-                <td colSpan={3} className="px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <form
-                      action={updateSourceTransfer.bind(null, transfer.id, budgetId)}
-                      className="flex flex-wrap items-center gap-3"
-                    >
-                      <input
-                        key={`name-${transfer.updated_at}`}
-                        type="text"
-                        name="name"
-                        defaultValue={transfer.name}
-                        required
-                        className="w-36 rounded-md border border-border bg-background px-3 py-1.5"
-                      />
-                      <Select
-                        key={`source-${transfer.updated_at}`}
-                        name="source_id"
-                        uiSize="sm"
-                        className="w-36"
-                        defaultValue={transfer.source_id}
-                      >
-                        {sourceOptions.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </Select>
-                      <input
-                        key={`amount-${transfer.updated_at}`}
-                        type="number"
-                        name="amount"
-                        step="0.01"
-                        min="0.01"
-                        onKeyDown={stepAmountByDollar}
-                        defaultValue={transfer.amount}
-                        className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
-                      />
-                      <Button type="submit" size="sm">
-                        Save
-                      </Button>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        tone="negative"
-                        formAction={deleteSourceTransfer.bind(null, transfer.id, budgetId)}
-                      >
-                        Delete
-                      </Button>
-                    </form>
-
-                    {isLast && (
-                      <Button
-                        type="button"
-                        variant="accent"
-                        size="icon"
-                        aria-label="Add Source Transfer"
-                        onClick={() => setShowAdd(true)}
-                      >
-                        <AddIcon />
-                      </Button>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-muted">
-                    <Money amount={transfer.amount} decimalPlaces={decimalPlaces} />
-                    /mo &rarr; {transfer.source_name}
-                  </p>
-                </td>
-              </tr>
-            );
-          })}
+          {sourceTransfers.map((transfer, index) => (
+            <SourceTransferRow
+              key={transfer.id}
+              transfer={transfer}
+              budgetId={budgetId}
+              sourceOptions={sourceOptions}
+              decimalPlaces={decimalPlaces}
+              isLast={!showAdd && index === sourceTransfers.length - 1}
+              onAddClick={() => setShowAdd(true)}
+            />
+          ))}
 
           {sourceTransfers.length === 0 && !showAdd && (
             <tr>
@@ -140,7 +74,7 @@ export function SourceTransfersTable({
             <tr className="border-b border-border bg-surface-subtle last:border-0">
               <td colSpan={3} className="px-4 py-3">
                 <form
-                  action={createSourceTransfer.bind(null, budgetId)}
+                  action={createAction}
                   onSubmit={() => setShowAdd(false)}
                   className="flex flex-wrap items-end gap-3"
                 >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import {
   deleteSinkingExpense,
   updateSinkingExpense,
@@ -59,6 +59,15 @@ export function SinkingExpenseRow({
     setMode(expense.contribution_type === "goal" ? "goal" : "frequency");
   }
 
+  const [updateState, updateAction] = useActionState(
+    updateSinkingExpense.bind(null, expense.id, budgetId),
+    null,
+  );
+  const [deleteState, deleteAction] = useActionState(
+    deleteSinkingExpense.bind(null, expense.id, budgetId),
+    null,
+  );
+
   return (
     <>
       <tr className="border-b border-border last:border-0 align-middle">
@@ -96,10 +105,7 @@ export function SinkingExpenseRow({
           subtree — see the comment above; only visibility toggles. */}
       <tr className={`border-b border-border bg-surface-subtle last:border-0 ${expanded ? "" : "hidden"}`}>
         <td colSpan={3} className="px-4 py-3">
-          <form
-            action={updateSinkingExpense.bind(null, expense.id, budgetId)}
-            className="flex flex-wrap items-center gap-3"
-          >
+          <form action={updateAction} className="flex flex-wrap items-center gap-3">
             <input
               key={`name-${expense.updated_at}`}
               type="text"
@@ -173,14 +179,14 @@ export function SinkingExpenseRow({
             <Button type="submit" size="sm">
               Save
             </Button>
-            <Button
-              type="submit"
-              size="sm"
-              tone="negative"
-              formAction={deleteSinkingExpense.bind(null, expense.id, budgetId)}
-            >
+            <Button type="submit" size="sm" tone="negative" formAction={deleteAction}>
               Delete
             </Button>
+            {(updateState?.error || deleteState?.error) && (
+              <p className="w-full text-xs text-negative">
+                {updateState?.error || deleteState?.error}
+              </p>
+            )}
           </form>
         </td>
       </tr>

@@ -4,9 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function updateDecimalPlaces(formData: FormData) {
+export async function updateDecimalPlaces(
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const decimalPlaces = Number(formData.get("decimal_places") ?? 2);
-  if (![0, 1, 2].includes(decimalPlaces)) return;
+  if (![0, 1, 2].includes(decimalPlaces)) return { error: "Not a valid number of decimal places." };
 
   const supabase = await createClient();
   const {
@@ -18,11 +21,12 @@ export async function updateDecimalPlaces(formData: FormData) {
     .from("settings")
     .update({ decimal_places: decimalPlaces })
     .eq("user_id", user.id);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/accounts");
   revalidatePath("/dashboard");
+  return null;
 }

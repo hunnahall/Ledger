@@ -5,9 +5,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logChange } from "@/lib/actions/log";
 
-export async function createBudget(formData: FormData) {
+export async function createBudget(
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the budget." };
 
   const supabase = await createClient();
   const {
@@ -25,14 +28,15 @@ export async function createBudget(formData: FormData) {
     is_current: (count ?? 0) === 0,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Budgets", `Budget: ${name}`, null, "created");
 
   revalidatePath("/budgets");
+  return null;
 }
 
-export async function setCurrentBudget(budgetId: string) {
+export async function setCurrentBudget(budgetId: string): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,28 +48,32 @@ export async function setCurrentBudget(budgetId: string) {
     .select("id")
     .eq("id", budgetId)
     .maybeSingle();
-  if (!target) throw new Error("Budget not found.");
+  if (!target) return { error: "Budget not found." };
 
   const { error: unsetError } = await supabase
     .from("budgets")
     .update({ is_current: false })
     .eq("user_id", user.id)
     .eq("is_current", true);
-  if (unsetError) throw new Error(unsetError.message);
+  if (unsetError) return { error: unsetError.message };
 
   const { error: setError } = await supabase
     .from("budgets")
     .update({ is_current: true })
     .eq("id", budgetId);
-  if (setError) throw new Error(setError.message);
+  if (setError) return { error: setError.message };
 
   revalidatePath("/budgets");
   revalidatePath("/dashboard");
+  return null;
 }
 
-export async function renameBudget(budgetId: string, formData: FormData) {
+export async function renameBudget(
+  budgetId: string,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the budget." };
 
   const supabase = await createClient();
   const {
@@ -78,14 +86,14 @@ export async function renameBudget(budgetId: string, formData: FormData) {
     .select("name")
     .eq("id", budgetId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!existing) throw new Error("Budget not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "Budget not found." };
 
   const { error } = await supabase
     .from("budgets")
     .update({ name })
     .eq("id", budgetId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (existing.name !== name) {
     await logChange(supabase, user.id, "Budgets", "Budget name", existing.name, name);
@@ -93,9 +101,14 @@ export async function renameBudget(budgetId: string, formData: FormData) {
 
   revalidatePath("/budgets");
   revalidatePath(`/budgets/${budgetId}`);
+  return null;
 }
 
-export async function deleteBudget(budgetId: string) {
+export async function deleteBudget(
+  budgetId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -107,10 +120,10 @@ export async function deleteBudget(budgetId: string) {
     .select("name, is_current")
     .eq("id", budgetId)
     .maybeSingle();
-  if (!budget) throw new Error("Budget not found.");
+  if (!budget) return { error: "Budget not found." };
 
   const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Budgets", `Budget: ${budget.name}`, "existed", null);
 
@@ -130,7 +143,7 @@ export async function deleteBudget(budgetId: string) {
         .from("budgets")
         .update({ is_current: true })
         .eq("id", next.id);
-      if (promoteError) throw new Error(promoteError.message);
+      if (promoteError) return { error: promoteError.message };
     }
   }
 

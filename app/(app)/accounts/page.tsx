@@ -1,18 +1,13 @@
 import { getAccounts, getBankConnections } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
-import { createManualAccount, deleteManualAccount } from "@/lib/actions/accounts";
-import {
-  connectBankConnection,
-  disconnectBankConnection,
-  syncBankConnection,
-} from "@/lib/actions/simplefin";
+import { deleteManualAccount } from "@/lib/actions/accounts";
+import { disconnectBankConnection, syncBankConnection } from "@/lib/actions/simplefin";
 import { ImportTransactionsForm } from "@/components/accounts/import-transactions-form";
+import { CreateManualAccountForm } from "@/components/accounts/create-manual-account-form";
+import { ConnectBankConnectionForm } from "@/components/accounts/connect-bank-connection-form";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
-import { DollarInput } from "@/components/ui/dollar-input";
-import { AddIcon } from "@/components/ui/icons";
+import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { Money } from "@/components/ui/money";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -69,11 +64,16 @@ export default async function AccountsPage() {
               <span className="text-muted md:w-24 md:shrink-0">{account.status}</span>
               <span className="md:w-20 md:shrink-0 md:text-right">
                 {account.is_manual && (
-                  <form action={deleteManualAccount.bind(null, account.id)}>
-                    <Button type="submit" variant="secondary" tone="negative" size="sm" className="px-2 py-1 text-xs">
-                      Delete
-                    </Button>
-                  </form>
+                  <ActionButtonForm
+                    action={deleteManualAccount.bind(null, account.id)}
+                    variant="secondary"
+                    tone="negative"
+                    size="sm"
+                    className="px-2 py-1 text-xs"
+                    errorClassName="mt-1 text-right text-xs text-negative"
+                  >
+                    Delete
+                  </ActionButtonForm>
                 )}
               </span>
             </div>
@@ -84,44 +84,7 @@ export default async function AccountsPage() {
         )}
       </Card>
 
-      <Card className="max-w-2xl p-4">
-        <form
-          action={createManualAccount}
-          className="flex flex-wrap items-end gap-3"
-        >
-          <label className="flex flex-col gap-1 text-sm">
-            Account name
-            <input
-              type="text"
-              name="account_name"
-              required
-              placeholder="e.g. Cash, Wallet"
-              className="w-44 rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Type
-            <Select name="account_type" defaultValue="manual" className="w-36">
-              {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Starting balance
-            <DollarInput
-              name="current_balance"
-              defaultValue={0}
-              className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <Button type="submit" variant="accent" size="icon" aria-label="Add account">
-            <AddIcon />
-          </Button>
-        </form>
-      </Card>
+      <CreateManualAccountForm />
 
       <Card className="p-5">
         <p className="font-medium">Connected banks (SimpleFin)</p>
@@ -156,40 +119,28 @@ export default async function AccountsPage() {
                 </p>
               </div>
               <div className="flex items-start gap-2">
-                <form action={syncBankConnection.bind(null, connection.id)}>
-                  <Button type="submit" variant="secondary" size="sm">
-                    Sync now
-                  </Button>
-                </form>
+                <ActionButtonForm
+                  action={syncBankConnection.bind(null, connection.id)}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Sync now
+                </ActionButtonForm>
                 <ImportTransactionsForm connectionId={connection.id} />
-                <form action={disconnectBankConnection.bind(null, connection.id)}>
-                  <Button type="submit" variant="secondary" tone="negative" size="sm">
-                    Disconnect
-                  </Button>
-                </form>
+                <ActionButtonForm
+                  action={disconnectBankConnection.bind(null, connection.id)}
+                  variant="secondary"
+                  tone="negative"
+                  size="sm"
+                >
+                  Disconnect
+                </ActionButtonForm>
               </div>
             </div>
           ))}
         </div>
 
-        <form
-          action={connectBankConnection}
-          className="mt-4 flex flex-wrap items-end gap-3 border-t border-border pt-4"
-        >
-          <label className="flex flex-1 min-w-64 flex-col gap-1 text-sm">
-            SimpleFin setup token
-            <input
-              type="text"
-              name="setup_token"
-              required
-              placeholder="Paste the setup token from your SimpleFin Bridge account"
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <Button type="submit" variant="accent">
-            Connect
-          </Button>
-        </form>
+        <ConnectBankConnectionForm />
         <p className="mt-2 text-xs text-muted">
           Get a setup token from{" "}
           <a

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { createCategory, deleteCategory, updateCategory } from "@/lib/actions/categories";
+import { useActionState, useState } from "react";
+import { createCategory } from "@/lib/actions/categories";
+import { CategoryRow } from "@/components/budgets/category-row";
 import { stepAmountByDollar } from "@/lib/dollar-step";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
 import { AddIcon, ChevronDownIcon } from "@/components/ui/icons";
-import { Money } from "@/components/ui/money";
 
 type SortDirection = "desc" | "asc" | null;
 
@@ -31,6 +30,7 @@ export function CategoriesTable({
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [, createAction] = useActionState(createCategory.bind(null, budgetId), null);
 
   // Cycle none -> high-to-low -> low-to-high -> none, same three-state
   // pattern as a typical spreadsheet column header.
@@ -77,76 +77,16 @@ export function CategoriesTable({
           </tr>
         </thead>
         <tbody>
-          {sortedCategories.map((category, index) => {
-            const isLast = !showAdd && index === categories.length - 1;
-            return (
-              <tr key={category.id} className="border-b border-border last:border-0">
-                <td colSpan={3} className="px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <form
-                      action={updateCategory.bind(null, category.id, budgetId)}
-                      className="flex flex-wrap items-center gap-3"
-                    >
-                      <input
-                        key={`name-${category.updated_at}`}
-                        type="text"
-                        name="name"
-                        defaultValue={category.name}
-                        required
-                        className="w-40 rounded-md border border-border bg-background px-3 py-1.5"
-                      />
-                      <input
-                        key={`amount-${category.updated_at}`}
-                        type="number"
-                        name="monthly_amount"
-                        step="0.01"
-                        min="0"
-                        onKeyDown={stepAmountByDollar}
-                        defaultValue={category.monthly_amount}
-                        className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
-                      />
-                      <Button type="submit" size="sm">
-                        Save
-                      </Button>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        tone="negative"
-                        formAction={deleteCategory.bind(null, category.id, budgetId)}
-                      >
-                        Delete
-                      </Button>
-                    </form>
-
-                    {isLast && (
-                      <Button
-                        type="button"
-                        variant="accent"
-                        size="icon"
-                        aria-label="Add category"
-                        onClick={() => setShowAdd(true)}
-                      >
-                        <AddIcon />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="mt-2 max-w-sm">
-                    <div className="flex justify-between text-xs">
-                      <span className={category.over ? "text-negative" : "text-muted"}>
-                        <Money amount={category.spent} decimalPlaces={decimalPlaces} /> spent
-                      </span>
-                      <span className="text-muted">
-                        <Money amount={category.remaining} decimalPlaces={decimalPlaces} /> remaining
-                      </span>
-                    </div>
-                    <div className="mt-1">
-                      <ProgressBar total={category.monthly_amount} spent={category.spent} />
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
+          {sortedCategories.map((category, index) => (
+            <CategoryRow
+              key={category.id}
+              category={category}
+              budgetId={budgetId}
+              decimalPlaces={decimalPlaces}
+              isLast={!showAdd && index === categories.length - 1}
+              onAddClick={() => setShowAdd(true)}
+            />
+          ))}
 
           {categories.length === 0 && !showAdd && (
             <tr>
@@ -168,7 +108,7 @@ export function CategoriesTable({
             <tr className="border-b border-border bg-surface-subtle last:border-0">
               <td colSpan={3} className="px-4 py-3">
                 <form
-                  action={createCategory.bind(null, budgetId)}
+                  action={createAction}
                   onSubmit={() => setShowAdd(false)}
                   className="flex flex-wrap items-end gap-3"
                 >

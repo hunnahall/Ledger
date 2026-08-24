@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { createSource } from "@/lib/actions/sources";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Card } from "@/components/ui/card";
@@ -15,10 +15,11 @@ const TYPE_LABELS: Record<string, string> = {
 
 export function CreateSourceForm({ funds }: { funds: { id: string; name: string }[] }) {
   const [type, setType] = useState("past_payment");
+  const [state, formAction] = useActionState(createSource, null);
 
   return (
     <Card className="max-w-2xl p-4">
-      <form action={createSource} className="flex flex-wrap items-end gap-3">
+      <form action={formAction} className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
           New source name
           <input
@@ -81,6 +82,7 @@ export function CreateSourceForm({ funds }: { funds: { id: string; name: string 
         <Button type="submit" variant="accent">
           Create
         </Button>
+        {state?.error && <p className="w-full text-xs text-negative">{state.error}</p>}
       </form>
     </Card>
   );

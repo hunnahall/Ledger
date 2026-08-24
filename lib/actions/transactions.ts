@@ -68,11 +68,15 @@ export async function learnVendorRule(
         .eq("id", race.id);
     }
   } else if (error) {
-    throw new Error(error.message);
+    // A failed rule write shouldn't block or crash the categorization it
+    // was reinforcing — same reasoning as logChange's own error handling.
+    console.error("learnVendorRule failed:", error.message);
   }
 }
 
-export async function createManualTransaction(formData: FormData) {
+export async function createManualTransaction(
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const accountId = String(formData.get("account_id") ?? "");
   const postedDate = String(formData.get("posted_date") ?? "");
   const rawAmount = Number(formData.get("amount") ?? NaN);
@@ -98,7 +102,9 @@ export async function createManualTransaction(formData: FormData) {
   const newSourceName = String(formData.get("new_source_name") ?? "").trim();
   const newSourceType = String(formData.get("new_source_type") ?? "past_payment");
 
-  if (!accountId || !postedDate || !description || Number.isNaN(rawAmount)) return;
+  if (!accountId || !postedDate || !description || Number.isNaN(rawAmount)) {
+    return { error: "Fill in the account, date, description, and amount." };
+  }
 
   const supabase = await createClient();
   const {
@@ -120,9 +126,9 @@ export async function createManualTransaction(formData: FormData) {
     resolvedSourceId = null;
   } else if (isIncome && incomeAction === "create_source") {
     if (newSourceType !== "past_payment" && newSourceType !== "future_repayment") {
-      throw new Error("Not a valid source type.");
+      return { error: "Not a valid source type." };
     }
-    if (!newSourceName) throw new Error("Enter a name for the new source.");
+    if (!newSourceName) return { error: "Enter a name for the new source." };
     // Insert at balance 0 and let transactions_sync_balance apply `amount`
     // below via source_id — inserting with balance already set to the
     // amount would double it once the trigger also runs.
@@ -137,7 +143,7 @@ export async function createManualTransaction(formData: FormData) {
       })
       .select("id")
       .single();
-    if (sourceError) throw new Error(sourceError.message);
+    if (sourceError) return { error: sourceError.message };
     resolvedSourceId = newSource.id;
   }
   // "add_to_source" (and plain expenses) keep resolvedSourceId = sourceId,
@@ -187,7 +193,7 @@ export async function createManualTransaction(formData: FormData) {
     transfer_to_source_id: transferTo?.type === "source" ? transferTo.id : null,
     transfer_to_fund_id: transferTo?.type === "fund" ? transferTo.id : null,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (resolvedCategoryId && ruleAction !== "skip") {
     await learnVendorRule(supabase, user.id, merchantNormalized, resolvedCategoryId, resolvedSourceId);
@@ -196,6 +202,7 @@ export async function createManualTransaction(formData: FormData) {
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+  return null;
 }
 
 // Looks up whether a description would match a learned vendor rule, so the
@@ -228,7 +235,10 @@ export async function suggestCategoryForDescription(
   return { categoryId: rule.category_id, categoryName, sourceId: rule.source_id };
 }
 
-export async function assignTransaction(transactionId: string, formData: FormData) {
+export async function assignTransaction(
+  transactionId: string,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const categoryId = String(formData.get("category_id") ?? "") || null;
   // See createManualTransaction — "skip" means the user was prompted to
   // save a new vendor rule for this merchant and declined.
@@ -251,8 +261,8 @@ export async function assignTransaction(transactionId: string, formData: FormDat
     .select("merchant_normalized")
     .eq("id", transactionId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!txn) throw new Error("Transaction not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!txn) return { error: "Transaction not found." };
 
   const { error } = await supabase
     .from("transactions")
@@ -274,7 +284,7 @@ export async function assignTransaction(transactionId: string, formData: FormDat
       transfer_to_fund_id: isTransfer && transferTo?.type === "fund" ? transferTo.id : null,
     })
     .eq("id", transactionId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (!isTransfer && categoryId && txn.merchant_normalized && ruleAction !== "skip") {
     await learnVendorRule(supabase, user.id, txn.merchant_normalized, categoryId, sourceId);
@@ -283,6 +293,7 @@ export async function assignTransaction(transactionId: string, formData: FormDat
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+  return null;
 }
 
 // The manual-entry form has a "Create a Source" income action that seeds a
@@ -293,12 +304,16 @@ export async function assignTransaction(transactionId: string, formData: FormDat
 // the change on this UPDATE the same way it would for any other source
 // reassignment, crediting the transaction's amount to the new source and,
 // if one was already linked, removing it from that one first.
-export async function createSourceFromTransaction(transactionId: string, formData: FormData) {
+export async function createSourceFromTransaction(
+  transactionId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("new_source_name") ?? "").trim();
   const type = String(formData.get("new_source_type") ?? "past_payment");
-  if (!name) throw new Error("Enter a name for the new source.");
+  if (!name) return { error: "Enter a name for the new source." };
   if (type !== "past_payment" && type !== "future_repayment") {
-    throw new Error("Not a valid source type.");
+    return { error: "Not a valid source type." };
   }
 
   const supabase = await createClient();
@@ -312,9 +327,9 @@ export async function createSourceFromTransaction(transactionId: string, formDat
     .select("posted_date, is_transfer")
     .eq("id", transactionId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!txn) throw new Error("Transaction not found.");
-  if (txn.is_transfer) throw new Error("Transfers can't be linked to a new source this way.");
+  if (fetchError) return { error: fetchError.message };
+  if (!txn) return { error: "Transaction not found." };
+  if (txn.is_transfer) return { error: "Transfers can't be linked to a new source this way." };
 
   // Insert at balance 0 and let transactions_sync_balance apply this
   // transaction's amount below via source_id — inserting with balance
@@ -331,24 +346,25 @@ export async function createSourceFromTransaction(transactionId: string, formDat
     })
     .select("id")
     .single();
-  if (sourceError) throw new Error(sourceError.message);
+  if (sourceError) return { error: sourceError.message };
 
   const { error: updateError } = await supabase
     .from("transactions")
     .update({ source_id: newSource.id })
     .eq("id", transactionId);
-  if (updateError) throw new Error(updateError.message);
+  if (updateError) return { error: updateError.message };
 
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+  return null;
 }
 
 export async function bulkUpdateTransactions(
   transactionIds: string[],
   updates: { categoryId?: string | null; sourceId?: string | null },
-) {
-  if (transactionIds.length === 0) return;
+): Promise<{ error: string } | null> {
+  if (transactionIds.length === 0) return null;
 
   const patch: {
     category_id?: string | null;
@@ -360,7 +376,7 @@ export async function bulkUpdateTransactions(
     patch.category_source = updates.categoryId ? "manual" : null;
   }
   if (updates.sourceId !== undefined) patch.source_id = updates.sourceId;
-  if (Object.keys(patch).length === 0) return;
+  if (Object.keys(patch).length === 0) return null;
 
   const supabase = await createClient();
   const {
@@ -375,7 +391,7 @@ export async function bulkUpdateTransactions(
     .update(patch)
     .in("id", transactionIds)
     .eq("is_transfer", false);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   // Reinforce learned rules the same way manual entry/assignment do, so a
   // bulk categorization isn't a dead end for future auto-categorization.
@@ -398,25 +414,30 @@ export async function bulkUpdateTransactions(
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+  return null;
 }
 
-export async function deleteTransaction(transactionId: string) {
+export async function deleteTransaction(
+  transactionId: string,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const { error } = await supabase
     .from("transactions")
     .delete()
     .eq("id", transactionId)
     .is("provider_transaction_id", null);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   revalidatePath("/transactions");
+  return null;
 }
 
 export async function saveSplits(
   transactionId: string,
   transactionAmount: number,
+  _prevState: { error: string } | null,
   formData: FormData,
-) {
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -437,9 +458,9 @@ export async function saveSplits(
   if (rows.length > 0) {
     const total = rows.reduce((sum, r) => sum + r.amount, 0);
     if (Math.round(total * 100) !== Math.round(transactionAmount * 100)) {
-      throw new Error(
-        `Split amounts (${total.toFixed(2)}) must sum to the transaction amount (${transactionAmount.toFixed(2)}).`,
-      );
+      return {
+        error: `Split amounts (${total.toFixed(2)}) must sum to the transaction amount (${transactionAmount.toFixed(2)}).`,
+      };
     }
   }
 
@@ -447,16 +468,16 @@ export async function saveSplits(
     .from("transaction_splits")
     .delete()
     .eq("transaction_id", transactionId);
-  if (deleteError) throw new Error(deleteError.message);
+  if (deleteError) return { error: deleteError.message };
 
   if (rows.length === 0) {
     const { error } = await supabase
       .from("transactions")
       .update({ is_split: false })
       .eq("id", transactionId);
-    if (error) throw new Error(error.message);
+    if (error) return { error: error.message };
     revalidatePath("/transactions");
-    return;
+    return null;
   }
 
   const { error: insertError } = await supabase.from("transaction_splits").insert(
@@ -468,13 +489,14 @@ export async function saveSplits(
       amount: r.amount,
     })),
   );
-  if (insertError) throw new Error(insertError.message);
+  if (insertError) return { error: insertError.message };
 
   const { error: updateError } = await supabase
     .from("transactions")
     .update({ is_split: true })
     .eq("id", transactionId);
-  if (updateError) throw new Error(updateError.message);
+  if (updateError) return { error: updateError.message };
 
   revalidatePath("/transactions");
+  return null;
 }

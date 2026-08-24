@@ -30,9 +30,12 @@ async function claimAccessUrl(setupToken: string): Promise<string> {
   return accessUrl;
 }
 
-export async function connectBankConnection(formData: FormData) {
+export async function connectBankConnection(
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const setupToken = String(formData.get("setup_token") ?? "").trim();
-  if (!setupToken) return;
+  if (!setupToken) return { error: "Paste a setup token." };
 
   const supabase = await createClient();
   const {
@@ -40,12 +43,17 @@ export async function connectBankConnection(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const accessUrl = await claimAccessUrl(setupToken);
+  let accessUrl: string;
+  try {
+    accessUrl = await claimAccessUrl(setupToken);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to claim setup token." };
+  }
 
   const { data: connectionId, error } = await supabase.rpc("store_bank_connection_secret", {
     p_access_url: accessUrl,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   const {
     data: { session },
@@ -67,6 +75,7 @@ export async function connectBankConnection(formData: FormData) {
   });
 
   revalidatePath("/accounts");
+  return null;
 }
 
 async function invokeSync(
@@ -97,12 +106,21 @@ async function invokeSync(
   return body;
 }
 
-export async function syncBankConnection(connectionId: string) {
-  await invokeSync(connectionId);
+export async function syncBankConnection(
+  connectionId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
+  try {
+    await invokeSync(connectionId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Sync failed." };
+  }
 
   revalidatePath("/accounts");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
+  return null;
 }
 
 // Backfills one bank connection over an explicit date range (as opposed to
@@ -133,12 +151,17 @@ export async function importBankConnectionRange(
   return result.transactionsFetched ?? 0;
 }
 
-export async function disconnectBankConnection(connectionId: string) {
+export async function disconnectBankConnection(
+  connectionId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_bank_connection", {
     p_connection_id: connectionId,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   revalidatePath("/accounts");
+  return null;
 }

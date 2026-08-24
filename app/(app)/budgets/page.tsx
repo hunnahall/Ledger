@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBudgets } from "@/lib/queries/budgets";
-import { createBudget } from "@/lib/actions/budgets";
 import { resolveDefaultBudgetId } from "@/lib/budgets/resolve-default";
-import { Button } from "@/components/ui/button";
+import { CreateBudgetForm } from "@/components/budgets/create-budget-form";
 import { Card } from "@/components/ui/card";
 
 export default async function BudgetsPage() {
@@ -21,21 +20,7 @@ export default async function BudgetsPage() {
       </div>
 
       <Card className="flex max-w-sm items-end gap-2">
-        <form action={createBudget} className="contents">
-          <label className="flex flex-1 flex-col gap-1 text-sm">
-            New budget name
-            <input
-              type="text"
-              name="name"
-              required
-              placeholder="e.g. Normal, Cut food / splurge rent"
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <Button type="submit" variant="primary">
-            Create
-          </Button>
-        </form>
+        <CreateBudgetForm className="contents" />
       </Card>
     </div>
   );

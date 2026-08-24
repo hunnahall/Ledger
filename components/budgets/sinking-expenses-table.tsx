@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { createSinkingExpense } from "@/lib/actions/sinking-expenses";
 import {
   SINKING_FREQUENCIES,
@@ -37,6 +37,7 @@ export function SinkingExpensesTable({
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [mode, setMode] = useState<SinkingContributionType>("frequency");
+  const [, createAction] = useActionState(createSinkingExpense.bind(null, budgetId), null);
 
   return (
     <div className="rounded-lg border border-border bg-surface">
@@ -80,7 +81,7 @@ export function SinkingExpensesTable({
             <tr className="border-b border-border bg-surface-subtle last:border-0">
               <td colSpan={3} className="px-4 py-3">
                 <form
-                  action={createSinkingExpense.bind(null, budgetId)}
+                  action={createAction}
                   onSubmit={() => {
                     setShowAdd(false);
                     setMode("frequency");

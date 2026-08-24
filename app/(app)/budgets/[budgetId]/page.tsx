@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import { getBudgetWithCategories, getBudgets } from "@/lib/queries/budgets";
 import { getSourceOptions } from "@/lib/queries/sources";
-import { createBudget, deleteBudget } from "@/lib/actions/budgets";
+import { deleteBudget } from "@/lib/actions/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { BudgetSwitcher } from "@/components/budgets/budget-switcher";
 import { BudgetRenameControl } from "@/components/budgets/budget-rename-control";
+import { CreateBudgetForm } from "@/components/budgets/create-budget-form";
 import { CategoriesTable } from "@/components/budgets/categories-table";
 import { SinkingExpensesTable } from "@/components/budgets/sinking-expenses-table";
 import { SourceTransfersTable } from "@/components/budgets/source-transfers-table";
-import { Button } from "@/components/ui/button";
+import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { AddIcon } from "@/components/ui/icons";
 
 export default async function BudgetDetailPage({
@@ -43,11 +44,9 @@ export default async function BudgetDetailPage({
             selectedId={budgetId}
           />
           <BudgetRenameControl budgetId={budgetId} name={budget.name} />
-          <form action={deleteBudget.bind(null, budgetId)}>
-            <Button type="submit" size="sm" tone="negative">
-              Delete
-            </Button>
-          </form>
+          <ActionButtonForm action={deleteBudget.bind(null, budgetId)} size="sm" tone="negative">
+            Delete
+          </ActionButtonForm>
           {!atLimit && (
             <details className="relative">
               <summary
@@ -56,24 +55,7 @@ export default async function BudgetDetailPage({
               >
                 <AddIcon />
               </summary>
-              <form
-                action={createBudget}
-                className="absolute left-0 z-10 mt-2 flex w-72 flex-col gap-2 rounded-lg border border-card-border bg-surface p-4 shadow-elevated"
-              >
-                <label className="flex flex-col gap-1 text-sm">
-                  New budget name
-                  <input
-                    type="text"
-                    name="name"
-                    required
-                    placeholder="e.g. Normal, Cut food / splurge rent"
-                    className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  />
-                </label>
-                <Button type="submit" variant="primary">
-                  Create
-                </Button>
-              </form>
+              <CreateBudgetForm className="absolute left-0 z-10 mt-2 flex w-72 flex-col gap-2 rounded-lg border border-card-border bg-surface p-4 shadow-elevated" />
             </details>
           )}
         </div>

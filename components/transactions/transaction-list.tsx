@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { memo, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
   assignTransaction,
@@ -66,6 +66,7 @@ export function TransactionList({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkCategory, setBulkCategory] = useState("");
   const [bulkSource, setBulkSource] = useState("");
+  const [bulkError, setBulkError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const selectAllRef = useRef<HTMLInputElement>(null);
   // State (not a ref) so its value can be read during render below — a
@@ -125,7 +126,12 @@ export function TransactionList({
 
     const ids = Array.from(selectedIds);
     startTransition(async () => {
-      await bulkUpdateTransactions(ids, updates);
+      const result = await bulkUpdateTransactions(ids, updates);
+      if (result?.error) {
+        setBulkError(result.error);
+        return;
+      }
+      setBulkError(null);
       setSelectedIds(new Set());
       setBulkCategory("");
       setBulkSource("");
@@ -188,6 +194,7 @@ export function TransactionList({
           >
             Clear selection
           </button>
+          {bulkError && <p className="w-full text-xs text-negative">{bulkError}</p>}
         </div>
       )}
 
@@ -285,6 +292,7 @@ const TransactionRow = memo(function TransactionRow({
   const [expanded, setExpanded] = useState(false);
   const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
   const [sourceId, setSourceId] = useState(txn.sourceId ?? "");
+  const [rowError, setRowError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -328,7 +336,8 @@ const TransactionRow = memo(function TransactionRow({
     for (const [key, value] of Object.entries(overrides)) {
       formData.set(key, value);
     }
-    await assignTransaction(txn.id, formData);
+    const result = await assignTransaction(txn.id, formData);
+    setRowError(result?.error ?? null);
   }
 
   async function handleCategoryChange(newCategoryId: string) {
@@ -362,7 +371,8 @@ const TransactionRow = memo(function TransactionRow({
   }
 
   async function handleDelete() {
-    await deleteTransaction(txn.id);
+    const result = await deleteTransaction(txn.id);
+    setRowError(result?.error ?? null);
   }
 
   const currentTransferFrom = txn.transferFromSourceId
@@ -377,6 +387,15 @@ const TransactionRow = memo(function TransactionRow({
       : "";
 
   const typeLabel = isTransfer ? "Transfer" : txn.excludeFromBudget ? "Excluded" : null;
+
+  const [splitsState, splitsAction] = useActionState(
+    saveSplits.bind(null, txn.id, txn.amount),
+    null,
+  );
+  const [createSourceState, createSourceAction] = useActionState(
+    createSourceFromTransaction.bind(null, txn.id),
+    null,
+  );
 
   return (
     <>
@@ -504,6 +523,8 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         </div>
 
+        {rowError && <p className="px-3 pb-2 text-xs text-negative md:px-2">{rowError}</p>}
+
         {/* Always rendered (never unmounted) so the form= references from the
             main row's Category/Source selects keep resolving to this form
             regardless of expand state — only the visibility is toggled.
@@ -602,10 +623,7 @@ const TransactionRow = memo(function TransactionRow({
             <summary className="cursor-pointer text-xs text-muted">
               {txn.isSplit ? `Split into ${txn.splits.length} lines` : "Split transaction"}
             </summary>
-            <form
-              action={saveSplits.bind(null, txn.id, txn.amount)}
-              className="mt-2 flex flex-col gap-2"
-            >
+            <form action={splitsAction} className="mt-2 flex flex-col gap-2">
               {Array.from({ length: MAX_SPLIT_ROWS }, (_, i) => i + 1).map((i) => {
                 const existing = txn.splits[i - 1];
                 return (
@@ -663,6 +681,7 @@ const TransactionRow = memo(function TransactionRow({
               >
                 Save split
               </button>
+              {splitsState?.error && <p className="text-xs text-negative">{splitsState.error}</p>}
             </form>
           </details>
 
@@ -676,10 +695,7 @@ const TransactionRow = memo(function TransactionRow({
               <summary className="cursor-pointer text-xs text-muted">
                 Create source from this amount
               </summary>
-              <form
-                action={createSourceFromTransaction.bind(null, txn.id)}
-                className="mt-2 flex flex-wrap items-end gap-3"
-              >
+              <form action={createSourceAction} className="mt-2 flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1 text-xs text-muted">
                   New source name
                   <input
@@ -703,6 +719,9 @@ const TransactionRow = memo(function TransactionRow({
                 >
                   Create source ({formatMoney(txn.amount, decimalPlaces)})
                 </button>
+                {createSourceState?.error && (
+                  <p className="text-xs text-negative">{createSourceState.error}</p>
+                )}
               </form>
             </details>
           )}

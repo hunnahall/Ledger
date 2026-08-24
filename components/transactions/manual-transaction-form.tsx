@@ -40,6 +40,7 @@ export function ManualTransactionForm({
   // suggestion lookup's await).
   const [categorySource, setCategorySource] = useState<"manual" | "auto" | null>(null);
   const categorySourceRef = useRef<"manual" | "auto" | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
 
   function setCategory(value: string, source: "manual" | "auto" | null) {
@@ -80,7 +81,12 @@ export function ManualTransactionForm({
       }
     }
 
-    await createManualTransaction(formData);
+    const result = await createManualTransaction(formData);
+    if (result?.error) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
     form.reset();
     setTypeChoice("expense");
     setIncomeAction("include_in_budget");
@@ -302,6 +308,7 @@ export function ManualTransactionForm({
         <Button type="submit" variant="accent" size="icon" aria-label="Add transaction">
           <AddIcon />
         </Button>
+        {error && <p className="w-full text-xs text-negative">{error}</p>}
       </form>
     </>
   );

@@ -9,11 +9,17 @@ function money(amount: number): string {
   return `$${amount.toFixed(2)}/mo`;
 }
 
-export async function createSourceTransfer(budgetId: string, formData: FormData) {
+export async function createSourceTransfer(
+  budgetId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const sourceId = String(formData.get("source_id") ?? "");
   const amount = Number(formData.get("amount") ?? 0);
-  if (!name || !sourceId || !amount) return;
+  if (!name) return { error: "Enter a name for the source transfer." };
+  if (!sourceId) return { error: "Choose a source." };
+  if (!amount) return { error: "Enter an amount." };
 
   const supabase = await createClient();
   const {
@@ -28,23 +34,27 @@ export async function createSourceTransfer(budgetId: string, formData: FormData)
     name,
     amount,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Budgets", `Source Transfer: ${name}`, null, money(amount));
 
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/sources");
+  return null;
 }
 
 export async function updateSourceTransfer(
   sourceTransferId: string,
   budgetId: string,
+  _prevState: { error: string } | null,
   formData: FormData,
-) {
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const sourceId = String(formData.get("source_id") ?? "");
   const amount = Number(formData.get("amount") ?? 0);
-  if (!name || !sourceId || !amount) return;
+  if (!name) return { error: "Enter a name for the source transfer." };
+  if (!sourceId) return { error: "Choose a source." };
+  if (!amount) return { error: "Enter an amount." };
 
   const supabase = await createClient();
   const {
@@ -57,14 +67,14 @@ export async function updateSourceTransfer(
     .select("name, source_id, amount")
     .eq("id", sourceTransferId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!existing) throw new Error("Source Transfer not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "Source Transfer not found." };
 
   const { error } = await supabase
     .from("source_transfers")
     .update({ name, source_id: sourceId, amount })
     .eq("id", sourceTransferId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (existing.name !== name) {
     await logChange(
@@ -103,9 +113,15 @@ export async function updateSourceTransfer(
 
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/sources");
+  return null;
 }
 
-export async function deleteSourceTransfer(sourceTransferId: string, budgetId: string) {
+export async function deleteSourceTransfer(
+  sourceTransferId: string,
+  budgetId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -117,10 +133,10 @@ export async function deleteSourceTransfer(sourceTransferId: string, budgetId: s
     .select("name, amount")
     .eq("id", sourceTransferId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
+  if (fetchError) return { error: fetchError.message };
 
   const { error } = await supabase.from("source_transfers").delete().eq("id", sourceTransferId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (existing) {
     await logChange(
@@ -135,4 +151,5 @@ export async function deleteSourceTransfer(sourceTransferId: string, budgetId: s
 
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/sources");
+  return null;
 }

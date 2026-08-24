@@ -9,10 +9,14 @@ function money(amount: number): string {
   return `$${amount.toFixed(2)}/mo`;
 }
 
-export async function createCategory(budgetId: string, formData: FormData) {
+export async function createCategory(
+  budgetId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const monthlyAmount = Number(formData.get("monthly_amount") ?? 0);
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the category." };
 
   const supabase = await createClient();
   const {
@@ -26,21 +30,23 @@ export async function createCategory(budgetId: string, formData: FormData) {
     name,
     monthly_amount: monthlyAmount,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Budgets", `Category: ${name}`, null, money(monthlyAmount));
 
   revalidatePath(`/budgets/${budgetId}`);
+  return null;
 }
 
 export async function updateCategory(
   categoryId: string,
   budgetId: string,
+  _prevState: { error: string } | null,
   formData: FormData,
-) {
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const monthlyAmount = Number(formData.get("monthly_amount") ?? 0);
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the category." };
 
   const supabase = await createClient();
   const {
@@ -53,14 +59,14 @@ export async function updateCategory(
     .select("name, monthly_amount")
     .eq("id", categoryId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!existing) throw new Error("Category not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "Category not found." };
 
   const { error } = await supabase
     .from("categories")
     .update({ name, monthly_amount: monthlyAmount })
     .eq("id", categoryId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (existing.name !== name) {
     await logChange(
@@ -84,9 +90,15 @@ export async function updateCategory(
   }
 
   revalidatePath(`/budgets/${budgetId}`);
+  return null;
 }
 
-export async function deleteCategory(categoryId: string, budgetId: string) {
+export async function deleteCategory(
+  categoryId: string,
+  budgetId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -98,12 +110,12 @@ export async function deleteCategory(categoryId: string, budgetId: string) {
     .select("name, monthly_amount")
     .eq("id", categoryId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
+  if (fetchError) return { error: fetchError.message };
 
   // transactions.category_id and transaction_splits.category_id are
   // `on delete set null`, so affected transactions fall back to Uncategorized.
   const { error } = await supabase.from("categories").delete().eq("id", categoryId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (existing) {
     await logChange(
@@ -119,4 +131,5 @@ export async function deleteCategory(categoryId: string, budgetId: string) {
   revalidatePath(`/budgets/${budgetId}`);
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
+  return null;
 }

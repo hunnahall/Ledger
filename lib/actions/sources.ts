@@ -10,23 +10,34 @@ function money(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
 
-export async function createSource(formData: FormData) {
+// Takes/returns the (prevState, formData) => nextState shape useActionState
+// expects, rather than throwing — a thrown error from a Server Action
+// invoked through a plain <form action> (no client-side handler) bubbles
+// all the way up to the route's error boundary, crashing the whole page
+// for what's usually just an incomplete form (e.g. "pick a fund"), and in
+// production the boundary only gets Next's generic digest-only message
+// anyway, not this actual text. Returning it instead lets the form show it
+// inline without losing anything the user already typed.
+export async function createSource(
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const type = String(formData.get("type") ?? "past_payment");
   const startingBalance = Number(formData.get("balance") ?? 0);
   const depositDateInput = String(formData.get("deposit_date") ?? "").trim();
   const fundIds = formData.getAll("fund_ids").map(String).filter(Boolean);
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the source." };
 
   if (type === "budget") {
-    throw new Error("Budget sources are managed automatically per budget.");
+    return { error: "Budget sources are managed automatically per budget." };
   }
 
   const depositDate =
     type === "past_payment" || type === "future_repayment" ? depositDateInput || null : null;
 
   const validation = validateSourceInput({ type, fundIds, depositDate });
-  if (!validation.ok) throw new Error(validation.error);
+  if (!validation.ok) return { error: validation.error };
 
   const supabase = await createClient();
   const {
@@ -45,7 +56,7 @@ export async function createSource(formData: FormData) {
     })
     .select("id")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (type === "fund") {
     const { error: linkError } = await supabase.from("source_funds").insert({
@@ -53,15 +64,20 @@ export async function createSource(formData: FormData) {
       source_id: source.id,
       fund_id: fundIds[0],
     });
-    if (linkError) throw new Error(linkError.message);
+    if (linkError) return { error: linkError.message };
   }
 
   await logChange(supabase, user.id, "Sources", `Source: ${name}`, null, money(startingBalance));
 
   revalidatePath("/sources");
+  return null;
 }
 
-export async function archiveSource(sourceId: string) {
+export async function archiveSource(
+  sourceId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -73,13 +89,13 @@ export async function archiveSource(sourceId: string) {
     .select("name, balance")
     .eq("id", sourceId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
+  if (fetchError) return { error: fetchError.message };
 
   const { error } = await supabase
     .from("sources")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", sourceId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (source) {
     await logChange(
@@ -93,11 +109,16 @@ export async function archiveSource(sourceId: string) {
   }
 
   revalidatePath("/sources");
+  return null;
 }
 
-export async function adjustSourceBalance(sourceId: string, formData: FormData) {
+export async function adjustSourceBalance(
+  sourceId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const amount = Number(formData.get("amount") ?? 0);
-  if (!amount) return;
+  if (!amount) return null;
 
   const supabase = await createClient();
   const {
@@ -110,8 +131,8 @@ export async function adjustSourceBalance(sourceId: string, formData: FormData) 
     .select("name, balance")
     .eq("id", sourceId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!source) throw new Error("Source not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!source) return { error: "Source not found." };
 
   // Atomic balance = balance + amount in the DB (see adjust_source_balance)
   // rather than reading balance then writing it back, which would race two
@@ -120,7 +141,7 @@ export async function adjustSourceBalance(sourceId: string, formData: FormData) 
     p_source_id: sourceId,
     p_delta: amount,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(
     supabase,
@@ -132,11 +153,16 @@ export async function adjustSourceBalance(sourceId: string, formData: FormData) 
   );
 
   revalidatePath("/sources");
+  return null;
 }
 
-export async function setSourceBalance(sourceId: string, formData: FormData) {
+export async function setSourceBalance(
+  sourceId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const amount = formData.get("amount");
-  if (amount === null || amount === "") return;
+  if (amount === null || amount === "") return null;
 
   const supabase = await createClient();
   const {
@@ -149,14 +175,14 @@ export async function setSourceBalance(sourceId: string, formData: FormData) {
     .select("name, balance")
     .eq("id", sourceId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!source) throw new Error("Source not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!source) return { error: "Source not found." };
 
   const { error } = await supabase
     .from("sources")
     .update({ balance: Number(amount) })
     .eq("id", sourceId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (source.balance !== Number(amount)) {
     await logChange(
@@ -170,12 +196,16 @@ export async function setSourceBalance(sourceId: string, formData: FormData) {
   }
 
   revalidatePath("/sources");
+  return null;
 }
 
-export async function createFund(formData: FormData) {
+export async function createFund(
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const startingBalance = Number(formData.get("balance") ?? 0);
-  if (!name) return;
+  if (!name) return { error: "Enter a name for the fund." };
 
   const supabase = await createClient();
   const {
@@ -188,14 +218,19 @@ export async function createFund(formData: FormData) {
     name,
     balance: startingBalance,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Sources", `Fund: ${name}`, null, money(startingBalance));
 
   revalidatePath("/sources");
+  return null;
 }
 
-export async function archiveFund(fundId: string) {
+export async function archiveFund(
+  fundId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -207,13 +242,13 @@ export async function archiveFund(fundId: string) {
     .select("name, balance")
     .eq("id", fundId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
+  if (fetchError) return { error: fetchError.message };
 
   const { error } = await supabase
     .from("funds")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", fundId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (fund) {
     await logChange(
@@ -227,11 +262,16 @@ export async function archiveFund(fundId: string) {
   }
 
   revalidatePath("/sources");
+  return null;
 }
 
-export async function adjustFundBalance(fundId: string, formData: FormData) {
+export async function adjustFundBalance(
+  fundId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const amount = Number(formData.get("amount") ?? 0);
-  if (!amount) return;
+  if (!amount) return null;
 
   const supabase = await createClient();
   const {
@@ -244,8 +284,8 @@ export async function adjustFundBalance(fundId: string, formData: FormData) {
     .select("name, balance")
     .eq("id", fundId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!fund) throw new Error("Fund not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!fund) return { error: "Fund not found." };
 
   // See adjustSourceBalance — atomic increment via adjust_fund_balance
   // instead of a read-then-write that could race a concurrent adjustment.
@@ -253,7 +293,7 @@ export async function adjustFundBalance(fundId: string, formData: FormData) {
     p_fund_id: fundId,
     p_delta: amount,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   await logChange(
     supabase,
@@ -265,11 +305,16 @@ export async function adjustFundBalance(fundId: string, formData: FormData) {
   );
 
   revalidatePath("/sources");
+  return null;
 }
 
-export async function setFundBalance(fundId: string, formData: FormData) {
+export async function setFundBalance(
+  fundId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
   const amount = formData.get("amount");
-  if (amount === null || amount === "") return;
+  if (amount === null || amount === "") return null;
 
   const supabase = await createClient();
   const {
@@ -282,14 +327,14 @@ export async function setFundBalance(fundId: string, formData: FormData) {
     .select("name, balance")
     .eq("id", fundId)
     .maybeSingle();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!fund) throw new Error("Fund not found.");
+  if (fetchError) return { error: fetchError.message };
+  if (!fund) return { error: "Fund not found." };
 
   const { error } = await supabase
     .from("funds")
     .update({ balance: Number(amount) })
     .eq("id", fundId);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
 
   if (fund.balance !== Number(amount)) {
     await logChange(
@@ -303,4 +348,5 @@ export async function setFundBalance(fundId: string, formData: FormData) {
   }
 
   revalidatePath("/sources");
+  return null;
 }
