@@ -30,7 +30,7 @@ export function SearchToggle() {
         aria-label="Search transactions"
         className="flex items-center justify-center rounded-md p-2 text-muted transition-colors duration-150 hover:bg-surface-subtle hover:text-foreground"
       >
-        <SearchIcon />
+        <SearchIcon size={24} />
       </button>
     );
   }

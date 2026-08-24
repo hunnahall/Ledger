@@ -32,7 +32,7 @@ function closeDetails(el: HTMLElement) {
 
 function FilterSummary({ label, active }: { label: string; active: boolean }) {
   return (
-    <summary className="flex cursor-pointer list-none items-center gap-1 [&::-webkit-details-marker]:hidden">
+    <summary className="flex cursor-pointer list-none items-center justify-center gap-1 [&::-webkit-details-marker]:hidden">
       {label}
       {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-mark" aria-hidden="true" />}
       <ChevronDownIcon size={10} className="shrink-0" />

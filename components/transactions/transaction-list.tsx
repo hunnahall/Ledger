@@ -227,7 +227,7 @@ export function TransactionList({
         // fields, so there's one row layout, not two parallel ones to keep in
         // sync.
         <div className="rounded-lg border border-border text-sm">
-          <div className="hidden items-center gap-1.5 border-b border-border bg-surface-subtle px-2 py-2 text-left text-xs text-muted md:flex">
+          <div className="hidden items-center gap-1.5 border-b border-border bg-surface-subtle px-2 py-2 text-left text-sm text-muted md:flex">
             <span className="w-8 shrink-0"></span>
             <DateRangeColumnFilter label="Date" className="w-20 shrink-0 font-medium" />
             <SelectColumnFilter
@@ -236,8 +236,8 @@ export function TransactionList({
               options={accounts.map((a) => ({ value: a.id, label: a.account_name }))}
               className="w-14 shrink-0 font-medium"
             />
-            <span className="md:max-w-[260px] md:flex-1 font-medium">Description</span>
-            <span className="md:ml-4 w-24 shrink-0 text-right font-medium">Amount</span>
+            <span className="md:max-w-[260px] md:flex-1 text-center font-medium">Description</span>
+            <span className="md:ml-4 w-24 shrink-0 text-center font-medium">Amount</span>
             <SelectColumnFilter
               label="Category"
               paramKey="category_id"
