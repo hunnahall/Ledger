@@ -10,17 +10,19 @@ export function DecimalPlacesForm({ decimalPlaces }: { decimalPlaces: number }) 
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
-        Decimal places
-        <Select name="decimal_places" defaultValue={decimalPlaces} className="w-full">
-          <option value={0}>0 (e.g. $42)</option>
-          <option value={1}>1 (e.g. $42.5)</option>
-          <option value={2}>2 (e.g. $42.50)</option>
-        </Select>
-      </label>
-      <Button type="submit" variant="accent" className="w-fit">
-        Save
-      </Button>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-sm">
+          Decimal places
+          <Select name="decimal_places" defaultValue={decimalPlaces} className="w-40">
+            <option value={0}>0 (e.g. $42)</option>
+            <option value={1}>1 (e.g. $42.5)</option>
+            <option value={2}>2 (e.g. $42.50)</option>
+          </Select>
+        </label>
+        <Button type="submit" variant="accent" className="w-fit">
+          Save
+        </Button>
+      </div>
       {state?.error && <p className="text-xs text-negative">{state.error}</p>}
     </form>
   );
