@@ -13,6 +13,10 @@
   --positive: #4f7358;
   --negative: #a24a4a;
   --mark: #e9d985;
+  /* Grain texture strength (see body::before below) — full strength in
+     light mode, dialed back in dark mode where the same fixed-opacity
+     highlights read as distracting white specks. */
+  --grain-opacity: 1;
   /* The mark's gold stays constant across themes (see --mark below), so
      anything painted on top of it needs a fixed ink too, not --foreground
      (which flips to near-white in dark mode and would vanish on gold). */
@@ -47,6 +51,7 @@
 
     --card-border: var(--border);
     --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --grain-opacity: 0.45;
 
     color-scheme: dark;
   }
@@ -67,6 +72,7 @@
 
   --card-border: var(--border);
   --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --grain-opacity: 0.45;
 
   color-scheme: dark;
 }
@@ -103,11 +109,23 @@
 
 body {
   background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Grain overlay lives on its own layer (rather than body's background-image
+   directly) so its opacity can be dialed down per-theme independently of
+   the SVG's own baked-in opacity — see --grain-opacity above. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background-image: url("/noise.svg");
   background-repeat: repeat;
   background-size: 700px 700px;
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  opacity: var(--grain-opacity);
+  pointer-events: none;
 }
 
 /* Every page title and section heading is a raw h1-h4 (see app/(app)/*

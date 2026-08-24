@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { LedgerMark } from "./mark";
 import { NavLink } from "./nav-link";
 import { NAV_LINKS } from "./nav-links";
 
-// Mobile-only nav (hamburger + dropdown) — md+ uses the persistent Sidebar
-// instead, so this renders nothing there.
+// Mobile-only nav (Ledger mark toggles a dropdown) — md+ uses the persistent
+// Sidebar instead, so this renders nothing there.
 export function AppNav({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
@@ -16,31 +17,10 @@ export function AppNav({ children }: { children: ReactNode }) {
         onClick={() => setOpen((o) => !o)}
         aria-label="Toggle menu"
         aria-expanded={open}
-        className="rounded-md p-2 text-foreground transition-transform duration-150 hover:scale-110 active:scale-95 md:hidden"
+        className="flex items-center gap-2.5 text-foreground transition-transform duration-150 hover:scale-105 active:scale-95 md:hidden"
       >
-        <svg
-          width={22}
-          height={22}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          {open ? (
-            <>
-              <path d="M6 6 L18 18" />
-              <path d="M18 6 L6 18" />
-            </>
-          ) : (
-            <>
-              <path d="M4 7 H20" />
-              <path d="M4 12 H20" />
-              <path d="M4 17 H20" />
-            </>
-          )}
-        </svg>
+        <LedgerMark size={32} />
+        <p className="text-2xl font-semibold tracking-tight">Ledger</p>
       </button>
 
       {open && (

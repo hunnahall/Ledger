@@ -22,25 +22,25 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       </div>
 
-      <Card className="max-w-sm p-5">
-        <DecimalPlacesForm decimalPlaces={settings.decimal_places} />
-      </Card>
+      <div className="flex flex-wrap gap-4">
+        <Card className="min-w-56 flex-1 p-5">
+          <DecimalPlacesForm decimalPlaces={settings.decimal_places} />
+        </Card>
 
-      <Card className="max-w-sm p-5">
-        <p className="text-sm font-medium">Appearance</p>
-        <ThemeToggle className="mt-3" />
-      </Card>
+        <Card className="min-w-56 flex-1 p-5">
+          <p className="text-sm font-medium">Appearance</p>
+          <ThemeToggle className="mt-3" />
+        </Card>
 
-      <Card className="max-w-sm p-5">
-        <RetentionForm retentionDays={settings.retention_days} />
-      </Card>
+        <Card className="min-w-56 flex-1 p-5">
+          <RetentionForm retentionDays={settings.retention_days} />
+        </Card>
+      </div>
 
       <Card className="p-5">
         <p className="font-medium">Categorization rules</p>
         <p className="mt-1 mb-3 text-sm text-muted">
-          Whenever you categorize a transaction and confirm the prompt, Ledger remembers the
-          merchant so future transactions from it (manual entry or bank sync) get categorized
-          automatically.
+          Rules you&apos;ve established to automatically categorize transactions.
         </p>
 
         <CreateVendorRuleForm categories={categories} />

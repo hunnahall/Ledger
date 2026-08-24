@@ -1,6 +1,5 @@
 import { AppNav } from "@/components/ui/app-nav";
 import { Sidebar } from "@/components/ui/sidebar";
-import { LedgerMark } from "@/components/ui/mark";
 import { signOut } from "@/lib/actions/auth";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -10,11 +9,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* md+ uses the Sidebar for branding/nav/logout instead. */}
         <header className="relative z-10 border-b border-border bg-surface md:hidden">
-          <div className="flex items-center justify-between px-6 py-5">
-            <div className="flex items-center gap-2.5 text-foreground">
-              <LedgerMark size={32} />
-              <p className="text-2xl font-semibold tracking-tight">Ledger</p>
-            </div>
+          <div className="flex items-center px-6 py-5">
             <AppNav>
               <form action={signOut}>
                 <button

@@ -3,17 +3,15 @@ import {
   getFilterOptions,
   getTransactionSplits,
   resolveCategoryFilter,
-  UNCATEGORIZED_FILTER_VALUE,
   type TransactionFilters,
 } from "@/lib/queries/transactions";
 import { getAccounts } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
 import { ExportMenu } from "@/components/transactions/export-menu";
+import { SearchToggle } from "@/components/transactions/search-toggle";
 
 type SearchParams = {
   date_from?: string;
@@ -67,7 +65,8 @@ export default async function TransactionsPage({
     updatedAt: txn.updated_at,
     postedDate: txn.posted_date,
     description: txn.description,
-    accountName: (txn.accounts as { account_name: string } | null)?.account_name ?? null,
+    accountName: (txn.accounts as { account_name: string; last4: string | null } | null)?.account_name ?? null,
+    accountLast4: (txn.accounts as { account_name: string; last4: string | null } | null)?.last4 ?? null,
     amount: txn.amount,
     categoryId: txn.category_id,
     categorySource: txn.category_source,
@@ -94,7 +93,7 @@ export default async function TransactionsPage({
       <div className="flex items-baseline justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-          <p className="mt-1 text-sm text-muted">{transactions.length} transactions</p>
+          <p className="mt-1 text-sm text-muted">Your income and expenses</p>
         </div>
         <ExportMenu />
       </div>
@@ -113,88 +112,13 @@ export default async function TransactionsPage({
       </section>
 
       <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Filters</p>
-        <form
-          method="get"
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
-        >
-          <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-muted">
-            Search
-            <input
-              type="text"
-              name="search"
-              defaultValue={params.search}
-              placeholder="e.g. Trader Joe's"
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            From
-            <input
-              type="date"
-              name="date_from"
-              defaultValue={params.date_from}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            To
-            <input
-              type="date"
-              name="date_to"
-              defaultValue={params.date_to}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Account
-            <Select name="account_id" uiSize="sm" className="w-36" defaultValue={params.account_id ?? ""} placeholder="All">
-              <option value="">All</option>
-              {filterOptions.accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.account_name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Category
-            <Select name="category_id" uiSize="sm" className="w-36" defaultValue={params.category_id ?? ""} placeholder="All">
-              <option value="">All</option>
-              <option value={UNCATEGORIZED_FILTER_VALUE}>Uncategorized</option>
-              {filterOptions.categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Source
-            <Select name="source_id" uiSize="sm" className="w-36" defaultValue={params.source_id ?? ""} placeholder="All">
-              <option value="">All</option>
-              {filterOptions.sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <div className="flex items-center gap-3">
-            <Button type="submit" variant="accent" size="sm">
-              Filter
-            </Button>
-            <a href="/transactions" className="text-sm text-muted hover:underline">
-              Clear
-            </a>
-          </div>
-        </form>
-      </section>
-
-      <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
+        <div className="flex items-baseline justify-between">
+          <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
+          <SearchToggle />
+        </div>
         <TransactionList
           transactions={transactionRows}
+          accounts={filterOptions.accounts}
           categories={filterOptions.categories}
           sources={filterOptions.sources}
           bucketOptions={bucketOptions}

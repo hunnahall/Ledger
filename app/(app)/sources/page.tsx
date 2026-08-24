@@ -27,10 +27,7 @@ export default async function SourcesPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Sources</h1>
-        <p className="mt-1 text-sm text-muted">
-          Buckets that pay for transactions. Balances update automatically from
-          transactions and can also be adjusted by hand. Balances can go negative.
-        </p>
+        <p className="mt-1 text-sm text-muted">Your buckets that pay for transactions.</p>
       </div>
 
       <CreateSourceForm />
@@ -90,19 +87,6 @@ export default async function SourcesPage() {
             </p>
           )}
         </div>
-
-        {grouped.fund.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">
-              Sources linked to a fund
-            </p>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {grouped.fund.map((source) => (
-                <SourceCard key={source.id} source={source} decimalPlaces={decimalPlaces} />
-              ))}
-            </div>
-          </div>
-        )}
       </section>
     </div>
   );

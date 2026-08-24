@@ -10,6 +10,7 @@ import {
   saveSplits,
   suggestCategoryForDescription,
 } from "@/lib/actions/transactions";
+import { UNCATEGORIZED_FILTER_VALUE } from "@/lib/transactions/filters";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 import { stepAmountByDollar } from "@/lib/dollar-step";
@@ -20,6 +21,7 @@ import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 
 export type TransactionRowData = {
   id: string;
@@ -27,6 +29,7 @@ export type TransactionRowData = {
   postedDate: string;
   description: string;
   accountName: string | null;
+  accountLast4: string | null;
   amount: number;
   categoryId: string | null;
   categorySource: string | null;
@@ -44,12 +47,24 @@ export type TransactionRowData = {
 };
 
 type Option = { id: string; name: string };
+type AccountOption = { id: string; account_name: string };
 type BucketOption = { value: string; label: string };
 
 const CLEAR = "__clear__";
 
+// accounts.last4 isn't populated by anything in this app yet (no bank-sync
+// pipeline writes it), so the Account column would otherwise show nothing
+// for every real account. Every account here happens to already carry its
+// last 4 digits at the end of its name (e.g. "Venture X (4440)", entered
+// that way at account-creation time) — fall back to pulling them from
+// there so the narrower column still shows something useful.
+function accountLast4(name: string | null): string | null {
+  return name?.match(/\((\d{4})\)\s*$/)?.[1] ?? null;
+}
+
 export function TransactionList({
   transactions,
+  accounts,
   categories,
   sources,
   bucketOptions,
@@ -57,6 +72,7 @@ export function TransactionList({
   decimalPlaces,
 }: {
   transactions: TransactionRowData[];
+  accounts: AccountOption[];
   categories: Option[];
   sources: Option[];
   bucketOptions: BucketOption[];
@@ -212,12 +228,30 @@ export function TransactionList({
         <div className="rounded-lg border border-border text-sm">
           <div className="hidden items-center gap-1.5 border-b border-border bg-surface-subtle px-2 py-2 text-left text-xs text-muted md:flex">
             <span className="w-8 shrink-0"></span>
-            <span className="w-20 shrink-0 font-medium">Date</span>
-            <span className="w-28 shrink-0 font-medium">Account</span>
-            <span className="flex-1 font-medium">Description</span>
+            <DateRangeColumnFilter label="Date" className="w-20 shrink-0 font-medium" />
+            <SelectColumnFilter
+              label="Account"
+              paramKey="account_id"
+              options={accounts.map((a) => ({ value: a.id, label: a.account_name }))}
+              className="w-14 shrink-0 font-medium"
+            />
+            <span className="md:max-w-[200px] md:flex-1 font-medium">Description</span>
             <span className="w-24 shrink-0 text-right font-medium">Amount</span>
-            <span className="w-32 shrink-0 font-medium">Category</span>
-            <span className="w-32 shrink-0 font-medium">Source</span>
+            <SelectColumnFilter
+              label="Category"
+              paramKey="category_id"
+              options={[
+                { value: UNCATEGORIZED_FILTER_VALUE, label: "Uncategorized" },
+                ...categories.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              className="w-40 shrink-0 font-medium"
+            />
+            <SelectColumnFilter
+              label="Source"
+              paramKey="source_id"
+              options={sources.map((s) => ({ value: s.id, label: s.name }))}
+              className="w-40 shrink-0 font-medium"
+            />
             <span className="w-8 shrink-0"></span>
             <span className="w-8 shrink-0"></span>
           </div>
@@ -290,6 +324,7 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [expanded, setExpanded] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(txn.isSplit);
   const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
   const [sourceId, setSourceId] = useState(txn.sourceId ?? "");
   const [rowError, setRowError] = useState<string | null>(null);
@@ -309,12 +344,14 @@ const TransactionRow = memo(function TransactionRow({
   if (
     txn.isTransfer !== prevTxn.isTransfer ||
     txn.categoryId !== prevTxn.categoryId ||
-    txn.sourceId !== prevTxn.sourceId
+    txn.sourceId !== prevTxn.sourceId ||
+    txn.isSplit !== prevTxn.isSplit
   ) {
     setPrevTxn(txn);
     setIsTransfer(txn.isTransfer);
     setCategoryId(txn.categoryId ?? "");
     setSourceId(txn.sourceId ?? "");
+    setSplitOpen(txn.isSplit);
   }
 
   // Every field in this row autosaves as soon as it changes — there's no
@@ -425,15 +462,21 @@ const TransactionRow = memo(function TransactionRow({
               })}
             </span>
             <span
-              className="min-w-0 truncate text-xs text-muted md:w-28 md:text-sm"
+              className="min-w-0 truncate text-xs text-muted md:w-14 md:text-sm"
               title={txn.accountName ?? ""}
             >
-              {txn.accountName}
+              {(() => {
+                const last4 = txn.accountLast4 ?? accountLast4(txn.accountName);
+                return last4 ? `••${last4}` : txn.accountName;
+              })()}
             </span>
           </div>
 
           <div className="flex items-center justify-between gap-2 md:contents">
-            <span className="min-w-0 truncate font-medium md:flex-1" title={txn.description}>
+            <span
+              className="min-w-0 truncate font-medium md:max-w-[200px] md:flex-1"
+              title={txn.description}
+            >
               {txn.description}
               {typeLabel && (
                 <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
@@ -451,7 +494,7 @@ const TransactionRow = memo(function TransactionRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:contents">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-32 md:flex-none">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-40 md:flex-none">
               <Select
                 form={`txn-${txn.id}`}
                 name="category_id"
@@ -482,7 +525,7 @@ const TransactionRow = memo(function TransactionRow({
               form={`txn-${txn.id}`}
               name="source_id"
               uiSize="sm"
-              className="min-w-0 flex-1 md:w-32 md:flex-none"
+              className="min-w-0 flex-1 md:w-40 md:flex-none"
               value={sourceId}
               onChange={handleSourceChange}
               placeholder={isTransfer ? "—" : "No source"}
@@ -534,8 +577,8 @@ const TransactionRow = memo(function TransactionRow({
             values, including the remotely-associated Category/Source
             fields. */}
         <div className={`border-t border-border bg-surface-subtle px-4 py-3 ${expanded ? "" : "hidden"}`}>
-          <form ref={formRef} id={`txn-${txn.id}`} className="flex flex-wrap items-end gap-3">
-            <label className="flex items-center gap-1.5 text-xs text-muted">
+          <form ref={formRef} id={`txn-${txn.id}`} className="flex flex-wrap items-center gap-4">
+            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
               <input
                 type="checkbox"
                 checked={isTransfer}
@@ -545,58 +588,27 @@ const TransactionRow = memo(function TransactionRow({
               Transfer
             </label>
 
-            {isTransfer && (
-              <>
-                <label className="flex flex-col gap-1 text-xs text-muted">
-                  Transfer from
-                  <Select
-                    name="transfer_from"
-                    uiSize="sm"
-                    className="w-36"
-                    defaultValue={currentTransferFrom}
-                    onChange={(value) => saveRow({ transfer_from: value })}
-                    placeholder="None"
-                  >
-                    <option value="">None</option>
-                    {bucketOptions.map((b) => (
-                      <option key={b.value} value={b.value}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted">
-                  Transfer to
-                  <Select
-                    name="transfer_to"
-                    uiSize="sm"
-                    className="w-36"
-                    defaultValue={currentTransferTo}
-                    onChange={(value) => saveRow({ transfer_to: value })}
-                    placeholder="None"
-                  >
-                    <option value="">None</option>
-                    {bucketOptions.map((b) => (
-                      <option key={b.value} value={b.value}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              </>
-            )}
-
-            <label className="flex items-center gap-1.5 text-xs text-muted">
+            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
               <input
                 type="checkbox"
                 name="exclude_from_budget"
                 defaultChecked={txn.excludeFromBudget}
                 onChange={() => saveRow()}
               />
-              Exclude from budget
+              Exclude
             </label>
-            <label className="flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted">
-              Notes
+
+            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={splitOpen}
+                onChange={(e) => setSplitOpen(e.target.checked)}
+              />
+              Split{txn.isSplit ? ` (${txn.splits.length})` : ""}
+            </label>
+
+            <label className="flex min-w-40 flex-1 items-center gap-1.5 text-xs text-muted">
+              <span className="sr-only">Notes</span>
               <input
                 type="text"
                 name="notes"
@@ -606,10 +618,53 @@ const TransactionRow = memo(function TransactionRow({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") e.currentTarget.blur();
                 }}
-                className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
             </label>
           </form>
+
+          {isTransfer && (
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-xs text-muted">
+                Transfer from
+                <Select
+                  form={`txn-${txn.id}`}
+                  name="transfer_from"
+                  uiSize="sm"
+                  className="w-36"
+                  defaultValue={currentTransferFrom}
+                  onChange={(value) => saveRow({ transfer_from: value })}
+                  placeholder="None"
+                >
+                  <option value="">None</option>
+                  {bucketOptions.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-muted">
+                Transfer to
+                <Select
+                  form={`txn-${txn.id}`}
+                  name="transfer_to"
+                  uiSize="sm"
+                  className="w-36"
+                  defaultValue={currentTransferTo}
+                  onChange={(value) => saveRow({ transfer_to: value })}
+                  placeholder="None"
+                >
+                  <option value="">None</option>
+                  {bucketOptions.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+          )}
 
           {txn.isTransfer && (currentTransferFrom || currentTransferTo) && (
             <p className="mt-2 text-xs text-muted">
@@ -619,11 +674,8 @@ const TransactionRow = memo(function TransactionRow({
             </p>
           )}
 
-          <details className="mt-3">
-            <summary className="cursor-pointer text-xs text-muted">
-              {txn.isSplit ? `Split into ${txn.splits.length} lines` : "Split transaction"}
-            </summary>
-            <form action={splitsAction} className="mt-2 flex flex-col gap-2">
+          {splitOpen && (
+            <form action={splitsAction} className="mt-3 flex flex-col gap-2">
               {Array.from({ length: MAX_SPLIT_ROWS }, (_, i) => i + 1).map((i) => {
                 const existing = txn.splits[i - 1];
                 return (
@@ -683,7 +735,7 @@ const TransactionRow = memo(function TransactionRow({
               </button>
               {splitsState?.error && <p className="text-xs text-negative">{splitsState.error}</p>}
             </form>
-          </details>
+          )}
 
           {/* Same move as the manual-entry form's "Create a Source" income
               action (see ManualTransactionForm), for a transaction that's

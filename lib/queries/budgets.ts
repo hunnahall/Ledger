@@ -27,14 +27,22 @@ export async function getCurrentBudget() {
   if (error) throw new Error(error.message);
 
   // Resets the current budget's linked source to this month's total
-  // budgeted amount the first time it's touched each month (no-op once
-  // already reset). Every page that displays that balance goes through
-  // this function, so this is the one place that needs to call it.
+  // budgeted amount, and credits any due Source Transfers, the first time
+  // either is touched each month (no-op once already applied). Every page
+  // that displays those balances goes through this function — previously
+  // Source Transfers were only applied from the budget's own detail page,
+  // so a Source they fund could show stale on /sources until that specific
+  // budget page was next visited.
   if (data) {
-    const { error: rpcError } = await supabase.rpc("ensure_budget_source_current", {
+    const { error: budgetSourceError } = await supabase.rpc("ensure_budget_source_current", {
       p_budget_id: data.id,
     });
-    if (rpcError) throw new Error(rpcError.message);
+    if (budgetSourceError) throw new Error(budgetSourceError.message);
+
+    const { error: transfersError } = await supabase.rpc("ensure_source_transfers_current", {
+      p_budget_id: data.id,
+    });
+    if (transfersError) throw new Error(transfersError.message);
   }
 
   return data;

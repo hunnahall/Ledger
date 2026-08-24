@@ -227,10 +227,11 @@ export async function archiveFund(
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
 
-  const { error } = await supabase
-    .from("funds")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("id", fundId);
+  // Archives the Fund and its linked Source together (see archive_fund) —
+  // a Fund-type Source always owns exactly one Fund, so leaving the Source
+  // active after its Fund is archived would strand it: still selectable
+  // elsewhere, with nothing left to display a balance for it.
+  const { error } = await supabase.rpc("archive_fund", { p_fund_id: fundId });
   if (error) return { error: error.message };
 
   if (fund) {

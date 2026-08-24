@@ -3,6 +3,7 @@
 import type { getFunds } from "@/lib/queries/sources";
 import { archiveFund, adjustFundBalance, setFundBalance } from "@/lib/actions/sources";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { Money } from "@/components/ui/money";
 import { BalanceAdjustForm } from "@/components/sources/balance-adjust-form";
@@ -17,11 +18,10 @@ export function FundCard({
   return (
     <Card key={fund.id} className="flex flex-col gap-4 p-5">
       <div className="flex items-start justify-between">
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{fund.name}</p>
-          <p
-            className={`mt-1 text-lg font-semibold ${fund.balance < 0 ? "text-negative" : ""}`}
-          >
+          <Badge>Fund</Badge>
+          <p className={`text-lg font-semibold ${fund.balance < 0 ? "text-negative" : ""}`}>
             <Money amount={fund.balance} decimalPlaces={decimalPlaces} />
           </p>
         </div>

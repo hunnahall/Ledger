@@ -1,35 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { type TransactionFilters } from "@/lib/transactions/filters";
 
-export type TransactionFilters = {
-  dateFrom?: string;
-  dateTo?: string;
-  accountId?: string;
-  categoryId?: string;
-  sourceId?: string;
-  uncategorizedOnly?: boolean;
-  search?: string;
-};
-
-// The Category filter offers "Uncategorized" as one of its own options
-// rather than a separate checkbox — this sentinel is what that option
-// submits, and resolveCategoryFilter below translates it back into the
-// uncategorizedOnly flag the query actually uses.
-export const UNCATEGORIZED_FILTER_VALUE = "__uncategorized__";
-
-export function resolveCategoryFilter(
-  categoryId: string | undefined,
-): Pick<TransactionFilters, "categoryId" | "uncategorizedOnly"> {
-  if (categoryId === UNCATEGORIZED_FILTER_VALUE) {
-    return { uncategorizedOnly: true };
-  }
-  return { categoryId };
-}
+export { UNCATEGORIZED_FILTER_VALUE, resolveCategoryFilter, type TransactionFilters } from "@/lib/transactions/filters";
 
 export async function getFilteredTransactions(filters: TransactionFilters) {
   const supabase = await createClient();
   let query = supabase
     .from("transactions")
-    .select("*, accounts(account_name), categories(name), sources!source_id(name)")
+    .select("*, accounts(account_name, last4), categories(name), sources!source_id(name)")
     .order("posted_date", { ascending: false })
     .order("created_at", { ascending: false });
 

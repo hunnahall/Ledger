@@ -37,7 +37,8 @@ export default async function BudgetDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start gap-4">
+      <div className="flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Budgets</h1>
         <div className="flex flex-wrap items-center gap-3">
           <BudgetSwitcher
             budgets={allBudgets.map((b) => ({ id: b.id, name: b.name }))}
@@ -61,14 +62,16 @@ export default async function BudgetDetailPage({
         </div>
       </div>
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{budget.name}</h1>
-        <p className="mt-1 text-sm text-muted">
-          {categories.length} categories &middot; {sinkingExpenses.length} sinking expenses
-          &middot; {sourceTransfers.length} source transfers &middot; ${totalMonthly.toFixed(2)}/month
-          allocated
-        </p>
+      <div className="flex items-baseline justify-between">
+        <p className="mt-1 text-sm text-muted">Your transactions&apos; categories.</p>
+        <h2 className="text-lg font-semibold tracking-tight">{budget.name}</h2>
       </div>
+
+      <p className="text-sm text-muted">
+        {categories.length} categories &middot; {sinkingExpenses.length} sinking expenses
+        &middot; {sourceTransfers.length} source transfers &middot; ${totalMonthly.toFixed(2)}/month
+        allocated
+      </p>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="flex flex-col gap-6">

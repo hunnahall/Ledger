@@ -175,6 +175,21 @@ export function LogOutIcon({ size = 16, className }: { size?: number; className?
   );
 }
 
+export function SearchIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 -960 960 960"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M784-120 532-372q-30 24-69 38t-83 14q-100 0-170-70t-70-170q0-100 70-170t170-70q100 0 170 70t70 170q0 44-14 83t-38 69l252 252-56 56ZM380-400q66 0 113-47t47-113q0-66-47-113t-113-47q-66 0-113 47t-47 113q0 66 47 113t113 47Z" />
+    </svg>
+  );
+}
+
 export function LogIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
     <svg

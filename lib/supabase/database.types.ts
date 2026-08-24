@@ -978,6 +978,10 @@ export type Database = {
         Args: { p_delta: number; p_source_id: string }
         Returns: number
       }
+      archive_fund: {
+        Args: { p_fund_id: string }
+        Returns: undefined
+      }
       delete_bank_connection: {
         Args: { p_connection_id: string }
         Returns: undefined
