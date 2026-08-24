@@ -13,7 +13,7 @@ const TYPE_LABELS: Record<string, string> = {
   fund: "Fund",
 };
 
-export function CreateSourceForm({ funds }: { funds: { id: string; name: string }[] }) {
+export function CreateSourceForm() {
   const [type, setType] = useState("past_payment");
   const [state, formAction] = useActionState(createSource, null);
 
@@ -62,21 +62,6 @@ export function CreateSourceForm({ funds }: { funds: { id: string; name: string 
               className="rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
           </label>
-        )}
-
-        {type === "fund" && (
-          <div className="flex flex-col gap-1 text-sm">
-            Fund(s)
-            <div className="flex max-w-xs flex-wrap gap-2 rounded-md border border-border bg-background px-3 py-2">
-              {funds.length === 0 && <span className="text-xs text-muted">No funds yet — add one below.</span>}
-              {funds.map((fund) => (
-                <label key={fund.id} className="flex items-center gap-1.5 text-xs">
-                  <input type="checkbox" name="fund_ids" value={fund.id} />
-                  {fund.name}
-                </label>
-              ))}
-            </div>
-          </div>
         )}
 
         <Button type="submit" variant="accent">

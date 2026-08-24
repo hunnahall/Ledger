@@ -26,7 +26,6 @@ export async function createSource(
   const type = String(formData.get("type") ?? "past_payment");
   const startingBalance = Number(formData.get("balance") ?? 0);
   const depositDateInput = String(formData.get("deposit_date") ?? "").trim();
-  const fundIds = formData.getAll("fund_ids").map(String).filter(Boolean);
   if (!name) return { error: "Enter a name for the source." };
 
   if (type === "budget") {
@@ -36,7 +35,7 @@ export async function createSource(
   const depositDate =
     type === "past_payment" || type === "future_repayment" ? depositDateInput || null : null;
 
-  const validation = validateSourceInput({ type, fundIds, depositDate });
+  const validation = validateSourceInput({ type, depositDate });
   if (!validation.ok) return { error: validation.error };
 
   const supabase = await createClient();
@@ -58,11 +57,22 @@ export async function createSource(
     .single();
   if (error) return { error: error.message };
 
+  // A Fund-type source always owns a brand-new Fund (rather than picking
+  // one of the user's existing Funds) — creating one is what this form is
+  // for, and the Fund's balance (not this source row's) is what drives its
+  // displayed balance from here on (see getSourcesWithBalance).
   if (type === "fund") {
+    const { data: fund, error: fundError } = await supabase
+      .from("funds")
+      .insert({ user_id: user.id, name, balance: startingBalance })
+      .select("id")
+      .single();
+    if (fundError) return { error: fundError.message };
+
     const { error: linkError } = await supabase.from("source_funds").insert({
       user_id: user.id,
       source_id: source.id,
-      fund_id: fundIds[0],
+      fund_id: fund.id,
     });
     if (linkError) return { error: linkError.message };
   }
@@ -194,33 +204,6 @@ export async function setSourceBalance(
       money(Number(amount)),
     );
   }
-
-  revalidatePath("/sources");
-  return null;
-}
-
-export async function createFund(
-  _prevState: { error: string } | null,
-  formData: FormData,
-): Promise<{ error: string } | null> {
-  const name = String(formData.get("name") ?? "").trim();
-  const startingBalance = Number(formData.get("balance") ?? 0);
-  if (!name) return { error: "Enter a name for the fund." };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { error } = await supabase.from("funds").insert({
-    user_id: user.id,
-    name,
-    balance: startingBalance,
-  });
-  if (error) return { error: error.message };
-
-  await logChange(supabase, user.id, "Sources", `Fund: ${name}`, null, money(startingBalance));
 
   revalidatePath("/sources");
   return null;

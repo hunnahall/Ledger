@@ -3,7 +3,6 @@ import { getSourcesWithBalance, getFunds } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
 import { getCurrentBudget } from "@/lib/queries/budgets";
 import { CreateSourceForm } from "@/components/sources/create-source-form";
-import { CreateFundForm } from "@/components/sources/create-fund-form";
 import { SourceCard } from "@/components/sources/source-card";
 import { FundCard } from "@/components/sources/fund-card";
 import { groupSourcesByType } from "@/lib/sources/group-sources";
@@ -34,7 +33,7 @@ export default async function SourcesPage() {
         </p>
       </div>
 
-      <CreateSourceForm funds={funds.map((f) => ({ id: f.id, name: f.name }))} />
+      <CreateSourceForm />
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-semibold tracking-tight">Budget</h2>
@@ -81,13 +80,15 @@ export default async function SourcesPage() {
       <section className="flex flex-col gap-4 border-t-2 border-border pt-6">
         <h2 className="text-xl font-semibold tracking-tight">Funds</h2>
 
-        <CreateFundForm />
-
         <div className="grid gap-4 lg:grid-cols-2">
           {funds.map((fund) => (
             <FundCard key={fund.id} fund={fund} decimalPlaces={decimalPlaces} />
           ))}
-          {funds.length === 0 && <p className="text-sm text-muted">No funds yet.</p>}
+          {funds.length === 0 && (
+            <p className="text-sm text-muted">
+              No funds yet. Add one using the &ldquo;Fund&rdquo; type above.
+            </p>
+          )}
         </div>
 
         {grouped.fund.length > 0 && (
