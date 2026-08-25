@@ -1,4 +1,4 @@
-export const SOURCE_TYPES = ["budget", "past_payment", "future_repayment", "fund"] as const;
+export const SOURCE_TYPES = ["budget", "past_payment", "future_repayment", "fund", "float"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 
 export type SourceInput = {

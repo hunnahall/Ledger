@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { Money } from "@/components/ui/money";
+import { LocalTimestamp } from "@/components/ui/local-timestamp";
 
 const TYPE_LABELS: Record<string, string> = {
   checking: "Checking",
@@ -113,9 +114,13 @@ export default async function AccountsPage() {
                   </Badge>
                 </div>
                 <p className="text-xs text-muted">
-                  {connection.last_synced_at
-                    ? `Last synced ${new Date(connection.last_synced_at).toLocaleString()}`
-                    : "Never synced"}
+                  {connection.last_synced_at ? (
+                    <>
+                      Last synced <LocalTimestamp iso={connection.last_synced_at} />
+                    </>
+                  ) : (
+                    "Never synced"
+                  )}
                 </p>
               </div>
               <div className="flex items-start gap-2">

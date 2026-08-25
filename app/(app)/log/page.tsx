@@ -1,6 +1,6 @@
 import { getActivityLog } from "@/lib/queries/log";
-import { formatDateTime } from "@/lib/format";
 import { Card } from "@/components/ui/card";
+import { LocalTimestamp } from "@/components/ui/local-timestamp";
 
 export default async function LogPage() {
   const entries = await getActivityLog();
@@ -37,7 +37,9 @@ export default async function LogPage() {
               }`}
             >
               <div className="flex items-center justify-between text-xs text-muted md:contents">
-                <span className="md:w-40 md:shrink-0">{formatDateTime(entry.created_at)}</span>
+                <span className="md:w-40 md:shrink-0">
+                  <LocalTimestamp iso={entry.created_at} />
+                </span>
                 <span className="md:w-24 md:shrink-0">{entry.page}</span>
               </div>
               <div className="min-w-0 font-medium md:flex-1">{entry.variable}</div>

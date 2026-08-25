@@ -31,6 +31,9 @@ export async function createSource(
   if (type === "budget") {
     return { error: "Budget sources are managed automatically per budget." };
   }
+  if (type === "float") {
+    return { error: "The Float source is a single default and can't be created by hand." };
+  }
 
   const depositDate =
     type === "past_payment" || type === "future_repayment" ? depositDateInput || null : null;
@@ -122,50 +125,6 @@ export async function archiveSource(
   return null;
 }
 
-export async function adjustSourceBalance(
-  sourceId: string,
-  _prevState: { error: string } | null,
-  formData: FormData,
-): Promise<{ error: string } | null> {
-  const amount = Number(formData.get("amount") ?? 0);
-  if (!amount) return null;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: source, error: fetchError } = await supabase
-    .from("sources")
-    .select("name, balance")
-    .eq("id", sourceId)
-    .maybeSingle();
-  if (fetchError) return { error: fetchError.message };
-  if (!source) return { error: "Source not found." };
-
-  // Atomic balance = balance + amount in the DB (see adjust_source_balance)
-  // rather than reading balance then writing it back, which would race two
-  // concurrent adjustments (double-submit, two tabs) into dropping one.
-  const { error } = await supabase.rpc("adjust_source_balance", {
-    p_source_id: sourceId,
-    p_delta: amount,
-  });
-  if (error) return { error: error.message };
-
-  await logChange(
-    supabase,
-    user.id,
-    "Sources",
-    `${source.name} — Balance`,
-    money(source.balance),
-    money(source.balance + amount),
-  );
-
-  revalidatePath("/sources");
-  return null;
-}
-
 export async function setSourceBalance(
   sourceId: string,
   _prevState: { error: string } | null,
@@ -244,49 +203,6 @@ export async function archiveFund(
       "archived",
     );
   }
-
-  revalidatePath("/sources");
-  return null;
-}
-
-export async function adjustFundBalance(
-  fundId: string,
-  _prevState: { error: string } | null,
-  formData: FormData,
-): Promise<{ error: string } | null> {
-  const amount = Number(formData.get("amount") ?? 0);
-  if (!amount) return null;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: fund, error: fetchError } = await supabase
-    .from("funds")
-    .select("name, balance")
-    .eq("id", fundId)
-    .maybeSingle();
-  if (fetchError) return { error: fetchError.message };
-  if (!fund) return { error: "Fund not found." };
-
-  // See adjustSourceBalance — atomic increment via adjust_fund_balance
-  // instead of a read-then-write that could race a concurrent adjustment.
-  const { error } = await supabase.rpc("adjust_fund_balance", {
-    p_fund_id: fundId,
-    p_delta: amount,
-  });
-  if (error) return { error: error.message };
-
-  await logChange(
-    supabase,
-    user.id,
-    "Sources",
-    `${fund.name} — Balance`,
-    money(fund.balance),
-    money(fund.balance + amount),
-  );
 
   revalidatePath("/sources");
   return null;
