@@ -555,12 +555,16 @@ const TransactionRow = memo(function TransactionRow({
       return;
     }
 
-    await saveRow({ source_id: newSourceId });
+    // Not a category pick — assignTransaction reinforces/creates a rule by
+    // default whenever category_id is present on the save, and it always
+    // is here (this row's current one, unrelated to what's actually
+    // changing), so this has to opt out explicitly.
+    await saveRow({ source_id: newSourceId, rule_action: "skip" });
   }
 
   async function handleTransferToggle(checked: boolean) {
     setIsTransfer(checked);
-    await saveRow({ is_transfer: checked ? "on" : "" });
+    await saveRow({ is_transfer: checked ? "on" : "", rule_action: "skip" });
   }
 
   async function handleDelete() {
@@ -842,7 +846,11 @@ const TransactionRow = memo(function TransactionRow({
                 checked={excludeFromBudget}
                 onChange={(e) => {
                   setExcludeFromBudget(e.target.checked);
-                  saveRow({ exclude_from_budget: e.target.checked ? "on" : "" });
+                  // Not a category pick — see handleSourceChange.
+                  saveRow({
+                    exclude_from_budget: e.target.checked ? "on" : "",
+                    rule_action: "skip",
+                  });
                 }}
               />
               Exclude
@@ -864,7 +872,8 @@ const TransactionRow = memo(function TransactionRow({
                 name="notes"
                 defaultValue={txn.notes ?? ""}
                 placeholder="Notes"
-                onBlur={() => saveRow()}
+                // Not a category pick — see handleSourceChange.
+                onBlur={() => saveRow({ rule_action: "skip" })}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") e.currentTarget.blur();
                 }}
@@ -883,7 +892,7 @@ const TransactionRow = memo(function TransactionRow({
                   uiSize="sm"
                   className="w-36"
                   defaultValue={currentTransferFrom}
-                  onChange={(value) => saveRow({ transfer_from: value })}
+                  onChange={(value) => saveRow({ transfer_from: value, rule_action: "skip" })}
                   placeholder="None"
                 >
                   <option value="">None</option>
@@ -902,7 +911,7 @@ const TransactionRow = memo(function TransactionRow({
                   uiSize="sm"
                   className="w-36"
                   defaultValue={currentTransferTo}
-                  onChange={(value) => saveRow({ transfer_to: value })}
+                  onChange={(value) => saveRow({ transfer_to: value, rule_action: "skip" })}
                   placeholder="None"
                 >
                   <option value="">None</option>
