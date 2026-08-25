@@ -10,7 +10,7 @@ import {
   saveSplits,
   ruleExistsForDescription,
 } from "@/lib/actions/transactions";
-import { UNCATEGORIZED_FILTER_VALUE } from "@/lib/transactions/filters";
+import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 import { stepAmountByDollar } from "@/lib/dollar-step";
@@ -254,12 +254,15 @@ export function TransactionList({
             <SelectColumnFilter
               label="Source"
               paramKey="source_id"
-              options={sources.map((s) => ({ value: s.id, label: s.name }))}
+              options={[
+                { value: NO_SOURCE_FILTER_VALUE, label: "No source" },
+                ...sources.map((s) => ({ value: s.id, label: s.name })),
+              ]}
               className="w-40 shrink-0 font-medium"
             />
             <span className="w-20 shrink-0 text-center font-medium">Add Rule</span>
             <span className="w-8 shrink-0"></span>
-            <span className="flex w-10 shrink-0 items-center justify-center">
+            <span className="flex w-10 shrink-0 items-center justify-end">
               <SearchToggle />
             </span>
           </div>

@@ -3,6 +3,7 @@ import {
   getFilterOptions,
   getTransactionSplits,
   resolveCategoryFilter,
+  resolveSourceFilter,
   type TransactionFilters,
 } from "@/lib/queries/transactions";
 import { getAccounts } from "@/lib/queries/accounts";
@@ -32,9 +33,9 @@ export default async function TransactionsPage({
     dateFrom: params.date_from,
     dateTo: params.date_to,
     accountId: params.account_id,
-    sourceId: params.source_id,
     search: params.search,
     ...resolveCategoryFilter(params.category_id),
+    ...resolveSourceFilter(params.source_id),
   };
 
   const [transactions, filterOptions, accounts, settings] = await Promise.all([
@@ -93,7 +94,7 @@ export default async function TransactionsPage({
       <div className="flex items-baseline justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-          <p className="mt-1 text-sm text-muted">Your income and expenses</p>
+          <p className="mt-1 text-sm text-muted">Your income and expenses.</p>
         </div>
         <ExportMenu />
       </div>

@@ -51,8 +51,8 @@ export function SearchToggle() {
         onBlur={() => {
           if (!value) setOpen(false);
         }}
-        placeholder="Search description…"
-        className="w-44 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+        placeholder="Search…"
+        className="w-20 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
       />
       {value && (
         <button

@@ -10,6 +10,7 @@ export type TransactionFilters = {
   categoryId?: string;
   sourceId?: string;
   uncategorizedOnly?: boolean;
+  sourceIsNull?: boolean;
   search?: string;
 };
 
@@ -26,4 +27,16 @@ export function resolveCategoryFilter(
     return { uncategorizedOnly: true };
   }
   return { categoryId };
+}
+
+// Same idea as UNCATEGORIZED_FILTER_VALUE, for the Source filter.
+export const NO_SOURCE_FILTER_VALUE = "__no_source__";
+
+export function resolveSourceFilter(
+  sourceId: string | undefined,
+): Pick<TransactionFilters, "sourceId" | "sourceIsNull"> {
+  if (sourceId === NO_SOURCE_FILTER_VALUE) {
+    return { sourceIsNull: true };
+  }
+  return { sourceId };
 }

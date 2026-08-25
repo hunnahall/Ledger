@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { type TransactionFilters } from "@/lib/transactions/filters";
 
-export { UNCATEGORIZED_FILTER_VALUE, resolveCategoryFilter, type TransactionFilters } from "@/lib/transactions/filters";
+export {
+  UNCATEGORIZED_FILTER_VALUE,
+  resolveCategoryFilter,
+  NO_SOURCE_FILTER_VALUE,
+  resolveSourceFilter,
+  type TransactionFilters,
+} from "@/lib/transactions/filters";
 
 export async function getFilteredTransactions(filters: TransactionFilters) {
   const supabase = await createClient();
@@ -23,6 +29,7 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   if (filters.accountId) query = query.eq("account_id", filters.accountId);
   if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
   if (filters.sourceId) query = query.eq("source_id", filters.sourceId);
+  if (filters.sourceIsNull) query = query.is("source_id", null);
   if (filters.uncategorizedOnly) {
     query = query.is("category_id", null).eq("is_transfer", false);
   }
