@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logChange } from "@/lib/actions/log";
+import { currentMonthISO } from "@/lib/dates";
 
 function money(amount: number): string {
   return `$${amount.toFixed(2)}/mo`;
@@ -33,6 +34,11 @@ export async function createSourceTransfer(
     source_id: sourceId,
     name,
     amount,
+    // Marks this month as already applied so ensure_source_transfers_current
+    // doesn't credit it the instant the sources/budget page is next loaded
+    // — the first automatic transfer should wait for the actual start of
+    // next month, same as every other recurring monthly line item.
+    last_applied_month: currentMonthISO(),
   });
   if (error) return { error: error.message };
 

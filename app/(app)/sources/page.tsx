@@ -23,6 +23,7 @@ export default async function SourcesPage() {
     : undefined;
   const floatSource = sources.find((s) => s.type === "float");
   const sinkingFundSource = sources.find((s) => s.type === "sinking_fund");
+  const incomeSource = sources.find((s) => s.type === "income");
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,6 +58,9 @@ export default async function SourcesPage() {
               source={sinkingFundSource}
               decimalPlaces={decimalPlaces}
             />
+          )}
+          {settings.month_ahead && incomeSource && (
+            <SourceCard key={incomeSource.id} source={incomeSource} decimalPlaces={decimalPlaces} />
           )}
         </div>
       </section>

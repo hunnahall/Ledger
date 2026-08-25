@@ -31,6 +31,31 @@ export async function updateDecimalPlaces(
   return null;
 }
 
+export async function updateMonthAhead(
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
+  const monthAhead = formData.get("month_ahead") === "on";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase
+    .from("settings")
+    .update({ month_ahead: monthAhead })
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/settings");
+  revalidatePath("/transactions");
+  revalidatePath("/sources");
+  revalidatePath("/dashboard");
+  return null;
+}
+
 export async function updateRetentionDays(
   _prevState: { error: string } | null,
   formData: FormData,

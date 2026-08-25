@@ -27,13 +27,15 @@ export async function getCurrentBudget() {
   if (error) throw new Error(error.message);
 
   // Resets the current budget's linked source to this month's total
-  // budgeted amount, credits any due Source Transfers, and pools every
-  // budget's due sinking-expense contributions into the shared Sinking
-  // Fund source — all the first time each is touched that month (no-op
-  // once already applied). Every page that displays those balances goes
-  // through this function — previously Source Transfers were only applied
-  // from the budget's own detail page, so a Source they fund could show
-  // stale on /sources until that specific budget page was next visited.
+  // budgeted amount (skipped entirely when Month Ahead is on), credits any
+  // due Source Transfers, pools every budget's due sinking-expense
+  // contributions into the shared Sinking Fund source, and sweeps the
+  // shared Income Fund into this budget's linked source — all the first
+  // time each is touched that month (no-op once already applied). Every
+  // page that displays those balances goes through this function —
+  // previously Source Transfers were only applied from the budget's own
+  // detail page, so a Source they fund could show stale on /sources until
+  // that specific budget page was next visited.
   if (data) {
     const { error: budgetSourceError } = await supabase.rpc("ensure_budget_source_current", {
       p_budget_id: data.id,
@@ -51,6 +53,13 @@ export async function getCurrentBudget() {
       p_user_id: data.user_id,
     });
     if (sinkingFundError) throw new Error(sinkingFundError.message);
+
+    // No-ops unless Month Ahead is on — see ensure_income_fund_current.
+    const { error: incomeFundError } = await supabase.rpc("ensure_income_fund_current", {
+      p_user_id: data.user_id,
+      p_budget_id: data.id,
+    });
+    if (incomeFundError) throw new Error(incomeFundError.message);
   }
 
   return data;

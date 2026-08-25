@@ -187,6 +187,7 @@ export async function createManualTransaction(
     source_id: resolvedSourceId,
     category_source: categorySource,
     is_transfer: isTransfer,
+    is_income: isIncome,
     exclude_from_budget: isExcluded,
     transfer_from_source_id: transferFrom?.type === "source" ? transferFrom.id : null,
     transfer_from_fund_id: transferFrom?.type === "fund" ? transferFrom.id : null,
@@ -245,6 +246,7 @@ export async function assignTransaction(
   const ruleAction = String(formData.get("rule_action") ?? "");
   const sourceId = String(formData.get("source_id") ?? "") || null;
   const isTransfer = formData.get("is_transfer") === "on";
+  const isIncome = formData.get("is_income") === "on";
   const excludeFromBudget = formData.get("exclude_from_budget") === "on";
   const notes = String(formData.get("notes") ?? "") || null;
   const transferFrom = decodeBucketOption(formData.get("transfer_from"));
@@ -276,6 +278,7 @@ export async function assignTransaction(
       // applying this transaction's amount through the plain sync trigger.
       source_id: isTransfer ? null : sourceId,
       is_transfer: isTransfer,
+      is_income: !isTransfer && isIncome,
       exclude_from_budget: excludeFromBudget,
       notes,
       transfer_from_source_id: isTransfer && transferFrom?.type === "source" ? transferFrom.id : null,

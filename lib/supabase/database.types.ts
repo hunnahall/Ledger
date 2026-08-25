@@ -241,6 +241,7 @@ export type Database = {
         Row: {
           created_at: string
           decimal_places: number
+          month_ahead: boolean
           retention_days: number
           updated_at: string
           user_id: string
@@ -248,6 +249,7 @@ export type Database = {
         Insert: {
           created_at?: string
           decimal_places?: number
+          month_ahead?: boolean
           retention_days?: number
           updated_at?: string
           user_id: string
@@ -255,6 +257,7 @@ export type Database = {
         Update: {
           created_at?: string
           decimal_places?: number
+          month_ahead?: boolean
           retention_days?: number
           updated_at?: string
           user_id?: string
@@ -631,6 +634,7 @@ export type Database = {
           description: string
           exclude_from_budget: boolean
           id: string
+          is_income: boolean
           is_split: boolean
           is_transfer: boolean
           merchant_normalized: string | null
@@ -655,6 +659,7 @@ export type Database = {
           description: string
           exclude_from_budget?: boolean
           id?: string
+          is_income?: boolean
           is_split?: boolean
           is_transfer?: boolean
           merchant_normalized?: string | null
@@ -679,6 +684,7 @@ export type Database = {
           description?: string
           exclude_from_budget?: boolean
           id?: string
+          is_income?: boolean
           is_split?: boolean
           is_transfer?: boolean
           merchant_normalized?: string | null
@@ -901,9 +907,9 @@ export type Database = {
       }
       v_inflow_outflow: {
         Row: {
-          inflow: number | null
+          income: number | null
           month: string | null
-          outflow: number | null
+          other_inflow: number | null
           user_id: string | null
         }
         Relationships: []
@@ -980,6 +986,10 @@ export type Database = {
         Args: { p_budget_id: string }
         Returns: undefined
       }
+      ensure_income_fund_current: {
+        Args: { p_budget_id: string; p_user_id: string }
+        Returns: undefined
+      }
       ensure_sinking_fund_current: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -998,6 +1008,7 @@ export type Database = {
         Args: { p_access_url: string }
         Returns: string
       }
+      sync_bank_transactions: { Args: { p_rows: Json }; Returns: undefined }
       sync_source_or_fund_balance: {
         Args: { p_delta: number; p_source_id: string }
         Returns: undefined

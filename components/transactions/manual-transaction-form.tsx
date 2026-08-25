@@ -23,12 +23,14 @@ export function ManualTransactionForm({
   sources,
   bucketOptions,
   defaultSourceId,
+  monthAhead,
 }: {
   accounts: Option[];
   categories: Option[];
   sources: Option[];
   bucketOptions: BucketOption[];
   defaultSourceId: string | null;
+  monthAhead: boolean;
 }) {
   const [typeChoice, setTypeChoice] = useState<TypeChoice>("expense");
   const [incomeAction, setIncomeAction] = useState<IncomeAction>("include_in_budget");
@@ -196,7 +198,14 @@ export function ManualTransactionForm({
           </label>
         )}
 
-        {typeChoice === "income" && (
+        {typeChoice === "income" && monthAhead && (
+          <p className="max-w-xs pb-2 text-xs text-muted">
+            Flows to the Income Fund automatically — swept into the current
+            budget at the start of next month.
+          </p>
+        )}
+
+        {typeChoice === "income" && !monthAhead && (
           <>
             <fieldset className={fieldLabel}>
               <legend className="mb-1">Income</legend>

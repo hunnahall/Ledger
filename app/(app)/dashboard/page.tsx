@@ -23,28 +23,41 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="p-5">
-          <p className="text-xs text-muted">Inflow</p>
+          <p className="text-xs text-muted">Income</p>
           <p className="mt-1 text-xl font-semibold text-positive">
-            <Money amount={data.inflow} decimalPlaces={decimalPlaces} />
+            <Money amount={data.income} decimalPlaces={decimalPlaces} />
           </p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs text-muted">Budgeted Outflow</p>
+          <p className="text-xs text-muted">Other Inflows</p>
+          <p className="mt-1 text-xl font-semibold text-positive">
+            <Money amount={data.otherInflow} decimalPlaces={decimalPlaces} />
+          </p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-xs text-muted">Budgeted Outflows</p>
           <p className="mt-1 text-xl font-semibold text-negative">
             <Money amount={data.budgetedOutflow} decimalPlaces={decimalPlaces} />
           </p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs text-muted">Other Outflow</p>
+          <p className="text-xs text-muted">Other Outflows</p>
           <p className="mt-1 text-xl font-semibold text-negative">
             <Money amount={data.otherOutflow} decimalPlaces={decimalPlaces} />
           </p>
         </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="p-5">
+          <p className="text-xs text-muted">Budget Net</p>
+          <p className={`mt-1 text-xl font-semibold ${data.budgetNet < 0 ? "text-negative" : ""}`}>
+            <Money amount={data.budgetNet} decimalPlaces={decimalPlaces} />
+          </p>
+        </Card>
         <Card className="p-5">
           <p className="text-xs text-muted">Total Net</p>
-          <p
-            className={`mt-1 text-xl font-semibold ${data.totalNet < 0 ? "text-negative" : ""}`}
-          >
+          <p className={`mt-1 text-xl font-semibold ${data.totalNet < 0 ? "text-negative" : ""}`}>
             <Money amount={data.totalNet} decimalPlaces={decimalPlaces} />
           </p>
         </Card>

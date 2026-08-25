@@ -71,6 +71,7 @@ export default async function TransactionsPage({
     categorySource: txn.category_source,
     sourceId: txn.source_id,
     isTransfer: txn.is_transfer,
+    isIncome: txn.is_income,
     transferFromSourceId: txn.transfer_from_source_id,
     transferFromFundId: txn.transfer_from_fund_id,
     transferToSourceId: txn.transfer_to_source_id,
@@ -107,6 +108,7 @@ export default async function TransactionsPage({
           sources={filterOptions.sources}
           bucketOptions={bucketOptions}
           defaultSourceId={filterOptions.defaultSourceId}
+          monthAhead={settings.month_ahead}
         />
       </section>
 

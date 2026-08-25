@@ -163,9 +163,16 @@ async function syncConnection(
         status: tx.pending ? "pending" : "posted",
       }));
 
-      const { error: txError } = await serviceClient
-        .from("transactions")
-        .upsert(rows, { onConflict: "account_id,provider_transaction_id" });
+      // Not a plain .upsert() — that would overwrite every column present
+      // in `rows` on conflict, including is_income, clobbering a user's
+      // manual "uncheck income" the next time this transaction gets
+      // re-synced (syncs deliberately pull overlapping date ranges every
+      // time). sync_bank_transactions computes is_income from the amount's
+      // sign for genuinely new rows only, and never touches it on conflict
+      // — see its definition for the full reasoning.
+      const { error: txError } = await serviceClient.rpc("sync_bank_transactions", {
+        p_rows: rows,
+      });
       if (txError) throw new Error(txError.message);
     }
 

@@ -5,6 +5,7 @@ export const SOURCE_TYPES = [
   "fund",
   "float",
   "sinking_fund",
+  "income",
 ] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 

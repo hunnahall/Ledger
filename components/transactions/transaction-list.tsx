@@ -36,6 +36,7 @@ export type TransactionRowData = {
   categorySource: string | null;
   sourceId: string | null;
   isTransfer: boolean;
+  isIncome: boolean;
   transferFromSourceId: string | null;
   transferFromFundId: string | null;
   transferToSourceId: string | null;
@@ -322,6 +323,7 @@ const TransactionRow = memo(function TransactionRow({
   isLastRow: boolean;
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
+  const [isIncome, setIsIncome] = useState(txn.isIncome);
   const [expanded, setExpanded] = useState(false);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
   const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
@@ -342,12 +344,14 @@ const TransactionRow = memo(function TransactionRow({
   const [prevTxn, setPrevTxn] = useState(txn);
   if (
     txn.isTransfer !== prevTxn.isTransfer ||
+    txn.isIncome !== prevTxn.isIncome ||
     txn.categoryId !== prevTxn.categoryId ||
     txn.sourceId !== prevTxn.sourceId ||
     txn.isSplit !== prevTxn.isSplit
   ) {
     setPrevTxn(txn);
     setIsTransfer(txn.isTransfer);
+    setIsIncome(txn.isIncome);
     setCategoryId(txn.categoryId ?? "");
     setSourceId(txn.sourceId ?? "");
     setSplitOpen(txn.isSplit);
@@ -406,6 +410,11 @@ const TransactionRow = memo(function TransactionRow({
     await saveRow({ is_transfer: checked ? "on" : "" });
   }
 
+  async function handleIncomeToggle(checked: boolean) {
+    setIsIncome(checked);
+    await saveRow({ is_income: checked ? "on" : "" });
+  }
+
   async function handleDelete() {
     const result = await deleteTransaction(txn.id);
     setRowError(result?.error ?? null);
@@ -422,7 +431,13 @@ const TransactionRow = memo(function TransactionRow({
       ? encodeBucketOption({ type: "fund", id: txn.transferToFundId })
       : "";
 
-  const typeLabel = isTransfer ? "Transfer" : txn.excludeFromBudget ? "Excluded" : null;
+  const typeLabel = isTransfer
+    ? "Transfer"
+    : txn.excludeFromBudget
+      ? "Excluded"
+      : isIncome
+        ? "Income"
+        : null;
 
   const [splitsState, splitsAction] = useActionState(
     saveSplits.bind(null, txn.id, txn.amount),
@@ -586,6 +601,18 @@ const TransactionRow = memo(function TransactionRow({
               <input type="hidden" name="is_transfer" value={isTransfer ? "on" : ""} />
               Transfer
             </label>
+
+            {!isTransfer && txn.amount > 0 && (
+              <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  checked={isIncome}
+                  onChange={(e) => handleIncomeToggle(e.target.checked)}
+                />
+                <input type="hidden" name="is_income" value={isIncome ? "on" : ""} />
+                Income
+              </label>
+            )}
 
             <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
               <input

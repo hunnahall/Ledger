@@ -1,16 +1,19 @@
 import { spentFromRawAmount } from "@/lib/progress";
 
 export function computeDashboardTotals({
-  inflow,
+  income,
+  otherInflow,
   budgetedOutflowRaw,
   otherOutflowRaw,
 }: {
-  inflow: number;
+  income: number;
+  otherInflow: number;
   budgetedOutflowRaw: number | null;
   otherOutflowRaw: number | null;
 }) {
   const budgetedOutflow = spentFromRawAmount(budgetedOutflowRaw);
   const otherOutflow = spentFromRawAmount(otherOutflowRaw);
-  const totalNet = inflow - budgetedOutflow - otherOutflow;
-  return { inflow, budgetedOutflow, otherOutflow, totalNet };
+  const budgetNet = income - budgetedOutflow;
+  const totalNet = income + otherInflow - budgetedOutflow - otherOutflow;
+  return { income, otherInflow, budgetedOutflow, otherOutflow, budgetNet, totalNet };
 }
