@@ -42,7 +42,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-all duration-150",
+        "inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-60",
         variant !== "tertiary" && SIZE_CLASSES[size],
         VARIANT_CLASSES[variant],
         TONE_CLASSES[tone],

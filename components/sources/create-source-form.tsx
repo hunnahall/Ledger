@@ -18,7 +18,7 @@ export function CreateSourceForm() {
   const [state, formAction] = useActionState(createSource, null);
 
   return (
-    <Card className="max-w-2xl p-4">
+    <Card className="max-w-3xl p-4">
       <form action={formAction} className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
           New source name

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button, type ButtonProps } from "./button";
+import { SpinnerIcon } from "./icons";
 
 type SimpleAction = (
   prevState: { error: string } | null,
@@ -22,11 +23,12 @@ export function ActionButtonForm({
   action: SimpleAction;
   errorClassName?: string;
 }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction, isPending] = useActionState(action, null);
 
   return (
     <form action={formAction}>
-      <Button {...buttonProps} type="submit">
+      <Button {...buttonProps} type="submit" disabled={isPending || buttonProps.disabled}>
+        {isPending ? <SpinnerIcon className="animate-spin" /> : null}
         {children}
       </Button>
       {state?.error && (
