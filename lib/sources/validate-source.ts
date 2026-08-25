@@ -1,7 +1,6 @@
 export const SOURCE_TYPES = [
   "budget",
-  "past_payment",
-  "future_repayment",
+  "reimbursement",
   "fund",
   "float",
   "sinking_fund",
@@ -21,14 +20,8 @@ export function validateSourceInput({ type, depositDate }: SourceInput): Validat
     return { ok: false, error: "Not a valid source type." };
   }
 
-  if ((type === "past_payment" || type === "future_repayment") && !depositDate) {
-    return {
-      ok: false,
-      error:
-        type === "past_payment"
-          ? "Enter the deposit date."
-          : "Enter the expected deposit date.",
-    };
+  if (type === "reimbursement" && !depositDate) {
+    return { ok: false, error: "Enter the deposit date." };
   }
 
   return { ok: true };

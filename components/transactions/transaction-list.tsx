@@ -384,6 +384,7 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [isIncome, setIsIncome] = useState(txn.isIncome);
+  const [postedDate, setPostedDate] = useState(txn.postedDate);
   const [excludeFromBudget, setExcludeFromBudget] = useState(txn.excludeFromBudget);
   const [expanded, setExpanded] = useState(false);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
@@ -409,6 +410,7 @@ const TransactionRow = memo(function TransactionRow({
     txn.isIncome !== prevTxn.isIncome ||
     txn.categoryId !== prevTxn.categoryId ||
     txn.sourceId !== prevTxn.sourceId ||
+    txn.postedDate !== prevTxn.postedDate ||
     txn.isSplit !== prevTxn.isSplit ||
     txn.excludeFromBudget !== prevTxn.excludeFromBudget
   ) {
@@ -417,6 +419,7 @@ const TransactionRow = memo(function TransactionRow({
     setIsIncome(txn.isIncome);
     setCategoryId(txn.isIncome ? INCOME : txn.categoryId ?? "");
     setSourceId(txn.sourceId ?? "");
+    setPostedDate(txn.postedDate);
     setAddingSource(false);
     setSplitOpen(txn.isSplit);
     // Assigning an Excluded Category (see Settings) forces this true via
@@ -562,6 +565,13 @@ const TransactionRow = memo(function TransactionRow({
     await saveRow({ source_id: newSourceId, rule_action: "skip" });
   }
 
+  async function handleDateChange(newDate: string) {
+    if (!newDate) return;
+    setPostedDate(newDate);
+    // Not a category pick — see handleSourceChange.
+    await saveRow({ posted_date: newDate, rule_action: "skip" });
+  }
+
   async function handleTransferToggle(checked: boolean) {
     setIsTransfer(checked);
     await saveRow({ is_transfer: checked ? "on" : "", rule_action: "skip" });
@@ -625,13 +635,14 @@ const TransactionRow = memo(function TransactionRow({
                 aria-label={`Select transaction: ${txn.description}`}
               />
             </span>
-            <span className="shrink-0 text-xs text-muted md:w-20 md:text-sm">
-              {new Date(txn.postedDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                timeZone: "UTC",
-              })}
-            </span>
+            <input
+              type="date"
+              form={`txn-${txn.id}`}
+              name="posted_date"
+              value={postedDate}
+              onChange={(e) => handleDateChange(e.target.value)}
+              className="shrink-0 rounded border border-transparent bg-transparent px-0.5 text-xs text-muted hover:border-border focus:border-border focus:outline-none md:w-28 md:text-sm"
+            />
             <span
               className="min-w-0 truncate text-xs text-muted md:w-14 md:text-sm"
               title={txn.accountName ?? ""}
@@ -787,9 +798,8 @@ const TransactionRow = memo(function TransactionRow({
               </label>
               <label className="flex flex-col gap-1 text-xs text-muted">
                 Source type
-                <Select name="new_source_type" uiSize="sm" className="w-40 py-1 text-xs" defaultValue="past_payment">
-                  <option value="past_payment">Past payment</option>
-                  <option value="future_repayment">Future repayment</option>
+                <Select name="new_source_type" uiSize="sm" className="w-40 py-1 text-xs" defaultValue="reimbursement">
+                  <option value="reimbursement">Reimbursement</option>
                   <option value="fund">Fund</option>
                 </Select>
               </label>

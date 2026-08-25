@@ -108,7 +108,7 @@ export async function createManualTransaction(
   const isExcluded = typeChoice === "exclude";
   const incomeAction = String(formData.get("income_action") ?? "include_in_budget");
   const newSourceName = String(formData.get("new_source_name") ?? "").trim();
-  const newSourceType = String(formData.get("new_source_type") ?? "past_payment");
+  const newSourceType = String(formData.get("new_source_type") ?? "reimbursement");
 
   if (!accountId || !postedDate || !description || Number.isNaN(rawAmount)) {
     return { error: "Fill in the account, date, description, and amount." };
@@ -133,7 +133,7 @@ export async function createManualTransaction(
     // Tracked for inflow/filtering only (see v_inflow_outflow) — no source.
     resolvedSourceId = null;
   } else if (isIncome && incomeAction === "create_source") {
-    if (newSourceType !== "past_payment" && newSourceType !== "future_repayment") {
+    if (newSourceType !== "reimbursement") {
       return { error: "Not a valid source type." };
     }
     if (!newSourceName) return { error: "Enter a name for the new source." };
@@ -286,6 +286,7 @@ export async function assignTransaction(
   // save a new vendor rule for this merchant and declined.
   const ruleAction = String(formData.get("rule_action") ?? "");
   const sourceId = String(formData.get("source_id") ?? "") || null;
+  const postedDate = String(formData.get("posted_date") ?? "") || null;
   const isTransfer = formData.get("is_transfer") === "on";
   const isIncome = formData.get("is_income") === "on";
   const excludeFromBudget = formData.get("exclude_from_budget") === "on";
@@ -318,6 +319,7 @@ export async function assignTransaction(
       // transfer_from/to_*, so source_id must stay null to avoid double-
       // applying this transaction's amount through the plain sync trigger.
       source_id: isTransfer ? null : sourceId,
+      ...(postedDate ? { posted_date: postedDate } : {}),
       is_transfer: isTransfer,
       is_income: !isTransfer && isIncome,
       exclude_from_budget: excludeFromBudget,
@@ -362,9 +364,9 @@ export async function createSourceFromTransaction(
   formData: FormData,
 ): Promise<{ error: string } | null> {
   const name = String(formData.get("new_source_name") ?? "").trim();
-  const type = String(formData.get("new_source_type") ?? "past_payment");
+  const type = String(formData.get("new_source_type") ?? "reimbursement");
   if (!name) return { error: "Enter a name for the new source." };
-  if (type !== "past_payment" && type !== "future_repayment" && type !== "fund") {
+  if (type !== "reimbursement" && type !== "fund") {
     return { error: "Not a valid source type." };
   }
 

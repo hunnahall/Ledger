@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/queries/settings";
-import { formatDate } from "@/lib/format";
 import { computeProgress } from "@/lib/progress";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Card } from "@/components/ui/card";
@@ -48,7 +47,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-5">
           <p className="text-xs text-muted">Budget Net</p>
           <p className={`mt-1 text-xl font-semibold ${data.budgetNet < 0 ? "text-negative" : ""}`}>
@@ -59,6 +58,12 @@ export default async function DashboardPage() {
           <p className="text-xs text-muted">Total Net</p>
           <p className={`mt-1 text-xl font-semibold ${data.totalNet < 0 ? "text-negative" : ""}`}>
             <Money amount={data.totalNet} decimalPlaces={decimalPlaces} />
+          </p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-xs text-muted">Float</p>
+          <p className={`mt-1 text-xl font-semibold ${data.floatBalance < 0 ? "text-negative" : ""}`}>
+            <Money amount={data.floatBalance} decimalPlaces={decimalPlaces} />
           </p>
         </Card>
       </div>
@@ -143,23 +148,24 @@ export default async function DashboardPage() {
         </Card>
 
         <Card className="p-5">
-          <p className="mb-3 font-medium">Reimbursements</p>
+          <p className="mb-3 font-medium">Funds</p>
           <div className="flex flex-col gap-2 text-sm">
-            {data.reimbursementsPending.map((r) => (
-              <div key={r.id} className="flex justify-between">
-                <div>
-                  <span>{r.name}</span>
-                  {r.deposit_date && (
-                    <span className="ml-2 text-xs text-muted">{formatDate(r.deposit_date)}</span>
-                  )}
-                </div>
-                <span className={(r.balance ?? 0) < 0 ? "text-negative" : "text-positive"}>
-                  <Money amount={r.balance ?? 0} decimalPlaces={decimalPlaces} />
+            {data.funds.map((f) => (
+              <div key={f.id} className="flex justify-between">
+                <span>{f.name}</span>
+                <span className={f.balance < 0 ? "text-negative" : ""}>
+                  <Money amount={f.balance} decimalPlaces={decimalPlaces} />
                 </span>
               </div>
             ))}
-            {data.reimbursementsPending.length === 0 && (
-              <p className="text-muted">Nothing outstanding.</p>
+            {data.funds.length === 0 && (
+              <p className="text-muted">
+                No funds yet.{" "}
+                <Link href="/sources" className="underline">
+                  Add one
+                </Link>
+                .
+              </p>
             )}
           </div>
         </Card>

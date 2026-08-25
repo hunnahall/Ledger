@@ -23,7 +23,7 @@ export async function createSource(
   formData: FormData,
 ): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
-  const type = String(formData.get("type") ?? "past_payment");
+  const type = String(formData.get("type") ?? "reimbursement");
   const startingBalance = Number(formData.get("balance") ?? 0);
   const depositDateInput = String(formData.get("deposit_date") ?? "").trim();
   if (!name) return { error: "Enter a name for the source." };
@@ -41,8 +41,7 @@ export async function createSource(
     return { error: "The Income source is a single default and can't be created by hand." };
   }
 
-  const depositDate =
-    type === "past_payment" || type === "future_repayment" ? depositDateInput || null : null;
+  const depositDate = type === "reimbursement" ? depositDateInput || null : null;
 
   const validation = validateSourceInput({ type, depositDate });
   if (!validation.ok) return { error: validation.error };

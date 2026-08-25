@@ -8,13 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 
 const TYPE_LABELS: Record<string, string> = {
-  past_payment: "Past payment",
-  future_repayment: "Future repayment",
+  reimbursement: "Reimbursement",
   fund: "Fund",
 };
 
 export function CreateSourceForm() {
-  const [type, setType] = useState("past_payment");
+  const [type, setType] = useState("reimbursement");
   const [state, formAction] = useActionState(createSource, null);
 
   return (
@@ -52,9 +51,9 @@ export function CreateSourceForm() {
           />
         </label>
 
-        {(type === "past_payment" || type === "future_repayment") && (
+        {type === "reimbursement" && (
           <label className="flex flex-col gap-1 text-sm">
-            {type === "past_payment" ? "Deposit date" : "Expected deposit date"}
+            Deposit date
             <input
               type="date"
               name="deposit_date"

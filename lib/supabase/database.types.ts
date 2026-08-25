@@ -140,7 +140,6 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          is_current: boolean
           name: string
           updated_at: string
           user_id: string
@@ -148,7 +147,6 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          is_current?: boolean
           name: string
           updated_at?: string
           user_id: string
@@ -156,7 +154,6 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          is_current?: boolean
           name?: string
           updated_at?: string
           user_id?: string
@@ -169,7 +166,6 @@ export type Database = {
           budget_id: string
           created_at: string
           id: string
-          is_excluded: boolean
           monthly_amount: number
           name: string
           sort_order: number
@@ -181,7 +177,6 @@ export type Database = {
           budget_id: string
           created_at?: string
           id?: string
-          is_excluded?: boolean
           monthly_amount?: number
           name: string
           sort_order?: number
@@ -193,7 +188,6 @@ export type Database = {
           budget_id?: string
           created_at?: string
           id?: string
-          is_excluded?: boolean
           monthly_amount?: number
           name?: string
           sort_order?: number

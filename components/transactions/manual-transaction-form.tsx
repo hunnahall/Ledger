@@ -271,9 +271,8 @@ export function ManualTransactionForm({
                 </label>
                 <label className={fieldLabel}>
                   Source type
-                  <Select name="new_source_type" uiSize="sm" className="w-36" defaultValue="past_payment">
-                    <option value="past_payment">Past payment</option>
-                    <option value="future_repayment">Future repayment</option>
+                  <Select name="new_source_type" uiSize="sm" className="w-36" defaultValue="reimbursement">
+                    <option value="reimbursement">Reimbursement</option>
                   </Select>
                 </label>
               </>

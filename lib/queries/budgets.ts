@@ -7,54 +7,41 @@ import {
   type SinkingFrequency,
 } from "@/lib/budgets/sinking";
 
-export async function getBudgets() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("budgets")
-    .select("*")
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return data;
-}
-
+// Every user has exactly one budget (see the collapse-to-single-budget
+// migration), permanently named "Monthly" — no is_current filter needed.
 export async function getCurrentBudget() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("budgets")
-    .select("*")
-    .eq("is_current", true)
-    .maybeSingle();
+  const { data, error } = await supabase.from("budgets").select("*").maybeSingle();
   if (error) throw new Error(error.message);
 
-  // Resets the current budget's linked source to this month's total
-  // budgeted amount (skipped entirely when Month Ahead is on), credits any
-  // due Source Transfers, pools every budget's due sinking-expense
-  // contributions into the shared Sinking Fund source, and sweeps the
-  // shared Income Fund into this budget's linked source — all the first
-  // time each is touched that month (no-op once already applied). Every
-  // page that displays those balances goes through this function —
-  // previously Source Transfers were only applied from the budget's own
-  // detail page, so a Source they fund could show stale on /sources until
-  // that specific budget page was next visited.
+  // Resets the budget's linked source to this month's total budgeted amount
+  // (skipped entirely when Month Ahead is on), credits any due Source
+  // Transfers, pools due sinking-expense contributions into the shared
+  // Sinking Fund source, and sweeps the shared Income Fund into the budget's
+  // linked source — all the first time each is touched that month (no-op
+  // once already applied). Every page that displays those balances goes
+  // through this function — previously Source Transfers were only applied
+  // from the budget's own detail page, so a Source they fund could show
+  // stale on /sources until that specific budget page was next visited.
   if (data) {
     const { error: budgetSourceError } = await supabase.rpc("ensure_budget_source_current", {
       p_budget_id: data.id,
     });
     if (budgetSourceError) throw new Error(budgetSourceError.message);
 
-    const { error: transfersError } = await supabase.rpc("ensure_source_transfers_current", {
-      p_budget_id: data.id,
-    });
+    // Independent of each other (source transfers vs. sinking-fund pooling
+    // touch unrelated sources), so run them concurrently rather than one
+    // full round trip after another.
+    const [{ error: transfersError }, { error: sinkingFundError }] = await Promise.all([
+      supabase.rpc("ensure_source_transfers_current", { p_budget_id: data.id }),
+      supabase.rpc("ensure_sinking_fund_current", { p_user_id: data.user_id }),
+    ]);
     if (transfersError) throw new Error(transfersError.message);
-
-    // Pools every one of the user's budgets' sinking expenses, not just
-    // this one — see ensure_sinking_fund_current.
-    const { error: sinkingFundError } = await supabase.rpc("ensure_sinking_fund_current", {
-      p_user_id: data.user_id,
-    });
     if (sinkingFundError) throw new Error(sinkingFundError.message);
 
-    // No-ops unless Month Ahead is on — see ensure_income_fund_current.
+    // Sweeps into the source ensure_budget_source_current just reset above —
+    // must stay after it, not folded into the Promise.all. No-ops unless
+    // Month Ahead is on — see ensure_income_fund_current.
     const { error: incomeFundError } = await supabase.rpc("ensure_income_fund_current", {
       p_user_id: data.user_id,
       p_budget_id: data.id,
@@ -89,14 +76,10 @@ export async function getBudgetWithCategories(budgetId: string) {
     // maybeSingle (not single): a missing or not-owned budget should
     // resolve to null so the page can render a clean 404, not throw.
     supabase.from("budgets").select("*").eq("id", budgetId).maybeSingle(),
-    // Excluded Categories (see Settings) never carry a monthly_amount and
-    // don't participate in this page's budgeting math — they live in
-    // their own Settings block instead.
     supabase
       .from("categories")
       .select("*")
       .eq("budget_id", budgetId)
-      .eq("is_excluded", false)
       .is("archived_at", null)
       .order("sort_order", { ascending: true }),
     supabase.from("v_spending_by_category").select("*").eq("month", month),

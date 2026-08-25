@@ -66,25 +66,13 @@ export default async function SourcesPage() {
       </section>
 
       <section className="flex flex-col gap-4 border-t-2 border-border pt-6">
-        <h2 className="text-xl font-semibold tracking-tight">Past Payments</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Reimbursements</h2>
         <div className="grid gap-4 lg:grid-cols-2">
-          {grouped.pastPayment.map((source) => (
+          {grouped.reimbursement.map((source) => (
             <SourceCard key={source.id} source={source} decimalPlaces={decimalPlaces} />
           ))}
-          {grouped.pastPayment.length === 0 && (
-            <p className="text-sm text-muted">No past payment sources yet.</p>
-          )}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4 border-t-2 border-border pt-6">
-        <h2 className="text-xl font-semibold tracking-tight">Future Repayments</h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {grouped.futureRepayment.map((source) => (
-            <SourceCard key={source.id} source={source} decimalPlaces={decimalPlaces} />
-          ))}
-          {grouped.futureRepayment.length === 0 && (
-            <p className="text-sm text-muted">No future repayment sources yet.</p>
+          {grouped.reimbursement.length === 0 && (
+            <p className="text-sm text-muted">No reimbursement sources yet.</p>
           )}
         </div>
       </section>

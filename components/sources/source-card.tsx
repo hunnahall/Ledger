@@ -14,8 +14,7 @@ const TYPE_LABELS: Record<string, string> = {
   float: "Float",
   sinking_fund: "Sinking Fund",
   income: "Income",
-  past_payment: "Past payment",
-  future_repayment: "Future repayment",
+  reimbursement: "Reimbursement",
 };
 
 // Fund-type sources never reach this card — they render as a single merged
@@ -35,13 +34,9 @@ export function SourceCard({
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{source.name}</p>
           <Badge>{TYPE_LABELS[source.type] ?? source.type}</Badge>
-          {(source.type === "past_payment" || source.type === "future_repayment") &&
-            source.deposit_date && (
-              <Badge>
-                {source.type === "past_payment" ? "Deposited" : "Expected"}{" "}
-                {formatDate(source.deposit_date)}
-              </Badge>
-            )}
+          {source.type === "reimbursement" && source.deposit_date && (
+            <Badge>Deposit date {formatDate(source.deposit_date)}</Badge>
+          )}
           <p className={`text-lg font-semibold ${source.balance < 0 ? "text-negative" : ""}`}>
             <Money amount={source.balance} decimalPlaces={decimalPlaces} />
           </p>

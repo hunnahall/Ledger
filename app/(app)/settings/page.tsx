@@ -1,7 +1,6 @@
 import { getSettings } from "@/lib/queries/settings";
 import { getVendorRules } from "@/lib/queries/vendor-rules";
 import { getFilterOptions } from "@/lib/queries/transactions";
-import { getExcludedCategories } from "@/lib/queries/categories";
 import { deleteVendorRule, updateVendorRule } from "@/lib/actions/vendor-rules";
 import { DecimalPlacesForm } from "@/components/settings/decimal-places-form";
 import { RetentionForm } from "@/components/settings/retention-form";
@@ -9,17 +8,14 @@ import { MonthAheadForm } from "@/components/settings/month-ahead-form";
 import { CreateVendorRuleForm } from "@/components/settings/create-vendor-rule-form";
 import { RunRulesButton } from "@/components/settings/run-rules-button";
 import { VendorRuleRow } from "@/components/settings/vendor-rule-row";
-import { CreateExcludedCategoryForm } from "@/components/settings/create-excluded-category-form";
-import { ExcludedCategoryRow } from "@/components/settings/excluded-category-row";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default async function SettingsPage() {
-  const [settings, vendorRules, { categories }, excludedCategories] = await Promise.all([
+  const [settings, vendorRules, { categories }] = await Promise.all([
     getSettings(),
     getVendorRules(),
     getFilterOptions(),
-    getExcludedCategories(),
   ]);
 
   return (
@@ -46,36 +42,6 @@ export default async function SettingsPage() {
           <MonthAheadForm monthAhead={settings.month_ahead} />
         </Card>
       </div>
-
-      <Card className="p-5">
-        <p className="font-medium">Excluded Categories</p>
-        <p className="mt-1 mb-3 text-sm text-muted">
-          Categories that don&apos;t count toward Budgeted Outflows or your budget
-          allocation — no monthly amount, no spending tracked against them. Still
-          pickable on a transaction to label it, e.g. a &quot;Work&quot; category on a
-          hotel charge your employer will repay.
-        </p>
-
-        {excludedCategories.budgetId ? (
-          <CreateExcludedCategoryForm budgetId={excludedCategories.budgetId} />
-        ) : (
-          <p className="text-sm text-muted">Create a budget first to add excluded categories.</p>
-        )}
-
-        {excludedCategories.categories.length === 0 ? (
-          <p className="text-sm text-muted">No excluded categories yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {excludedCategories.categories.map((category) => (
-              <ExcludedCategoryRow
-                key={category.id}
-                category={category}
-                budgetId={excludedCategories.budgetId!}
-              />
-            ))}
-          </ul>
-        )}
-      </Card>
 
       <Card className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">

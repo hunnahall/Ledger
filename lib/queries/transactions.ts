@@ -22,7 +22,11 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
     // separate queries, so editing one could make the list re-fetch in a
     // different order and visibly jump. id never changes, so it's a stable
     // final tiebreaker even though its own ordering is arbitrary.
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    // Safety cap, not real pagination — retention_days (60/120 max) already
+    // keeps normal usage well under this; just guards against an unbounded
+    // fetch (3 joined relations) for an outlier account.
+    .limit(2000);
 
   if (filters.dateFrom) query = query.gte("posted_date", filters.dateFrom);
   if (filters.dateTo) query = query.lte("posted_date", filters.dateTo);
@@ -59,7 +63,7 @@ export async function getFilterOptions() {
     { data: funds, error: fundsError },
   ] = await Promise.all([
     supabase.from("accounts").select("id, account_name").order("account_name"),
-    supabase.from("budgets").select("id").eq("is_current", true).maybeSingle(),
+    supabase.from("budgets").select("id").maybeSingle(),
     supabase.from("funds").select("id, name").is("archived_at", null).order("name"),
   ]);
   for (const error of [accountsError, budgetError, fundsError]) {

@@ -17,13 +17,21 @@ describe("validateSourceInput", () => {
     expect(validateSourceInput({ type: "fund", depositDate: null })).toEqual({ ok: true });
   });
 
-  describe("past_payment / future_repayment", () => {
+  describe("reimbursement", () => {
     it("requires a deposit date", () => {
-      expect(validateSourceInput({ type: "past_payment", depositDate: null }).ok).toBe(false);
-      expect(validateSourceInput({ type: "future_repayment", depositDate: null }).ok).toBe(false);
+      expect(validateSourceInput({ type: "reimbursement", depositDate: null }).ok).toBe(false);
       expect(
-        validateSourceInput({ type: "past_payment", depositDate: "2026-01-01" }),
+        validateSourceInput({ type: "reimbursement", depositDate: "2026-01-01" }),
       ).toEqual({ ok: true });
+    });
+
+    it("accepts a deposit date in the past or the future", () => {
+      expect(
+        validateSourceInput({ type: "reimbursement", depositDate: "2020-01-01" }).ok,
+      ).toBe(true);
+      expect(
+        validateSourceInput({ type: "reimbursement", depositDate: "2099-01-01" }).ok,
+      ).toBe(true);
     });
   });
 
