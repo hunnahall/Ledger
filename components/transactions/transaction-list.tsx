@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
-import { ChevronDownIcon } from "@/components/ui/icons";
+import { AddIcon, ChevronDownIcon, SpinnerIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 import { SearchToggle } from "./search-toggle";
@@ -52,7 +52,6 @@ type Option = { id: string; name: string };
 type AccountOption = { id: string; account_name: string };
 type BucketOption = { value: string; label: string };
 
-const CLEAR = "__clear__";
 // A sentinel option in the Category select rather than a separate
 // checkbox — always available regardless of which budget's categories
 // are currently loaded, since it isn't a real categories row. Picking it
@@ -92,8 +91,6 @@ export function TransactionList({
   decimalPlaces: number;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkCategory, setBulkCategory] = useState("");
-  const [bulkSource, setBulkSource] = useState("");
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -146,71 +143,53 @@ export function TransactionList({
     setSelectedIds(allSelected ? new Set() : new Set(transactions.map((t) => t.id)));
   }
 
-  function applyBulkEdit() {
-    const updates: { categoryId?: string | null; sourceId?: string | null } = {};
-    if (bulkCategory !== "") updates.categoryId = bulkCategory === CLEAR ? null : bulkCategory;
-    if (bulkSource !== "") updates.sourceId = bulkSource === CLEAR ? null : bulkSource;
-    if (Object.keys(updates).length === 0) return;
+  // Editing the Category or Source select on any one selected row applies
+  // that same value to every other selected row too — no separate bulk
+  // form to fill in. Selection is left in place afterward so the user can
+  // set both fields (or fix a mistake) with another pick before clearing it.
+  const applyBulkCategory = useCallback(
+    (categoryId: string | null) => {
+      const ids = Array.from(selectedIds);
+      startTransition(async () => {
+        const result = await bulkUpdateTransactions(ids, { categoryId });
+        setBulkError(result?.error ?? null);
+      });
+    },
+    [selectedIds],
+  );
 
-    const ids = Array.from(selectedIds);
-    startTransition(async () => {
-      const result = await bulkUpdateTransactions(ids, updates);
-      if (result?.error) {
-        setBulkError(result.error);
-        return;
-      }
-      setBulkError(null);
-      setSelectedIds(new Set());
-      setBulkCategory("");
-      setBulkSource("");
-    });
-  }
+  const applyBulkSource = useCallback(
+    (sourceId: string | null) => {
+      const ids = Array.from(selectedIds);
+      startTransition(async () => {
+        const result = await bulkUpdateTransactions(ids, { sourceId });
+        setBulkError(result?.error ?? null);
+      });
+    },
+    [selectedIds],
+  );
 
   return (
     <div className="flex flex-col gap-3">
       {selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface-subtle p-4">
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Set category
-            <Select value={bulkCategory} onChange={setBulkCategory} uiSize="sm" className="w-40" placeholder="No change">
-              <option value="">No change</option>
-              <option value={CLEAR}>Uncategorized</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Set source
-            <Select value={bulkSource} onChange={setBulkSource} uiSize="sm" className="w-40" placeholder="No change">
-              <option value="">No change</option>
-              <option value={CLEAR}>No source</option>
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            disabled={isPending || (bulkCategory === "" && bulkSource === "")}
-            onClick={applyBulkEdit}
-          >
-            {isPending ? "Applying…" : `Apply to ${selectedIds.size} transactions`}
-          </Button>
-          <button
-            type="button"
-            onClick={() => setSelectedIds(new Set())}
-            className="pb-2 text-xs text-muted hover:underline"
-          >
-            Clear selection
-          </button>
-          {bulkError && <p className="w-full text-xs text-negative">{bulkError}</p>}
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
+          <div className="pointer-events-auto flex max-w-full items-center gap-3 rounded-full border border-border bg-surface px-4 py-2 text-sm shadow-elevated">
+            <span className="font-medium whitespace-nowrap">
+              {selectedIds.size} selected
+            </span>
+            <span className="hidden text-xs text-muted sm:inline">
+              Change a category or source on any selected row to apply it to all
+            </span>
+            {isPending && <SpinnerIcon className="animate-spin shrink-0" size={14} />}
+            {bulkError && <span className="text-xs text-negative">{bulkError}</span>}
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="shrink-0 text-xs text-muted hover:underline"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
 
@@ -261,7 +240,7 @@ export function TransactionList({
               options={sources.map((s) => ({ value: s.id, label: s.name }))}
               className="w-40 shrink-0 font-medium"
             />
-            <span className="w-20 shrink-0 text-center font-medium">Build Rule</span>
+            <span className="w-20 shrink-0 text-center font-medium">Add Rule</span>
             <span className="w-8 shrink-0"></span>
             <span className="flex w-10 shrink-0 items-center justify-center">
               <SearchToggle />
@@ -292,6 +271,9 @@ export function TransactionList({
                     decimalPlaces={decimalPlaces}
                     selected={selectedIds.has(txn.id)}
                     onToggleSelect={toggleSelect}
+                    selectedCount={selectedIds.size}
+                    onBulkApplyCategory={applyBulkCategory}
+                    onBulkApplySource={applyBulkSource}
                     isLastRow={virtualRow.index === transactions.length - 1}
                   />
                 </div>
@@ -317,6 +299,9 @@ const TransactionRow = memo(function TransactionRow({
   decimalPlaces,
   selected,
   onToggleSelect,
+  selectedCount,
+  onBulkApplyCategory,
+  onBulkApplySource,
   isLastRow,
 }: {
   txn: TransactionRowData;
@@ -327,6 +312,13 @@ const TransactionRow = memo(function TransactionRow({
   decimalPlaces: number;
   selected: boolean;
   onToggleSelect: (id: string) => void;
+  // How many rows are currently selected app-wide, and callbacks that apply
+  // a value to all of them at once — used so that changing this row's own
+  // Category/Source select propagates to the rest of the selection instead
+  // of just saving this one row (see handleCategoryChange/handleSourceChange).
+  selectedCount: number;
+  onBulkApplyCategory: (categoryId: string | null) => void;
+  onBulkApplySource: (sourceId: string | null) => void;
   // The list is virtualized, so at any moment the DOM's actual last child is
   // whichever row happens to be at the bottom of the rendered window, not
   // necessarily the last transaction — a CSS last:border-0 selector would
@@ -405,6 +397,16 @@ const TransactionRow = memo(function TransactionRow({
     const nowIncome = newCategoryId === INCOME;
     setCategoryId(newCategoryId);
     setIsIncome(nowIncome);
+
+    // Part of a multi-selection: apply this pick to every selected row at
+    // once instead of just this one. Income is a flag, not a real category
+    // (bulkUpdateTransactions has no notion of it), so that pick still only
+    // ever applies to this single row.
+    if (selected && selectedCount > 1 && !nowIncome) {
+      onBulkApplyCategory(newCategoryId || null);
+      return;
+    }
+
     const overrides: Record<string, string> = {
       category_id: nowIncome ? "" : newCategoryId,
       is_income: nowIncome ? "on" : "",
@@ -444,6 +446,12 @@ const TransactionRow = memo(function TransactionRow({
       return;
     }
     setSourceId(newSourceId);
+
+    if (selected && selectedCount > 1) {
+      onBulkApplySource(newSourceId || null);
+      return;
+    }
+
     await saveRow({ source_id: newSourceId });
   }
 
@@ -594,15 +602,26 @@ const TransactionRow = memo(function TransactionRow({
           </div>
 
           <div className="flex items-center justify-between gap-2 text-xs text-muted md:contents">
-            <span className="md:hidden">Build Rule</span>
+            <span className="md:hidden">Add Rule</span>
             <span className="flex items-center justify-center md:w-20 md:shrink-0">
-              <input
-                type="checkbox"
-                checked={buildRule}
-                onChange={(e) => setBuildRule(e.target.checked)}
-                className="h-4 w-4 accent-foreground"
-                aria-label="Build Rule"
-              />
+              <button
+                type="button"
+                onClick={() => setBuildRule((v) => !v)}
+                aria-pressed={buildRule}
+                aria-label={
+                  buildRule
+                    ? "Rule-building on for this row — picking a category will prompt to save a rule"
+                    : "Rule-building off for this row"
+                }
+                title="Prompt to save a rule when this row's category changes"
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-150 ${
+                  buildRule
+                    ? "border-mark bg-mark text-mark-foreground"
+                    : "border-border text-muted hover:bg-background hover:text-foreground"
+                }`}
+              >
+                <AddIcon size={14} />
+              </button>
             </span>
           </div>
 

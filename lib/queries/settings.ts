@@ -5,7 +5,7 @@ export async function getSettings() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { decimal_places: 2, retention_days: 120, month_ahead: false };
+  if (!user) return { decimal_places: 2, retention_days: 120, month_ahead: true };
 
   const { data, error } = await supabase
     .from("settings")
@@ -14,5 +14,5 @@ export async function getSettings() {
     .maybeSingle();
   if (error) throw new Error(error.message);
 
-  return data ?? { decimal_places: 2, retention_days: 120, month_ahead: false };
+  return data ?? { decimal_places: 2, retention_days: 120, month_ahead: true };
 }

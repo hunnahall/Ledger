@@ -9,7 +9,14 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
     .from("transactions")
     .select("*, accounts(account_name, last4), categories(name), sources!source_id(name)")
     .order("posted_date", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // posted_date/created_at alone don't fully determine an order — rows
+    // sharing both (a batch of manual entries, or same-day bank-synced
+    // transactions) have no guaranteed relative order from Postgres across
+    // separate queries, so editing one could make the list re-fetch in a
+    // different order and visibly jump. id never changes, so it's a stable
+    // final tiebreaker even though its own ordering is arbitrary.
+    .order("id", { ascending: false });
 
   if (filters.dateFrom) query = query.gte("posted_date", filters.dateFrom);
   if (filters.dateTo) query = query.lte("posted_date", filters.dateTo);
@@ -85,10 +92,21 @@ export async function getFilterOptions() {
     .order("name");
   if (sourcesError) throw new Error(sourcesError.message);
 
+  // The current budget's own Source (e.g. "Monthly") is what most
+  // transactions actually get assigned to, so it leads the list instead of
+  // just falling wherever it lands alphabetically — everything else stays
+  // alphabetical behind it.
+  const orderedSources = defaultSourceId
+    ? [
+        ...(sources ?? []).filter((s) => s.id === defaultSourceId),
+        ...(sources ?? []).filter((s) => s.id !== defaultSourceId),
+      ]
+    : (sources ?? []);
+
   return {
     accounts: accounts ?? [],
     categories,
-    sources: sources ?? [],
+    sources: orderedSources,
     funds: funds ?? [],
     defaultSourceId,
   };
