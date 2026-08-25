@@ -91,6 +91,14 @@ export function TransactionList({
   decimalPlaces: number;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Which rows have "Add Rule" toggled on — lifted up here (keyed by
+  // transaction id) rather than kept as local state inside each row.
+  // The list is virtualized (see rowVirtualizer below), so a row scrolled
+  // out of view is actually unmounted; local state would silently reset
+  // to off the moment it scrolled back in, right before the user picked a
+  // category — which looked like the toggle (and the rule it should have
+  // built) just not working.
+  const [buildRuleIds, setBuildRuleIds] = useState<Set<string>>(new Set());
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -132,6 +140,15 @@ export function TransactionList({
   // slow.
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleBuildRule = useCallback((id: string) => {
+    setBuildRuleIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -274,6 +291,8 @@ export function TransactionList({
                     selectedCount={selectedIds.size}
                     onBulkApplyCategory={applyBulkCategory}
                     onBulkApplySource={applyBulkSource}
+                    buildRule={buildRuleIds.has(txn.id)}
+                    onToggleBuildRule={toggleBuildRule}
                     isLastRow={virtualRow.index === transactions.length - 1}
                   />
                 </div>
@@ -302,6 +321,8 @@ const TransactionRow = memo(function TransactionRow({
   selectedCount,
   onBulkApplyCategory,
   onBulkApplySource,
+  buildRule,
+  onToggleBuildRule,
   isLastRow,
 }: {
   txn: TransactionRowData;
@@ -319,6 +340,13 @@ const TransactionRow = memo(function TransactionRow({
   selectedCount: number;
   onBulkApplyCategory: (categoryId: string | null) => void;
   onBulkApplySource: (sourceId: string | null) => void;
+  // Whether picking a category on this row should go through the
+  // learn-a-rule flow (existing-rule lookup, then the "make this a rule?"
+  // prompt) — lifted to the parent (see buildRuleIds) rather than kept as
+  // local state, since the list is virtualized and local state doesn't
+  // survive this row scrolling out of view and back in.
+  buildRule: boolean;
+  onToggleBuildRule: (id: string) => void;
   // The list is virtualized, so at any moment the DOM's actual last child is
   // whichever row happens to be at the bottom of the rendered window, not
   // necessarily the last transaction — a CSS last:border-0 selector would
@@ -328,13 +356,6 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [isIncome, setIsIncome] = useState(txn.isIncome);
-  // Purely a local, session-only preference — not persisted — for whether
-  // picking a category on this row should go through the learn-a-rule
-  // flow (existing-rule lookup, then the "make this a rule?" prompt) at
-  // all. Off by default so categorizing a run of transactions doesn't
-  // interrupt with a prompt after every single one; check it for the rows
-  // where you actually want that.
-  const [buildRule, setBuildRule] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
   const [categoryId, setCategoryId] = useState(txn.isIncome ? INCOME : txn.categoryId ?? "");
@@ -609,7 +630,7 @@ const TransactionRow = memo(function TransactionRow({
             <span className="flex items-center justify-center md:w-20 md:shrink-0">
               <button
                 type="button"
-                onClick={() => setBuildRule((v) => !v)}
+                onClick={() => onToggleBuildRule(txn.id)}
                 aria-pressed={buildRule}
                 aria-label={
                   buildRule
