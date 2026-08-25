@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { SpinnerIcon } from "@/components/ui/icons";
+import { INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
 
 type ActionResult = { error: string } | null;
 type UpdateRuleAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -19,7 +20,14 @@ export function VendorRuleRow({
   updateAction,
   deleteAction,
 }: {
-  rule: { id: string; merchantNormalized: string; categoryId: string; categoryName: string; useCount: number };
+  rule: {
+    id: string;
+    merchantNormalized: string;
+    categoryId: string | null;
+    isIncome: boolean;
+    categoryName: string;
+    useCount: number;
+  };
   categories: { id: string; name: string }[];
   updateAction: UpdateRuleAction;
   deleteAction: DeleteRuleAction;
@@ -60,9 +68,10 @@ export function VendorRuleRow({
         <span className="text-muted">then</span>
         <select
           ref={categoryRef}
-          defaultValue={rule.categoryId}
+          defaultValue={rule.isIncome ? INCOME_RULE_TARGET : (rule.categoryId ?? "")}
           className="rounded-md border border-border bg-background px-2 py-1 text-xs"
         >
+          <option value={INCOME_RULE_TARGET}>Income</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}

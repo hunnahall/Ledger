@@ -8,7 +8,7 @@ import {
   createSourceFromTransaction,
   deleteTransaction,
   saveSplits,
-  suggestCategoryForDescription,
+  ruleExistsForDescription,
 } from "@/lib/actions/transactions";
 import { UNCATEGORIZED_FILTER_VALUE } from "@/lib/transactions/filters";
 import { encodeBucketOption } from "@/lib/transactions/bucket-option";
@@ -418,22 +418,25 @@ const TransactionRow = memo(function TransactionRow({
       // whenever category_id is set, so this has to be explicit, not just
       // "don't show the prompt".
       overrides.rule_action = "skip";
-    } else if (
-      // Only a fresh, real category pick (changed from what's saved) for a
-      // merchant with no existing rule needs the "make this a rule?"
-      // prompt — Income isn't a real category to learn a rule for, and an
+    } else if (!isTransfer) {
+      // Only a fresh pick (changed from what's saved) for a merchant with
+      // no existing rule needs the "make this a rule?" prompt — an
       // unchanged pick (or one that already matches a learned rule) is
-      // just reinforcing what's already there.
-      !isTransfer &&
-      !nowIncome &&
-      newCategoryId &&
-      newCategoryId !== (txn.categoryId ?? "")
-    ) {
-      const existingRule = await suggestCategoryForDescription(txn.description);
-      if (!existingRule) {
-        const categoryName = categories.find((c) => c.id === newCategoryId)?.name ?? "this category";
-        const saveRule = await confirm(`Make all "${txn.description}" transactions ${categoryName}?`);
-        overrides.rule_action = saveRule ? "write" : "skip";
+      // just reinforcing what's already there. A rule can target Income
+      // just like it can a real category (see the vendor_category_rules
+      // is_income column).
+      const isFreshPick = nowIncome
+        ? !txn.isIncome
+        : Boolean(newCategoryId) && newCategoryId !== (txn.categoryId ?? "");
+      if (isFreshPick) {
+        const exists = await ruleExistsForDescription(txn.description);
+        if (!exists) {
+          const targetLabel = nowIncome
+            ? "Income"
+            : (categories.find((c) => c.id === newCategoryId)?.name ?? "this category");
+          const saveRule = await confirm(`Make all "${txn.description}" transactions ${targetLabel}?`);
+          overrides.rule_action = saveRule ? "write" : "skip";
+        }
       }
     }
 

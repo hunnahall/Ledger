@@ -69,7 +69,10 @@ export default async function SettingsPage() {
                   id: rule.id,
                   merchantNormalized: rule.merchant_normalized,
                   categoryId: rule.category_id,
-                  categoryName: (rule.categories as { name: string } | null)?.name ?? "—",
+                  isIncome: rule.is_income,
+                  categoryName: rule.is_income
+                    ? "Income"
+                    : ((rule.categories as { name: string } | null)?.name ?? "—"),
                   useCount: rule.use_count,
                 }}
                 categories={categories}

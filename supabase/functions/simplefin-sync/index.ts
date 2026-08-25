@@ -212,7 +212,7 @@ async function syncConnection(
     // "tsx target checkout".
     const { data: uncategorized } = await serviceClient
       .from("transactions")
-      .select("id, merchant_normalized")
+      .select("id, merchant_normalized, source_id, is_income")
       .eq("user_id", connection.user_id)
       .is("category_id", null)
       .eq("is_transfer", false)
@@ -221,21 +221,30 @@ async function syncConnection(
     const { data: rules } = uncategorized && uncategorized.length > 0
       ? await serviceClient
         .from("vendor_category_rules")
-        .select("merchant_normalized, category_id, source_id")
+        .select("merchant_normalized, category_id, is_income, source_id")
         .eq("user_id", connection.user_id)
-      : { data: [] as { merchant_normalized: string; category_id: string; source_id: string | null }[] };
+      : {
+        data: [] as {
+          merchant_normalized: string;
+          category_id: string | null;
+          is_income: boolean;
+          source_id: string | null;
+        }[],
+      };
 
     for (const txn of uncategorized ?? []) {
+      // Already flagged Income by the insert above (see sync_bank_transactions)
+      // — leave it alone rather than let an unrelated category rule
+      // overwrite it, or a no-op Income rule re-touch it.
+      if (txn.is_income) continue;
+
       const rule = findMatchingRule(rules ?? [], txn.merchant_normalized ?? "");
       if (rule) {
-        await serviceClient
-          .from("transactions")
-          .update({
-            category_id: rule.category_id,
-            source_id: rule.source_id,
-            category_source: "rule",
-          })
-          .eq("id", txn.id);
+        const patch: { category_id?: string; category_source?: string; is_income?: boolean; source_id?: string } =
+          rule.is_income ? { is_income: true } : { category_id: rule.category_id!, category_source: "rule" };
+        if (!txn.source_id && rule.source_id) patch.source_id = rule.source_id;
+
+        await serviceClient.from("transactions").update(patch).eq("id", txn.id);
         transactionsNew += 1;
       }
     }

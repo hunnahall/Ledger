@@ -803,9 +803,10 @@ export type Database = {
       }
       vendor_category_rules: {
         Row: {
-          category_id: string
+          category_id: string | null
           created_at: string
           id: string
+          is_income: boolean
           last_used_at: string
           merchant_normalized: string
           source_id: string | null
@@ -814,9 +815,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          category_id: string
+          category_id?: string | null
           created_at?: string
           id?: string
+          is_income?: boolean
           last_used_at?: string
           merchant_normalized: string
           source_id?: string | null
@@ -825,9 +827,10 @@ export type Database = {
           user_id: string
         }
         Update: {
-          category_id?: string
+          category_id?: string | null
           created_at?: string
           id?: string
+          is_income?: boolean
           last_used_at?: string
           merchant_normalized?: string
           source_id?: string | null

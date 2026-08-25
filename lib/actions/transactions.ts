@@ -14,7 +14,11 @@ export async function learnVendorRule(
   supabase: SupabaseServerClient,
   userId: string,
   merchantNormalized: string,
-  categoryId: string,
+  // Exactly one of these is the rule's target (see the
+  // vendor_category_rules_target_check constraint) — a real category, or a
+  // flag that marks matching transactions as Income instead.
+  categoryId: string | null,
+  isIncome: boolean,
   sourceId: string | null,
 ) {
   if (!merchantNormalized) return;
@@ -31,6 +35,7 @@ export async function learnVendorRule(
       .from("vendor_category_rules")
       .update({
         category_id: categoryId,
+        is_income: isIncome,
         source_id: sourceId,
         last_used_at: new Date().toISOString(),
         use_count: existing.use_count + 1,
@@ -43,6 +48,7 @@ export async function learnVendorRule(
     user_id: userId,
     merchant_normalized: merchantNormalized,
     category_id: categoryId,
+    is_income: isIncome,
     source_id: sourceId,
   });
 
@@ -62,6 +68,7 @@ export async function learnVendorRule(
         .from("vendor_category_rules")
         .update({
           category_id: categoryId,
+          is_income: isIncome,
           source_id: sourceId,
           last_used_at: new Date().toISOString(),
           use_count: race.use_count + 1,
@@ -169,7 +176,10 @@ export async function createManualTransaction(
       .select("merchant_normalized, category_id, source_id")
       .eq("user_id", user.id);
     const rule = findMatchingRule(rules ?? [], merchantNormalized);
-    if (rule) {
+    // Income-marking rules (category_id null) don't map onto this form —
+    // it has no way to auto-select the Type field, only Category — so only
+    // a rule with a real category applies here.
+    if (rule?.category_id) {
       resolvedCategoryId = rule.category_id;
       resolvedSourceId = resolvedSourceId ?? rule.source_id;
       categorySource = "rule";
@@ -197,7 +207,7 @@ export async function createManualTransaction(
   if (error) return { error: error.message };
 
   if (resolvedCategoryId && ruleAction !== "skip") {
-    await learnVendorRule(supabase, user.id, merchantNormalized, resolvedCategoryId, resolvedSourceId);
+    await learnVendorRule(supabase, user.id, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
   }
 
   revalidatePath("/transactions");
@@ -230,10 +240,34 @@ export async function suggestCategoryForDescription(
   const rule = findMatchingRule(rules ?? [], merchantNormalized);
   if (!rule) return null;
 
+  // Income-marking rules (category_id null) don't map onto this form — it
+  // has no way to auto-select the Type field, only Category — so only a
+  // rule with a real category is worth suggesting here.
   const categoryName = (rule.categories as { name: string } | null)?.name;
-  if (!categoryName) return null;
+  if (!rule.category_id || !categoryName) return null;
 
   return { categoryId: rule.category_id, categoryName, sourceId: rule.source_id };
+}
+
+// Whether ANY rule already covers this description, category or Income
+// alike — used to decide whether the "make this a rule?" prompt is worth
+// showing (an existing rule just gets reinforced silently instead).
+export async function ruleExistsForDescription(description: string): Promise<boolean> {
+  const merchantNormalized = normalizeMerchant(description);
+  if (!merchantNormalized) return false;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data: rules } = await supabase
+    .from("vendor_category_rules")
+    .select("merchant_normalized")
+    .eq("user_id", user.id);
+
+  return Boolean(findMatchingRule(rules ?? [], merchantNormalized));
 }
 
 export async function assignTransaction(
@@ -289,8 +323,8 @@ export async function assignTransaction(
     .eq("id", transactionId);
   if (error) return { error: error.message };
 
-  if (!isTransfer && categoryId && txn.merchant_normalized && ruleAction !== "skip") {
-    await learnVendorRule(supabase, user.id, txn.merchant_normalized, categoryId, sourceId);
+  if (!isTransfer && (categoryId || isIncome) && txn.merchant_normalized && ruleAction !== "skip") {
+    await learnVendorRule(supabase, user.id, txn.merchant_normalized, categoryId, isIncome, sourceId);
   }
 
   revalidatePath("/transactions");
@@ -429,7 +463,7 @@ export async function bulkUpdateTransactions(
       const merchant = txn.merchant_normalized;
       if (!merchant || seen.has(merchant)) continue;
       seen.add(merchant);
-      await learnVendorRule(supabase, user.id, merchant, patch.category_id, txn.source_id);
+      await learnVendorRule(supabase, user.id, merchant, patch.category_id, false, txn.source_id);
     }
   }
 
