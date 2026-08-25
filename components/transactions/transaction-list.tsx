@@ -263,8 +263,9 @@ export function TransactionList({
             />
             <span className="w-20 shrink-0 text-center font-medium">Build Rule</span>
             <span className="w-8 shrink-0"></span>
-            <span className="w-8 shrink-0"></span>
-            <SearchToggle />
+            <span className="flex w-10 shrink-0 items-center justify-center">
+              <SearchToggle />
+            </span>
           </div>
           <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -611,11 +612,11 @@ const TransactionRow = memo(function TransactionRow({
               onClick={() => setExpanded((e) => !e)}
               aria-label={expanded ? "Collapse details" : "Expand details"}
               aria-expanded={expanded}
-              className="rounded p-1 text-muted transition-transform duration-150 hover:bg-background md:flex md:w-8 md:items-center md:justify-center"
+              className="rounded p-1 text-muted transition-transform duration-150 hover:bg-background md:order-2 md:flex md:w-10 md:items-center md:justify-center"
             >
               <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
             </button>
-            <div className="flex items-center gap-1 md:w-8 md:flex-none md:justify-end">
+            <div className="flex items-center gap-1 md:order-1 md:w-8 md:flex-none md:justify-end">
               {!txn.hasProviderTransactionId && (
                 <button
                   type="button"
