@@ -49,6 +49,18 @@ export async function updateMonthAhead(
     .eq("user_id", user.id);
   if (error) return { error: error.message };
 
+  if (monthAhead) {
+    // Turning this on only changes behavior going forward (see
+    // route_income_to_fund) — anything already marked as income this
+    // month from before the mode was on would otherwise just sit there
+    // as a label instead of actually landing in the fund that's about to
+    // be swept into the budget. One-time catch-up, current month only.
+    const { error: catchUpError } = await supabase.rpc("route_current_month_income_to_fund", {
+      p_user_id: user.id,
+    });
+    if (catchUpError) return { error: catchUpError.message };
+  }
+
   revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/sources");

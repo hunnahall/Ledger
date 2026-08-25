@@ -1004,6 +1004,10 @@ export type Database = {
       }
       match_transfer_pairs: { Args: { p_user_id: string }; Returns: number }
       purge_expired_data: { Args: never; Returns: undefined }
+      route_current_month_income_to_fund: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       store_bank_connection_secret: {
         Args: { p_access_url: string }
         Returns: string

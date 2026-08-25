@@ -261,6 +261,7 @@ export function TransactionList({
               options={sources.map((s) => ({ value: s.id, label: s.name }))}
               className="w-40 shrink-0 font-medium"
             />
+            <span className="w-20 shrink-0 text-center font-medium">Build Rule</span>
             <span className="w-8 shrink-0"></span>
             <span className="w-8 shrink-0"></span>
             <SearchToggle />
@@ -334,6 +335,13 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [isIncome, setIsIncome] = useState(txn.isIncome);
+  // Purely a local, session-only preference — not persisted — for whether
+  // picking a category on this row should go through the learn-a-rule
+  // flow (existing-rule lookup, then the "make this a rule?" prompt) at
+  // all. Off by default so categorizing a run of transactions doesn't
+  // interrupt with a prompt after every single one; check it for the rows
+  // where you actually want that.
+  const [buildRule, setBuildRule] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
   const [categoryId, setCategoryId] = useState(txn.isIncome ? INCOME : txn.categoryId ?? "");
@@ -401,12 +409,23 @@ const TransactionRow = memo(function TransactionRow({
       is_income: nowIncome ? "on" : "",
     };
 
-    // Only a fresh, real category pick (changed from what's saved) for a
-    // merchant with no existing rule needs the "make this a rule?" prompt —
-    // Income isn't a real category to learn a rule for, and an unchanged
-    // pick (or one that already matches a learned rule) is just
-    // reinforcing what's already there.
-    if (!isTransfer && !nowIncome && newCategoryId && newCategoryId !== (txn.categoryId ?? "")) {
+    if (!buildRule) {
+      // Build Rule unchecked: assign the category and leave rules alone
+      // entirely — assignTransaction learns/reinforces a rule by default
+      // whenever category_id is set, so this has to be explicit, not just
+      // "don't show the prompt".
+      overrides.rule_action = "skip";
+    } else if (
+      // Only a fresh, real category pick (changed from what's saved) for a
+      // merchant with no existing rule needs the "make this a rule?"
+      // prompt — Income isn't a real category to learn a rule for, and an
+      // unchanged pick (or one that already matches a learned rule) is
+      // just reinforcing what's already there.
+      !isTransfer &&
+      !nowIncome &&
+      newCategoryId &&
+      newCategoryId !== (txn.categoryId ?? "")
+    ) {
       const existingRule = await suggestCategoryForDescription(txn.description);
       if (!existingRule) {
         const categoryName = categories.find((c) => c.id === newCategoryId)?.name ?? "this category";
@@ -571,6 +590,19 @@ const TransactionRow = memo(function TransactionRow({
               ))}
               {!isTransfer && txn.amount > 0 && <option value={ADD_SOURCE}>+ Add source</option>}
             </Select>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 text-xs text-muted md:contents">
+            <span className="md:hidden">Build Rule</span>
+            <span className="flex items-center justify-center md:w-20 md:shrink-0">
+              <input
+                type="checkbox"
+                checked={buildRule}
+                onChange={(e) => setBuildRule(e.target.checked)}
+                className="h-4 w-4 accent-foreground"
+                aria-label="Build Rule"
+              />
+            </span>
           </div>
 
           <div className="flex items-center justify-end gap-1 md:contents">
