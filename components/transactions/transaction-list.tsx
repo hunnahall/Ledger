@@ -414,6 +414,24 @@ const TransactionRow = memo(function TransactionRow({
     setRowError(result?.error ?? null);
   }
 
+  // Offers the "make this a rule?" prompt for the given target (a real
+  // category id, or the INCOME sentinel) when no rule already covers this
+  // merchant — reused by both a fresh category pick (Add Rule already on)
+  // and by turning Add Rule on after the fact (see handleToggleBuildRule).
+  // Returns the rule_action to send with the next save: "write"/"skip" for
+  // an explicit answer, or undefined when a rule already exists (nothing
+  // to decide — assignTransaction reinforces that by default).
+  async function offerToBuildRule(targetCategoryId: string): Promise<string | undefined> {
+    const exists = await ruleExistsForDescription(txn.description);
+    if (exists) return undefined;
+    const targetLabel =
+      targetCategoryId === INCOME
+        ? "Income"
+        : (categories.find((c) => c.id === targetCategoryId)?.name ?? "this category");
+    const saveRule = await confirm(`Make all "${txn.description}" transactions ${targetLabel}?`);
+    return saveRule ? "write" : "skip";
+  }
+
   async function handleCategoryChange(newCategoryId: string) {
     const nowIncome = newCategoryId === INCOME;
     setCategoryId(newCategoryId);
@@ -450,17 +468,41 @@ const TransactionRow = memo(function TransactionRow({
         ? !txn.isIncome
         : Boolean(newCategoryId) && newCategoryId !== (txn.categoryId ?? "");
       if (isFreshPick) {
-        const exists = await ruleExistsForDescription(txn.description);
-        if (!exists) {
-          const targetLabel = nowIncome
-            ? "Income"
-            : (categories.find((c) => c.id === newCategoryId)?.name ?? "this category");
-          const saveRule = await confirm(`Make all "${txn.description}" transactions ${targetLabel}?`);
-          overrides.rule_action = saveRule ? "write" : "skip";
-        }
+        const ruleAction = await offerToBuildRule(newCategoryId);
+        if (ruleAction) overrides.rule_action = ruleAction;
       }
     }
 
+    await saveRow(overrides);
+  }
+
+  // Add Rule can be turned on after a category was already picked, not
+  // just before — order shouldn't change the outcome. If this row already
+  // carries a category (or Income) when the toggle flips on, offer the
+  // same "make this a rule?" prompt for it right now instead of only ever
+  // checking at the moment the category itself changes.
+  async function handleToggleBuildRule() {
+    const turningOn = !buildRule;
+    onToggleBuildRule(txn.id);
+    if (!turningOn || isTransfer) return;
+
+    const nowIncome = categoryId === INCOME;
+    const hasTarget = nowIncome || Boolean(categoryId);
+    if (!hasTarget) return;
+
+    const ruleAction = await offerToBuildRule(categoryId);
+    if (ruleAction === "skip") return;
+
+    // category_id's hidden input still holds the raw INCOME sentinel when
+    // nowIncome — same resolution handleCategoryChange's overrides do, and
+    // just as required here, since saveRow otherwise reads that literal
+    // "__income__" string straight off the DOM and sends it to a uuid
+    // column.
+    const overrides: Record<string, string> = {
+      category_id: nowIncome ? "" : categoryId,
+      is_income: nowIncome ? "on" : "",
+    };
+    if (ruleAction) overrides.rule_action = ruleAction;
     await saveRow(overrides);
   }
 
@@ -630,7 +672,7 @@ const TransactionRow = memo(function TransactionRow({
             <span className="flex items-center justify-center md:w-20 md:shrink-0">
               <button
                 type="button"
-                onClick={() => onToggleBuildRule(txn.id)}
+                onClick={handleToggleBuildRule}
                 aria-pressed={buildRule}
                 aria-label={
                   buildRule
