@@ -266,10 +266,10 @@ export type Database = {
           amount: number
           archived_at: string | null
           budget_id: string
+          contributed_to_date: number
           contribution_type: string
           created_at: string
           frequency: string | null
-          fund_id: string | null
           id: string
           name: string
           target_amount: number | null
@@ -281,10 +281,10 @@ export type Database = {
           amount?: number
           archived_at?: string | null
           budget_id: string
+          contributed_to_date?: number
           contribution_type?: string
           created_at?: string
           frequency?: string | null
-          fund_id?: string | null
           id?: string
           name: string
           target_amount?: number | null
@@ -296,10 +296,10 @@ export type Database = {
           amount?: number
           archived_at?: string | null
           budget_id?: string
+          contributed_to_date?: number
           contribution_type?: string
           created_at?: string
           frequency?: string | null
-          fund_id?: string | null
           id?: string
           name?: string
           target_amount?: number | null
@@ -313,13 +313,6 @@ export type Database = {
             columns: ["budget_id"]
             isOneToOne: false
             referencedRelation: "budgets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sinking_expenses_fund_id_fkey"
-            columns: ["fund_id"]
-            isOneToOne: false
-            referencedRelation: "funds"
             referencedColumns: ["id"]
           },
         ]
@@ -978,16 +971,17 @@ export type Database = {
         Args: { p_delta: number; p_source_id: string }
         Returns: number
       }
-      archive_fund: {
-        Args: { p_fund_id: string }
-        Returns: undefined
-      }
+      archive_fund: { Args: { p_fund_id: string }; Returns: undefined }
       delete_bank_connection: {
         Args: { p_connection_id: string }
         Returns: undefined
       }
       ensure_budget_source_current: {
         Args: { p_budget_id: string }
+        Returns: undefined
+      }
+      ensure_sinking_fund_current: {
+        Args: { p_user_id: string }
         Returns: undefined
       }
       ensure_source_transfers_current: {
@@ -999,10 +993,7 @@ export type Database = {
         Returns: string
       }
       match_transfer_pairs: { Args: { p_user_id: string }; Returns: number }
-      purge_expired_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      purge_expired_data: { Args: never; Returns: undefined }
       store_bank_connection_secret: {
         Args: { p_access_url: string }
         Returns: string

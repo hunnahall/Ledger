@@ -22,6 +22,7 @@ export default async function SourcesPage() {
     ? sources.find((s) => s.budget_id === currentBudget.id)
     : undefined;
   const floatSource = sources.find((s) => s.type === "float");
+  const sinkingFundSource = sources.find((s) => s.type === "sinking_fund");
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,6 +50,13 @@ export default async function SourcesPage() {
           )}
           {floatSource && (
             <SourceCard key={floatSource.id} source={floatSource} decimalPlaces={decimalPlaces} />
+          )}
+          {sinkingFundSource && (
+            <SourceCard
+              key={sinkingFundSource.id}
+              source={sinkingFundSource}
+              decimalPlaces={decimalPlaces}
+            />
           )}
         </div>
       </section>

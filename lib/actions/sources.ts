@@ -34,6 +34,9 @@ export async function createSource(
   if (type === "float") {
     return { error: "The Float source is a single default and can't be created by hand." };
   }
+  if (type === "sinking_fund") {
+    return { error: "The Sinking Fund source is a single default and can't be created by hand." };
+  }
 
   const depositDate =
     type === "past_payment" || type === "future_repayment" ? depositDateInput || null : null;

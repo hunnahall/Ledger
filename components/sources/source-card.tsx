@@ -12,6 +12,7 @@ import { BalanceEditControl } from "@/components/sources/balance-edit-control";
 const TYPE_LABELS: Record<string, string> = {
   budget: "Budget",
   float: "Float",
+  sinking_fund: "Sinking Fund",
   past_payment: "Past payment",
   future_repayment: "Future repayment",
 };

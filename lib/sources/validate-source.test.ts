@@ -3,7 +3,7 @@ import { validateSourceInput } from "./validate-source";
 
 describe("validateSourceInput", () => {
   it("rejects an unknown type", () => {
-    const result = validateSourceInput({ type: "sinking_fund", depositDate: null });
+    const result = validateSourceInput({ type: "sinking_expense", depositDate: null });
     expect(result).toEqual({ ok: false, error: "Not a valid source type." });
   });
 

@@ -167,8 +167,8 @@ export async function deleteSinkingExpense(
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
 
-  // The linked Fund (fund_id) isn't deleted along with this — any balance
-  // already set aside stays put, just no longer tied to a sinking expense.
+  // Whatever this expense already contributed to the shared Sinking Fund
+  // stays there — deleting it only stops future monthly contributions.
   const { error } = await supabase
     .from("sinking_expenses")
     .delete()
