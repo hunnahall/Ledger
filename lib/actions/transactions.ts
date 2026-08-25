@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
+import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
 import { decodeBucketOption } from "@/lib/transactions/bucket-option";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 
@@ -163,12 +164,11 @@ export async function createManualTransaction(
     : null;
 
   if (!isTransfer && !isExcluded && !resolvedCategoryId && merchantNormalized) {
-    const { data: rule } = await supabase
+    const { data: rules } = await supabase
       .from("vendor_category_rules")
-      .select("category_id, source_id")
-      .eq("user_id", user.id)
-      .eq("merchant_normalized", merchantNormalized)
-      .maybeSingle();
+      .select("merchant_normalized, category_id, source_id")
+      .eq("user_id", user.id);
+    const rule = findMatchingRule(rules ?? [], merchantNormalized);
     if (rule) {
       resolvedCategoryId = rule.category_id;
       resolvedSourceId = resolvedSourceId ?? rule.source_id;
@@ -222,12 +222,12 @@ export async function suggestCategoryForDescription(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: rule } = await supabase
+  const { data: rules } = await supabase
     .from("vendor_category_rules")
-    .select("category_id, source_id, categories(name)")
-    .eq("user_id", user.id)
-    .eq("merchant_normalized", merchantNormalized)
-    .maybeSingle();
+    .select("merchant_normalized, category_id, source_id, categories(name)")
+    .eq("user_id", user.id);
+
+  const rule = findMatchingRule(rules ?? [], merchantNormalized);
   if (!rule) return null;
 
   const categoryName = (rule.categories as { name: string } | null)?.name;
@@ -299,12 +299,13 @@ export async function assignTransaction(
   return null;
 }
 
-// The manual-entry form has a "Create a Source" income action that seeds a
-// new source with the entered amount (see createManualTransaction) — this
-// is the same move for a transaction that's already been recorded rather
-// than one being entered right now. Re-points this transaction's source_id
-// at the new source; transactions_sync_balance (the DB trigger) picks up
-// the change on this UPDATE the same way it would for any other source
+// The "+ Add source" option in the Transactions list's Source column (see
+// ADD_SOURCE in transaction-list.tsx) — mirrors the create-a-source block
+// on the Sources page (name + type: past payment/future repayment/fund),
+// seeded from this already-recorded transaction's own amount instead of a
+// typed-in starting balance. Re-points this transaction's source_id at the
+// new source; transactions_sync_balance (the DB trigger) picks up the
+// change on this UPDATE the same way it would for any other source
 // reassignment, crediting the transaction's amount to the new source and,
 // if one was already linked, removing it from that one first.
 export async function createSourceFromTransaction(
@@ -315,7 +316,7 @@ export async function createSourceFromTransaction(
   const name = String(formData.get("new_source_name") ?? "").trim();
   const type = String(formData.get("new_source_type") ?? "past_payment");
   if (!name) return { error: "Enter a name for the new source." };
-  if (type !== "past_payment" && type !== "future_repayment") {
+  if (type !== "past_payment" && type !== "future_repayment" && type !== "fund") {
     return { error: "Not a valid source type." };
   }
 
@@ -345,11 +346,29 @@ export async function createSourceFromTransaction(
       name,
       type,
       balance: 0,
-      deposit_date: txn.posted_date,
+      deposit_date: type === "fund" ? null : txn.posted_date,
     })
     .select("id")
     .single();
   if (sourceError) return { error: sourceError.message };
+
+  // A Fund-type source always owns a brand-new Fund (rather than picking one
+  // of the user's existing Funds) — same as createSource's "Fund" type.
+  if (type === "fund") {
+    const { data: fund, error: fundError } = await supabase
+      .from("funds")
+      .insert({ user_id: user.id, name, balance: 0 })
+      .select("id")
+      .single();
+    if (fundError) return { error: fundError.message };
+
+    const { error: linkError } = await supabase.from("source_funds").insert({
+      user_id: user.id,
+      source_id: newSource.id,
+      fund_id: fund.id,
+    });
+    if (linkError) return { error: linkError.message };
+  }
 
   const { error: updateError } = await supabase
     .from("transactions")

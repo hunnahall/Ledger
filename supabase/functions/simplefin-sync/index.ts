@@ -33,6 +33,25 @@ function normalizeMerchant(description: string): string {
     .trim();
 }
 
+// See lib/transactions/match-vendor-rule.ts (duplicated, not imported —
+// this function is otherwise self-contained, same as normalizeMerchant
+// above). Longest matching pattern wins when more than one rule's pattern
+// appears in the description, so a specific multi-word rule beats a
+// shorter, more generic one covering the same transaction.
+function findMatchingRule<T extends { merchant_normalized: string }>(
+  rules: T[],
+  merchantNormalized: string,
+): T | null {
+  let best: T | null = null;
+  for (const rule of rules) {
+    if (!rule.merchant_normalized || !merchantNormalized.includes(rule.merchant_normalized)) continue;
+    if (!best || rule.merchant_normalized.length > best.merchant_normalized.length) {
+      best = rule;
+    }
+  }
+  return best;
+}
+
 function decodeJwtRole(authHeader: string | null): string | null {
   if (!authHeader) return null;
   const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -184,7 +203,13 @@ async function syncConnection(
 
     // Auto-categorize anything still uncategorized using this user's
     // learned vendor rules (also retroactively covers older uncategorized
-    // rows if a rule was learned since the last sync).
+    // rows if a rule was learned since the last sync). A rule's pattern
+    // only has to appear somewhere in the transaction's normalized
+    // description, not equal it outright (see findMatchingRule in
+    // lib/transactions/match-vendor-rule.ts — duplicated here rather than
+    // imported since this Deno function is otherwise self-contained, same
+    // as normalizeMerchant above), so a rule for "target" also fires on
+    // "tsx target checkout".
     const { data: uncategorized } = await serviceClient
       .from("transactions")
       .select("id, merchant_normalized")
@@ -193,13 +218,15 @@ async function syncConnection(
       .eq("is_transfer", false)
       .not("merchant_normalized", "is", null);
 
-    for (const txn of uncategorized ?? []) {
-      const { data: rule } = await serviceClient
+    const { data: rules } = uncategorized && uncategorized.length > 0
+      ? await serviceClient
         .from("vendor_category_rules")
-        .select("category_id, source_id")
+        .select("merchant_normalized, category_id, source_id")
         .eq("user_id", connection.user_id)
-        .eq("merchant_normalized", txn.merchant_normalized)
-        .maybeSingle();
+      : { data: [] as { merchant_normalized: string; category_id: string; source_id: string | null }[] };
+
+    for (const txn of uncategorized ?? []) {
+      const rule = findMatchingRule(rules ?? [], txn.merchant_normalized ?? "");
       if (rule) {
         await serviceClient
           .from("transactions")

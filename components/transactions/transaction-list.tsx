@@ -53,6 +53,16 @@ type AccountOption = { id: string; account_name: string };
 type BucketOption = { value: string; label: string };
 
 const CLEAR = "__clear__";
+// A sentinel option in the Category select rather than a separate
+// checkbox — always available regardless of which budget's categories
+// are currently loaded, since it isn't a real categories row. Picking it
+// sets is_income and clears category_id; picking a real category (or
+// Uncategorized) clears is_income back out.
+const INCOME = "__income__";
+// Same idea, in the Source select: picking it doesn't change source_id
+// directly — it reveals the inline "create a source from this amount"
+// form instead (see addingSource below).
+const ADD_SOURCE = "__add_source__";
 
 // accounts.last4 isn't populated by anything in this app yet (no bank-sync
 // pipeline writes it), so the Account column would otherwise show nothing
@@ -326,8 +336,9 @@ const TransactionRow = memo(function TransactionRow({
   const [isIncome, setIsIncome] = useState(txn.isIncome);
   const [expanded, setExpanded] = useState(false);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
-  const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
+  const [categoryId, setCategoryId] = useState(txn.isIncome ? INCOME : txn.categoryId ?? "");
   const [sourceId, setSourceId] = useState(txn.sourceId ?? "");
+  const [addingSource, setAddingSource] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const formRef = useRef<HTMLFormElement>(null);
@@ -352,8 +363,9 @@ const TransactionRow = memo(function TransactionRow({
     setPrevTxn(txn);
     setIsTransfer(txn.isTransfer);
     setIsIncome(txn.isIncome);
-    setCategoryId(txn.categoryId ?? "");
+    setCategoryId(txn.isIncome ? INCOME : txn.categoryId ?? "");
     setSourceId(txn.sourceId ?? "");
+    setAddingSource(false);
     setSplitOpen(txn.isSplit);
   }
 
@@ -381,14 +393,20 @@ const TransactionRow = memo(function TransactionRow({
   }
 
   async function handleCategoryChange(newCategoryId: string) {
+    const nowIncome = newCategoryId === INCOME;
     setCategoryId(newCategoryId);
-    const overrides: Record<string, string> = { category_id: newCategoryId };
+    setIsIncome(nowIncome);
+    const overrides: Record<string, string> = {
+      category_id: nowIncome ? "" : newCategoryId,
+      is_income: nowIncome ? "on" : "",
+    };
 
-    // Only a fresh category pick (changed from what's saved) for a merchant
-    // with no existing rule needs the "make this a rule?" prompt — an
-    // unchanged category, or one that already matches a learned rule, is
-    // just reinforcing what's already there.
-    if (!isTransfer && newCategoryId && newCategoryId !== (txn.categoryId ?? "")) {
+    // Only a fresh, real category pick (changed from what's saved) for a
+    // merchant with no existing rule needs the "make this a rule?" prompt —
+    // Income isn't a real category to learn a rule for, and an unchanged
+    // pick (or one that already matches a learned rule) is just
+    // reinforcing what's already there.
+    if (!isTransfer && !nowIncome && newCategoryId && newCategoryId !== (txn.categoryId ?? "")) {
       const existingRule = await suggestCategoryForDescription(txn.description);
       if (!existingRule) {
         const categoryName = categories.find((c) => c.id === newCategoryId)?.name ?? "this category";
@@ -401,6 +419,10 @@ const TransactionRow = memo(function TransactionRow({
   }
 
   async function handleSourceChange(newSourceId: string) {
+    if (newSourceId === ADD_SOURCE) {
+      setAddingSource(true);
+      return;
+    }
     setSourceId(newSourceId);
     await saveRow({ source_id: newSourceId });
   }
@@ -408,11 +430,6 @@ const TransactionRow = memo(function TransactionRow({
   async function handleTransferToggle(checked: boolean) {
     setIsTransfer(checked);
     await saveRow({ is_transfer: checked ? "on" : "" });
-  }
-
-  async function handleIncomeToggle(checked: boolean) {
-    setIsIncome(checked);
-    await saveRow({ is_income: checked ? "on" : "" });
   }
 
   async function handleDelete() {
@@ -520,6 +537,7 @@ const TransactionRow = memo(function TransactionRow({
                 disabled={isTransfer}
               >
                 <option value="">Uncategorized</option>
+                {!isTransfer && txn.amount > 0 && <option value={INCOME}>Income</option>}
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -551,6 +569,7 @@ const TransactionRow = memo(function TransactionRow({
                   {s.name}
                 </option>
               ))}
+              {!isTransfer && txn.amount > 0 && <option value={ADD_SOURCE}>+ Add source</option>}
             </Select>
           </div>
 
@@ -582,6 +601,54 @@ const TransactionRow = memo(function TransactionRow({
 
         {rowError && <p className="px-3 pb-2 text-xs text-negative md:px-2">{rowError}</p>}
 
+        {/* Triggered by picking "+ Add source" in the Source select above
+            (see ADD_SOURCE) rather than a separate toggle — mirrors the
+            create-a-source block on the Sources page (name + type), seeded
+            from this transaction's own amount. Same balance-0-then-let-the-
+            trigger-apply-it approach as createSource/createManualTransaction:
+            inserting at the transaction's amount directly would double it
+            once transactions_sync_balance also runs. */}
+        {addingSource && (
+          <div className="border-t border-border bg-surface-subtle px-4 py-3">
+            <form action={createSourceAction} className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-xs text-muted">
+                New source name
+                <input
+                  type="text"
+                  name="new_source_name"
+                  required
+                  placeholder="e.g. Bonus"
+                  className="w-40 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-muted">
+                Source type
+                <Select name="new_source_type" uiSize="sm" className="w-40 py-1 text-xs" defaultValue="past_payment">
+                  <option value="past_payment">Past payment</option>
+                  <option value="future_repayment">Future repayment</option>
+                  <option value="fund">Fund</option>
+                </Select>
+              </label>
+              <button
+                type="submit"
+                className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
+              >
+                Create source ({formatMoney(txn.amount, decimalPlaces)})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingSource(false)}
+                className="pb-2 text-xs text-muted hover:underline"
+              >
+                Cancel
+              </button>
+              {createSourceState?.error && (
+                <p className="w-full text-xs text-negative">{createSourceState.error}</p>
+              )}
+            </form>
+          </div>
+        )}
+
         {/* Always rendered (never unmounted) so the form= references from the
             main row's Category/Source selects keep resolving to this form
             regardless of expand state — only the visibility is toggled.
@@ -602,17 +669,11 @@ const TransactionRow = memo(function TransactionRow({
               Transfer
             </label>
 
-            {!isTransfer && txn.amount > 0 && (
-              <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-                <input
-                  type="checkbox"
-                  checked={isIncome}
-                  onChange={(e) => handleIncomeToggle(e.target.checked)}
-                />
-                <input type="hidden" name="is_income" value={isIncome ? "on" : ""} />
-                Income
-              </label>
-            )}
+            {/* No visible control — Income is picked from the Category
+                select instead (see the INCOME sentinel above). This just
+                keeps is_income in the persistent form's FormData so other
+                autosaves (Notes, Source, Split, ...) don't clear it. */}
+            <input type="hidden" name="is_income" value={isIncome ? "on" : ""} />
 
             <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
               <input
@@ -761,47 +822,6 @@ const TransactionRow = memo(function TransactionRow({
               </button>
               {splitsState?.error && <p className="text-xs text-negative">{splitsState.error}</p>}
             </form>
-          )}
-
-          {/* Same move as the manual-entry form's "Create a Source" income
-              action (see ManualTransactionForm), for a transaction that's
-              already been recorded instead of one being entered now.
-              Income-only, like that one — an expense doesn't have an
-              amount that makes sense to seed a source's balance with. */}
-          {!isTransfer && txn.amount > 0 && (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs text-muted">
-                Create source from this amount
-              </summary>
-              <form action={createSourceAction} className="mt-2 flex flex-wrap items-end gap-3">
-                <label className="flex flex-col gap-1 text-xs text-muted">
-                  New source name
-                  <input
-                    type="text"
-                    name="new_source_name"
-                    required
-                    placeholder="e.g. Bonus"
-                    className="w-40 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted">
-                  Source type
-                  <Select name="new_source_type" uiSize="sm" className="w-40 py-1 text-xs" defaultValue="past_payment">
-                    <option value="past_payment">Past payment</option>
-                    <option value="future_repayment">Future repayment</option>
-                  </Select>
-                </label>
-                <button
-                  type="submit"
-                  className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
-                >
-                  Create source ({formatMoney(txn.amount, decimalPlaces)})
-                </button>
-                {createSourceState?.error && (
-                  <p className="text-xs text-negative">{createSourceState.error}</p>
-                )}
-              </form>
-            </details>
           )}
         </div>
       </div>
