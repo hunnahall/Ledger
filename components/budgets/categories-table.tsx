@@ -30,7 +30,7 @@ export function CategoriesTable({
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const [, createAction] = useActionState(createCategory.bind(null, budgetId), null);
+  const [, createAction] = useActionState(createCategory.bind(null, budgetId, false), null);
 
   // Cycle none -> high-to-low -> low-to-high -> none, same three-state
   // pattern as a typical spreadsheet column header.

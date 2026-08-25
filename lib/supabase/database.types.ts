@@ -169,6 +169,7 @@ export type Database = {
           budget_id: string
           created_at: string
           id: string
+          is_excluded: boolean
           monthly_amount: number
           name: string
           sort_order: number
@@ -180,6 +181,7 @@ export type Database = {
           budget_id: string
           created_at?: string
           id?: string
+          is_excluded?: boolean
           monthly_amount?: number
           name: string
           sort_order?: number
@@ -191,6 +193,7 @@ export type Database = {
           budget_id?: string
           created_at?: string
           id?: string
+          is_excluded?: boolean
           monthly_amount?: number
           name?: string
           sort_order?: number

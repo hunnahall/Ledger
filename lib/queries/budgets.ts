@@ -89,10 +89,14 @@ export async function getBudgetWithCategories(budgetId: string) {
     // maybeSingle (not single): a missing or not-owned budget should
     // resolve to null so the page can render a clean 404, not throw.
     supabase.from("budgets").select("*").eq("id", budgetId).maybeSingle(),
+    // Excluded Categories (see Settings) never carry a monthly_amount and
+    // don't participate in this page's budgeting math — they live in
+    // their own Settings block instead.
     supabase
       .from("categories")
       .select("*")
       .eq("budget_id", budgetId)
+      .eq("is_excluded", false)
       .is("archived_at", null)
       .order("sort_order", { ascending: true }),
     supabase.from("v_spending_by_category").select("*").eq("month", month),

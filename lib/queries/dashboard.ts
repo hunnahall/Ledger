@@ -53,6 +53,7 @@ export async function getDashboardData() {
       .from("categories")
       .select("id, name, monthly_amount")
       .eq("budget_id", currentBudget.id)
+      .eq("is_excluded", false)
       .is("archived_at", null)
       .order("sort_order");
     if (error) throw new Error(error.message);

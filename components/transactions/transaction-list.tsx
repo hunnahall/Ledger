@@ -359,6 +359,7 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [isIncome, setIsIncome] = useState(txn.isIncome);
+  const [excludeFromBudget, setExcludeFromBudget] = useState(txn.excludeFromBudget);
   const [expanded, setExpanded] = useState(false);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
   const [categoryId, setCategoryId] = useState(txn.isIncome ? INCOME : txn.categoryId ?? "");
@@ -383,7 +384,8 @@ const TransactionRow = memo(function TransactionRow({
     txn.isIncome !== prevTxn.isIncome ||
     txn.categoryId !== prevTxn.categoryId ||
     txn.sourceId !== prevTxn.sourceId ||
-    txn.isSplit !== prevTxn.isSplit
+    txn.isSplit !== prevTxn.isSplit ||
+    txn.excludeFromBudget !== prevTxn.excludeFromBudget
   ) {
     setPrevTxn(txn);
     setIsTransfer(txn.isTransfer);
@@ -392,6 +394,13 @@ const TransactionRow = memo(function TransactionRow({
     setSourceId(txn.sourceId ?? "");
     setAddingSource(false);
     setSplitOpen(txn.isSplit);
+    // Assigning an Excluded Category (see Settings) forces this true via
+    // a DB trigger, server-side, independent of anything submitted here —
+    // reconcile it the same way as the other server-driven fields above,
+    // not just at mount, so a since-changed value doesn't sit stale in an
+    // uncontrolled checkbox and then get silently overwritten back by the
+    // next unrelated autosave (Notes, Source, ...) reading its DOM state.
+    setExcludeFromBudget(txn.excludeFromBudget);
   }
 
   // Every field in this row autosaves as soon as it changes — there's no
@@ -800,8 +809,11 @@ const TransactionRow = memo(function TransactionRow({
               <input
                 type="checkbox"
                 name="exclude_from_budget"
-                defaultChecked={txn.excludeFromBudget}
-                onChange={() => saveRow()}
+                checked={excludeFromBudget}
+                onChange={(e) => {
+                  setExcludeFromBudget(e.target.checked);
+                  saveRow({ exclude_from_budget: e.target.checked ? "on" : "" });
+                }}
               />
               Exclude
             </label>
