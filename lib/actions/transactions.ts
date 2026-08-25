@@ -206,13 +206,20 @@ export async function createManualTransaction(
   });
   if (error) return { error: error.message };
 
+  let learnedRule = false;
   if (resolvedCategoryId && ruleAction !== "skip") {
     await learnVendorRule(supabase, user.id, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
+    learnedRule = true;
   }
 
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+  // Only when a rule was actually written — Settings has its own cached
+  // route, unaffected by the revalidations above, so it needs an explicit
+  // nudge or a rule created here would sit invisible until something else
+  // happened to refetch that page.
+  if (learnedRule) revalidatePath("/settings");
   return null;
 }
 
@@ -323,13 +330,20 @@ export async function assignTransaction(
     .eq("id", transactionId);
   if (error) return { error: error.message };
 
+  let learnedRule = false;
   if (!isTransfer && (categoryId || isIncome) && txn.merchant_normalized && ruleAction !== "skip") {
     await learnVendorRule(supabase, user.id, txn.merchant_normalized, categoryId, isIncome, sourceId);
+    learnedRule = true;
   }
 
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+  // Settings has its own cached route, unaffected by the revalidations
+  // above — without this, a rule built from the Transactions table (via
+  // the Add Rule toggle) writes correctly but sits invisible on Settings
+  // until something else happens to refetch that page.
+  if (learnedRule) revalidatePath("/settings");
   return null;
 }
 
@@ -470,6 +484,10 @@ export async function bulkUpdateTransactions(
   revalidatePath("/transactions");
   revalidatePath("/sources");
   revalidatePath("/dashboard");
+  // Settings has its own cached route, unaffected by the revalidations
+  // above — without this, a rule reinforced/created by a bulk edit sits
+  // invisible on Settings until something else refetches that page.
+  if (patch.category_id) revalidatePath("/settings");
   return null;
 }
 
