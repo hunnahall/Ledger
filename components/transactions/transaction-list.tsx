@@ -132,20 +132,40 @@ export function TransactionList({
     scrollMargin: listEl?.offsetTop ?? 0,
   });
 
+  // Anchor for shift+click range selection — a ref rather than state since
+  // it's only read inside the click handler below, never during render.
+  const lastSelectedIndexRef = useRef<number | null>(null);
+
   // Stable identity (via useCallback) so it can be passed straight through
   // to each memoized TransactionRow without defeating memoization — an
   // inline `() => toggleSelect(txn.id)` per row would give every row a
   // fresh callback (and thus force a re-render) on every selection change,
   // which across hundreds of rows is what made clicking a checkbox feel
   // slow.
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleSelect = useCallback(
+    (id: string, index: number, shiftKey: boolean) => {
+      // Capture the anchor before the state update — setSelectedIds's
+      // updater runs at render time, not synchronously here, so mutating
+      // the ref only after calling it (its old spot) meant the updater
+      // sometimes saw the ref already advanced to this same click's index.
+      const anchor = lastSelectedIndexRef.current;
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (shiftKey && anchor !== null) {
+          const start = Math.min(anchor, index);
+          const end = Math.max(anchor, index);
+          for (let i = start; i <= end; i++) next.add(transactions[i].id);
+        } else if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
+      lastSelectedIndexRef.current = index;
+    },
+    [transactions],
+  );
 
   const toggleBuildRule = useCallback((id: string) => {
     setBuildRuleIds((prev) => {
@@ -289,6 +309,7 @@ export function TransactionList({
                     bucketOptions={bucketOptions}
                     bucketNameByValue={bucketNameByValue}
                     decimalPlaces={decimalPlaces}
+                    index={virtualRow.index}
                     selected={selectedIds.has(txn.id)}
                     onToggleSelect={toggleSelect}
                     selectedCount={selectedIds.size}
@@ -319,6 +340,7 @@ const TransactionRow = memo(function TransactionRow({
   bucketOptions,
   bucketNameByValue,
   decimalPlaces,
+  index,
   selected,
   onToggleSelect,
   selectedCount,
@@ -334,8 +356,11 @@ const TransactionRow = memo(function TransactionRow({
   bucketOptions: BucketOption[];
   bucketNameByValue: Record<string, string>;
   decimalPlaces: number;
+  // This row's position in the (already-filtered/sorted) transactions
+  // array — the range endpoint for shift+click select (see toggleSelect).
+  index: number;
   selected: boolean;
-  onToggleSelect: (id: string) => void;
+  onToggleSelect: (id: string, index: number, shiftKey: boolean) => void;
   // How many rows are currently selected app-wide, and callbacks that apply
   // a value to all of them at once — used so that changing this row's own
   // Category/Source select propagates to the rest of the selection instead
@@ -586,7 +611,12 @@ const TransactionRow = memo(function TransactionRow({
               <input
                 type="checkbox"
                 checked={selected}
-                onChange={() => onToggleSelect(txn.id)}
+                // The toggle happens here rather than onChange — a native
+                // "change" event doesn't reliably carry modifier keys, but
+                // the "click" that precedes it does, and that's what
+                // shift+click range-select needs to read.
+                onClick={(e) => onToggleSelect(txn.id, index, e.shiftKey)}
+                onChange={() => {}}
                 className="h-4 w-4 accent-foreground"
                 aria-label={`Select transaction: ${txn.description}`}
               />
