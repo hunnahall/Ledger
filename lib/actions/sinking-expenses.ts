@@ -144,6 +144,7 @@ export async function updateSinkingExpense(
   }
 
   revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/sources");
   return null;
 }
 
