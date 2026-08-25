@@ -117,7 +117,6 @@ export default async function TransactionsPage({
         <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
         <TransactionList
           transactions={transactionRows}
-          accounts={filterOptions.accounts}
           categories={filterOptions.categories}
           sources={filterOptions.sources}
           bucketOptions={bucketOptions}

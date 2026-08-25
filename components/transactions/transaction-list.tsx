@@ -49,7 +49,6 @@ export type TransactionRowData = {
 };
 
 type Option = { id: string; name: string };
-type AccountOption = { id: string; account_name: string };
 type BucketOption = { value: string; label: string };
 
 // A sentinel option in the Category select rather than a separate
@@ -75,7 +74,6 @@ function accountLast4(name: string | null): string | null {
 
 export function TransactionList({
   transactions,
-  accounts,
   categories,
   sources,
   bucketOptions,
@@ -83,7 +81,6 @@ export function TransactionList({
   decimalPlaces,
 }: {
   transactions: TransactionRowData[];
-  accounts: AccountOption[];
   categories: Option[];
   sources: Option[];
   bucketOptions: BucketOption[];
@@ -253,13 +250,7 @@ export function TransactionList({
                 aria-label="Select all transactions"
               />
             </span>
-            <DateRangeColumnFilter label="Date" className="w-20 shrink-0 font-medium" />
-            <SelectColumnFilter
-              label="Account"
-              paramKey="account_id"
-              options={accounts.map((a) => ({ value: a.id, label: a.account_name }))}
-              className="w-14 shrink-0 font-medium"
-            />
+            <DateRangeColumnFilter label="Date" className="w-28 shrink-0 font-medium" />
             <span className="md:max-w-[260px] md:flex-1 text-center font-medium">Description</span>
             <span className="md:ml-4 w-24 shrink-0 text-center font-medium">Amount</span>
             <SelectColumnFilter
@@ -280,9 +271,9 @@ export function TransactionList({
               ]}
               className="w-40 shrink-0 font-medium"
             />
-            <span className="w-20 shrink-0 text-center font-medium">Add Rule</span>
+            <span className="w-20 shrink-0 text-center font-medium">Rule</span>
             <span className="w-8 shrink-0"></span>
-            <span className="flex w-10 shrink-0 items-center justify-end">
+            <span className="flex w-10 shrink-0 items-center justify-center">
               <SearchToggle />
             </span>
           </div>
@@ -601,6 +592,11 @@ const TransactionRow = memo(function TransactionRow({
         ? "Income"
         : null;
 
+  // Moved out of the compact row (see handleDateChange above it) into the
+  // expanded details panel to leave more room for Date/Description.
+  const accountLast4Value = txn.accountLast4 ?? accountLast4(txn.accountName);
+  const accountDisplay = accountLast4Value ?? txn.accountName ?? "—";
+
   const [splitsState, splitsAction] = useActionState(
     saveSplits.bind(null, txn.id, txn.amount),
     null,
@@ -643,15 +639,6 @@ const TransactionRow = memo(function TransactionRow({
               onChange={(e) => handleDateChange(e.target.value)}
               className="shrink-0 rounded border border-transparent bg-transparent px-0.5 text-xs text-muted hover:border-border focus:border-border focus:outline-none md:w-28 md:text-sm"
             />
-            <span
-              className="min-w-0 truncate text-xs text-muted md:w-14 md:text-sm"
-              title={txn.accountName ?? ""}
-            >
-              {(() => {
-                const last4 = txn.accountLast4 ?? accountLast4(txn.accountName);
-                return last4 ? `••${last4}` : txn.accountName;
-              })()}
-            </span>
           </div>
 
           <div className="flex items-center justify-between gap-2 md:contents">
@@ -875,7 +862,7 @@ const TransactionRow = memo(function TransactionRow({
               Split{txn.isSplit ? ` (${txn.splits.length})` : ""}
             </label>
 
-            <label className="flex min-w-40 flex-1 items-center gap-1.5 text-xs text-muted">
+            <label className="flex min-w-32 flex-1 items-center gap-1.5 text-xs text-muted">
               <span className="sr-only">Notes</span>
               <input
                 type="text"
@@ -890,6 +877,8 @@ const TransactionRow = memo(function TransactionRow({
                 className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
             </label>
+
+            <span className="shrink-0 text-xs text-muted">Account: {accountDisplay}</span>
           </form>
 
           {isTransfer && (
