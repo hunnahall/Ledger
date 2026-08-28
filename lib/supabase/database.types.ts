@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -136,34 +136,9 @@ export type Database = {
         }
         Relationships: []
       }
-      budgets: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       categories: {
         Row: {
           archived_at: string | null
-          budget_id: string
           created_at: string
           id: string
           monthly_amount: number
@@ -174,7 +149,6 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
-          budget_id: string
           created_at?: string
           id?: string
           monthly_amount?: number
@@ -185,50 +159,11 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
-          budget_id?: string
           created_at?: string
           id?: string
           monthly_amount?: number
           name?: string
           sort_order?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "categories_budget_id_fkey"
-            columns: ["budget_id"]
-            isOneToOne: false
-            referencedRelation: "budgets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      funds: {
-        Row: {
-          archived_at: string | null
-          balance: number
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          archived_at?: string | null
-          balance?: number
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          archived_at?: string | null
-          balance?: number
-          created_at?: string
-          id?: string
-          name?: string
           updated_at?: string
           user_id?: string
         }
@@ -265,7 +200,6 @@ export type Database = {
         Row: {
           amount: number
           archived_at: string | null
-          budget_id: string
           contributed_to_date: number
           contribution_type: string
           created_at: string
@@ -280,7 +214,6 @@ export type Database = {
         Insert: {
           amount?: number
           archived_at?: string | null
-          budget_id: string
           contributed_to_date?: number
           contribution_type?: string
           created_at?: string
@@ -295,7 +228,6 @@ export type Database = {
         Update: {
           amount?: number
           archived_at?: string | null
-          budget_id?: string
           contributed_to_date?: number
           contribution_type?: string
           created_at?: string
@@ -307,73 +239,11 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sinking_expenses_budget_id_fkey"
-            columns: ["budget_id"]
-            isOneToOne: false
-            referencedRelation: "budgets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      source_funds: {
-        Row: {
-          created_at: string
-          fund_id: string
-          id: string
-          source_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          fund_id: string
-          id?: string
-          source_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          fund_id?: string
-          id?: string
-          source_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "source_funds_fund_id_fkey"
-            columns: ["fund_id"]
-            isOneToOne: false
-            referencedRelation: "funds"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "source_funds_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "sources"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "source_funds_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "source_funds_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "v_source_balances"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       source_transfers: {
         Row: {
           amount: number
-          budget_id: string
           created_at: string
           id: string
           last_applied_month: string | null
@@ -384,7 +254,6 @@ export type Database = {
         }
         Insert: {
           amount: number
-          budget_id: string
           created_at?: string
           id?: string
           last_applied_month?: string | null
@@ -395,7 +264,6 @@ export type Database = {
         }
         Update: {
           amount?: number
-          budget_id?: string
           created_at?: string
           id?: string
           last_applied_month?: string | null
@@ -405,13 +273,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "source_transfers_budget_id_fkey"
-            columns: ["budget_id"]
-            isOneToOne: false
-            referencedRelation: "budgets"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "source_transfers_source_id_fkey"
             columns: ["source_id"]
@@ -439,115 +300,43 @@ export type Database = {
         Row: {
           archived_at: string | null
           balance: number
-          budget_id: string | null
-          budget_period_start: string | null
           created_at: string
           deposit_date: string | null
           id: string
+          is_system: boolean
+          last_applied_month: string | null
           name: string
-          type: string
+          type: Database["public"]["Enums"]["source_type"]
           updated_at: string
           user_id: string
         }
         Insert: {
           archived_at?: string | null
           balance?: number
-          budget_id?: string | null
-          budget_period_start?: string | null
           created_at?: string
           deposit_date?: string | null
           id?: string
+          is_system?: boolean
+          last_applied_month?: string | null
           name: string
-          type?: string
+          type?: Database["public"]["Enums"]["source_type"]
           updated_at?: string
           user_id: string
         }
         Update: {
           archived_at?: string | null
           balance?: number
-          budget_id?: string | null
-          budget_period_start?: string | null
           created_at?: string
           deposit_date?: string | null
           id?: string
+          is_system?: boolean
+          last_applied_month?: string | null
           name?: string
-          type?: string
+          type?: Database["public"]["Enums"]["source_type"]
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sources_budget_id_fkey"
-            columns: ["budget_id"]
-            isOneToOne: false
-            referencedRelation: "budgets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sync_log: {
-        Row: {
-          account_id: string | null
-          bank_connection_id: string | null
-          error_message: string | null
-          finished_at: string | null
-          id: string
-          started_at: string
-          status: string
-          transactions_fetched: number | null
-          transactions_new: number | null
-          triggered_by: string
-          user_id: string
-        }
-        Insert: {
-          account_id?: string | null
-          bank_connection_id?: string | null
-          error_message?: string | null
-          finished_at?: string | null
-          id?: string
-          started_at?: string
-          status?: string
-          transactions_fetched?: number | null
-          transactions_new?: number | null
-          triggered_by: string
-          user_id: string
-        }
-        Update: {
-          account_id?: string | null
-          bank_connection_id?: string | null
-          error_message?: string | null
-          finished_at?: string | null
-          id?: string
-          started_at?: string
-          status?: string
-          transactions_fetched?: number | null
-          transactions_new?: number | null
-          triggered_by?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sync_log_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sync_log_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "v_account_balances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sync_log_bank_connection_id_fkey"
-            columns: ["bank_connection_id"]
-            isOneToOne: false
-            referencedRelation: "bank_connections"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       transaction_splits: {
         Row: {
@@ -640,9 +429,7 @@ export type Database = {
           provider_transaction_id: string | null
           source_id: string | null
           status: string
-          transfer_from_fund_id: string | null
           transfer_from_source_id: string | null
-          transfer_to_fund_id: string | null
           transfer_to_source_id: string | null
           updated_at: string
           user_id: string
@@ -665,9 +452,7 @@ export type Database = {
           provider_transaction_id?: string | null
           source_id?: string | null
           status?: string
-          transfer_from_fund_id?: string | null
           transfer_from_source_id?: string | null
-          transfer_to_fund_id?: string | null
           transfer_to_source_id?: string | null
           updated_at?: string
           user_id: string
@@ -690,9 +475,7 @@ export type Database = {
           provider_transaction_id?: string | null
           source_id?: string | null
           status?: string
-          transfer_from_fund_id?: string | null
           transfer_from_source_id?: string | null
-          transfer_to_fund_id?: string | null
           transfer_to_source_id?: string | null
           updated_at?: string
           user_id?: string
@@ -741,13 +524,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_transfer_from_fund_id_fkey"
-            columns: ["transfer_from_fund_id"]
-            isOneToOne: false
-            referencedRelation: "funds"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transactions_transfer_from_source_id_fkey"
             columns: ["transfer_from_source_id"]
             isOneToOne: false
@@ -766,13 +542,6 @@ export type Database = {
             columns: ["transfer_from_source_id"]
             isOneToOne: false
             referencedRelation: "v_source_balances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_transfer_to_fund_id_fkey"
-            columns: ["transfer_to_fund_id"]
-            isOneToOne: false
-            referencedRelation: "funds"
             referencedColumns: ["id"]
           },
           {
@@ -953,8 +722,24 @@ export type Database = {
           deposit_date: string | null
           id: string | null
           name: string | null
-          type: string | null
+          type: Database["public"]["Enums"]["source_type"] | null
           user_id: string | null
+        }
+        Insert: {
+          balance?: number | null
+          deposit_date?: string | null
+          id?: string | null
+          name?: string | null
+          type?: Database["public"]["Enums"]["source_type"] | null
+          user_id?: string | null
+        }
+        Update: {
+          balance?: number | null
+          deposit_date?: string | null
+          id?: string | null
+          name?: string | null
+          type?: Database["public"]["Enums"]["source_type"] | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -969,25 +754,16 @@ export type Database = {
       }
     }
     Functions: {
-      adjust_fund_balance: {
-        Args: { p_delta: number; p_fund_id: string }
-        Returns: number
-      }
-      adjust_source_balance: {
-        Args: { p_delta: number; p_source_id: string }
-        Returns: number
-      }
-      archive_fund: { Args: { p_fund_id: string }; Returns: undefined }
       delete_bank_connection: {
         Args: { p_connection_id: string }
         Returns: undefined
       }
       ensure_budget_source_current: {
-        Args: { p_budget_id: string }
+        Args: { p_user_id: string }
         Returns: undefined
       }
       ensure_income_fund_current: {
-        Args: { p_budget_id: string; p_user_id: string }
+        Args: { p_user_id: string }
         Returns: undefined
       }
       ensure_sinking_fund_current: {
@@ -995,7 +771,7 @@ export type Database = {
         Returns: undefined
       }
       ensure_source_transfers_current: {
-        Args: { p_budget_id: string }
+        Args: { p_user_id: string }
         Returns: undefined
       }
       get_bank_connection_access_url: {
@@ -1019,7 +795,13 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      source_type:
+        | "budget"
+        | "reimbursement"
+        | "fund"
+        | "float"
+        | "sinking_fund"
+        | "income"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1146,6 +928,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      source_type: [
+        "budget",
+        "reimbursement",
+        "fund",
+        "float",
+        "sinking_fund",
+        "income",
+      ],
+    },
   },
 } as const

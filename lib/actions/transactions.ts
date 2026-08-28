@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
-import { decodeBucketOption } from "@/lib/transactions/bucket-option";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -98,8 +97,8 @@ export async function createManualTransaction(
   // one-off-merchant noise the prompt exists to avoid.
   const ruleAction = String(formData.get("rule_action") ?? "");
   const sourceId = String(formData.get("source_id") ?? "") || null;
-  const transferFrom = decodeBucketOption(formData.get("transfer_from"));
-  const transferTo = decodeBucketOption(formData.get("transfer_to"));
+  const transferFromSourceId = String(formData.get("transfer_from") ?? "") || null;
+  const transferToSourceId = String(formData.get("transfer_to") ?? "") || null;
   // One dropdown picks the sign and the routing all at once. "exclude"
   // disregards category/source/budget entirely, not just the budget total.
   const typeChoice = String(formData.get("type_choice") ?? "expense");
@@ -199,10 +198,8 @@ export async function createManualTransaction(
     is_transfer: isTransfer,
     is_income: isIncome,
     exclude_from_budget: isExcluded,
-    transfer_from_source_id: transferFrom?.type === "source" ? transferFrom.id : null,
-    transfer_from_fund_id: transferFrom?.type === "fund" ? transferFrom.id : null,
-    transfer_to_source_id: transferTo?.type === "source" ? transferTo.id : null,
-    transfer_to_fund_id: transferTo?.type === "fund" ? transferTo.id : null,
+    transfer_from_source_id: transferFromSourceId,
+    transfer_to_source_id: transferToSourceId,
   });
   if (error) return { error: error.message };
 
@@ -291,8 +288,8 @@ export async function assignTransaction(
   const isIncome = formData.get("is_income") === "on";
   const excludeFromBudget = formData.get("exclude_from_budget") === "on";
   const notes = String(formData.get("notes") ?? "") || null;
-  const transferFrom = decodeBucketOption(formData.get("transfer_from"));
-  const transferTo = decodeBucketOption(formData.get("transfer_to"));
+  const transferFromSourceId = String(formData.get("transfer_from") ?? "") || null;
+  const transferToSourceId = String(formData.get("transfer_to") ?? "") || null;
 
   const supabase = await createClient();
   const {
@@ -324,10 +321,8 @@ export async function assignTransaction(
       is_income: !isTransfer && isIncome,
       exclude_from_budget: excludeFromBudget,
       notes,
-      transfer_from_source_id: isTransfer && transferFrom?.type === "source" ? transferFrom.id : null,
-      transfer_from_fund_id: isTransfer && transferFrom?.type === "fund" ? transferFrom.id : null,
-      transfer_to_source_id: isTransfer && transferTo?.type === "source" ? transferTo.id : null,
-      transfer_to_fund_id: isTransfer && transferTo?.type === "fund" ? transferTo.id : null,
+      transfer_from_source_id: isTransfer ? transferFromSourceId : null,
+      transfer_to_source_id: isTransfer ? transferToSourceId : null,
     })
     .eq("id", transactionId);
   if (error) return { error: error.message };
@@ -401,24 +396,6 @@ export async function createSourceFromTransaction(
     .select("id")
     .single();
   if (sourceError) return { error: sourceError.message };
-
-  // A Fund-type source always owns a brand-new Fund (rather than picking one
-  // of the user's existing Funds) — same as createSource's "Fund" type.
-  if (type === "fund") {
-    const { data: fund, error: fundError } = await supabase
-      .from("funds")
-      .insert({ user_id: user.id, name, balance: 0 })
-      .select("id")
-      .single();
-    if (fundError) return { error: fundError.message };
-
-    const { error: linkError } = await supabase.from("source_funds").insert({
-      user_id: user.id,
-      source_id: newSource.id,
-      fund_id: fund.id,
-    });
-    if (linkError) return { error: linkError.message };
-  }
 
   const { error: updateError } = await supabase
     .from("transactions")

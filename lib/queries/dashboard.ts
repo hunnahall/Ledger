@@ -2,9 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { currentMonthISO } from "@/lib/dates";
 import { spentFromRawAmount } from "@/lib/progress";
 import { computeDashboardTotals } from "@/lib/dashboard-metrics";
-import { getCurrentBudget } from "@/lib/queries/budgets";
+import { ensureBudgetCurrent } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
-import { getFunds } from "@/lib/queries/sources";
 
 // Source Balances mirrors everything under the Sources page's "Budget"
 // heading (budget/sinking_fund/income) plus Reimbursement sources — Float
@@ -18,7 +17,7 @@ export async function getDashboardData() {
   // Awaited first, not folded into the Promise.all below: it resets the
   // current budget's linked source balance for the month if due, and
   // v_source_balances/v_outflow_by_bucket must see that write.
-  const currentBudget = await getCurrentBudget();
+  const userId = await ensureBudgetCurrent();
 
   const [
     { data: spending, error: spendingError },
@@ -26,7 +25,6 @@ export async function getDashboardData() {
     { data: outflowByBucket, error: outflowByBucketError },
     { data: accountBalances, error: accountBalancesError },
     { data: sourceBalances, error: sourceBalancesError },
-    funds,
     settings,
     { data: categories, error: categoriesError },
   ] = await Promise.all([
@@ -35,13 +33,12 @@ export async function getDashboardData() {
     supabase.from("v_outflow_by_bucket").select("*").eq("month", month),
     supabase.from("v_account_balances").select("*"),
     supabase.from("v_source_balances").select("*"),
-    getFunds(),
     getSettings(),
-    currentBudget
+    userId
       ? supabase
           .from("categories")
           .select("id, name, monthly_amount")
-          .eq("budget_id", currentBudget.id)
+          .eq("user_id", userId)
           .is("archived_at", null)
           .order("sort_order")
       : Promise.resolve({
@@ -82,7 +79,7 @@ export async function getDashboardData() {
   );
 
   return {
-    currentBudget,
+    hasBudget: userId !== null,
     categorySpending,
     ...computeDashboardTotals({
       income: inflowOutflow?.income ?? 0,
@@ -95,6 +92,8 @@ export async function getDashboardData() {
       (s) => s.type !== null && SOURCE_BALANCE_TYPES.includes(s.type),
     ),
     floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
-    funds,
+    funds: visibleSourceBalances
+      .filter((s) => s.type === "fund")
+      .map((s) => ({ id: s.id, name: s.name, balance: s.balance ?? 0 })),
   };
 }

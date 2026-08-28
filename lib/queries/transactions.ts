@@ -1,14 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { type TransactionFilters } from "@/lib/transactions/filters";
 
-export {
-  UNCATEGORIZED_FILTER_VALUE,
-  resolveCategoryFilter,
-  NO_SOURCE_FILTER_VALUE,
-  resolveSourceFilter,
-  type TransactionFilters,
-} from "@/lib/transactions/filters";
-
 export async function getFilteredTransactions(filters: TransactionFilters) {
   const supabase = await createClient();
   let query = supabase
@@ -59,42 +51,24 @@ export async function getFilterOptions() {
   const supabase = await createClient();
   const [
     { data: accounts, error: accountsError },
-    { data: budget, error: budgetError },
-    { data: funds, error: fundsError },
+    { data: categoryData, error: categoryDataError },
+    { data: budgetSource, error: budgetSourceError },
   ] = await Promise.all([
     supabase.from("accounts").select("id, account_name").order("account_name"),
-    supabase.from("budgets").select("id").maybeSingle(),
-    supabase.from("funds").select("id, name").is("archived_at", null).order("name"),
+    supabase
+      .from("categories")
+      .select("id, name")
+      .is("archived_at", null)
+      .order("sort_order"),
+    // The reserved Budget-type Source — every user has exactly one.
+    supabase.from("sources").select("id").eq("type", "budget").maybeSingle(),
   ]);
-  for (const error of [accountsError, budgetError, fundsError]) {
+  for (const error of [accountsError, categoryDataError, budgetSourceError]) {
     if (error) throw new Error(error.message);
   }
 
-  let categories: { id: string; name: string }[] = [];
-  let defaultSourceId: string | null = null;
-  if (budget) {
-    const [
-      { data: categoryData, error: categoryDataError },
-      { data: budgetSource, error: budgetSourceError },
-    ] = await Promise.all([
-      supabase
-        .from("categories")
-        .select("id, name")
-        .eq("budget_id", budget.id)
-        .is("archived_at", null)
-        .order("sort_order"),
-      supabase
-        .from("sources")
-        .select("id")
-        .eq("budget_id", budget.id)
-        .eq("type", "budget")
-        .maybeSingle(),
-    ]);
-    if (categoryDataError) throw new Error(categoryDataError.message);
-    if (budgetSourceError) throw new Error(budgetSourceError.message);
-    categories = categoryData ?? [];
-    defaultSourceId = budgetSource?.id ?? null;
-  }
+  const categories = categoryData ?? [];
+  const defaultSourceId = budgetSource?.id ?? null;
 
   const { data: sources, error: sourcesError } = await supabase
     .from("sources")
@@ -118,7 +92,6 @@ export async function getFilterOptions() {
     accounts: accounts ?? [],
     categories,
     sources: orderedSources,
-    funds: funds ?? [],
     defaultSourceId,
   };
 }

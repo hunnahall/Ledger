@@ -94,7 +94,6 @@ type SimplefinAccount = {
 async function syncConnection(
   serviceClient: ReturnType<typeof createClient>,
   connection: { id: string; user_id: string; last_synced_at: string | null },
-  triggeredBy: "manual" | "cron",
   // Set for an explicit "Import" backfill of a specific window (YYYY-MM-DD,
   // inclusive). When present this replaces the rolling last_synced_at-based
   // window entirely, and — see below — does NOT advance last_synced_at,
@@ -102,9 +101,7 @@ async function syncConnection(
   // sync picks up from.
   importRange?: { startDate: string; endDate: string },
 ) {
-  const startedAt = new Date().toISOString();
   let transactionsFetched = 0;
-  let transactionsNew = 0;
 
   try {
     const { data: accessUrl, error: rpcError } = await serviceClient.rpc(
@@ -245,7 +242,6 @@ async function syncConnection(
         if (!txn.source_id && rule.source_id) patch.source_id = rule.source_id;
 
         await serviceClient.from("transactions").update(patch).eq("id", txn.id);
-        transactionsNew += 1;
       }
     }
 
@@ -256,18 +252,6 @@ async function syncConnection(
         status: errlist.length > 0 ? "error" : "active",
       })
       .eq("id", connection.id);
-
-    await serviceClient.from("sync_log").insert({
-      user_id: connection.user_id,
-      bank_connection_id: connection.id,
-      triggered_by: triggeredBy,
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      status: errlist.length > 0 ? "error" : "success",
-      transactions_fetched: transactionsFetched,
-      transactions_new: transactionsNew,
-      error_message: errlist.length > 0 ? JSON.stringify(errlist) : null,
-    });
 
     return {
       connection_id: connection.id,
@@ -281,15 +265,6 @@ async function syncConnection(
       "id",
       connection.id,
     );
-    await serviceClient.from("sync_log").insert({
-      user_id: connection.user_id,
-      bank_connection_id: connection.id,
-      triggered_by: triggeredBy,
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      status: "error",
-      error_message: message,
-    });
     return { connection_id: connection.id, status: "error", error: message };
   }
 }
@@ -347,7 +322,7 @@ Deno.serve(async (req: Request) => {
     }
     const results = [];
     for (const connection of connections ?? []) {
-      results.push(await syncConnection(serviceClient, connection, "cron"));
+      results.push(await syncConnection(serviceClient, connection));
     }
     return new Response(JSON.stringify({ results }), {
       headers: { "Content-Type": "application/json" },
@@ -372,7 +347,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const result = await syncConnection(serviceClient, connection, "manual", importRange);
+  const result = await syncConnection(serviceClient, connection, importRange);
   return new Response(JSON.stringify(result), {
     status: result.status === "error" ? 502 : 200,
     headers: { "Content-Type": "application/json" },

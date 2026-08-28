@@ -15,12 +15,9 @@ const TYPE_LABELS: Record<string, string> = {
   sinking_fund: "Sinking Fund",
   income: "Income",
   reimbursement: "Reimbursement",
+  fund: "Fund",
 };
 
-// Fund-type sources never reach this card — they render as a single merged
-// FundCard instead (a Fund is a Fund regardless of how its balance moves;
-// see the Funds section on the Sources page), so every source rendered here
-// keeps its own manual balance controls unconditionally.
 export function SourceCard({
   source,
   decimalPlaces,
@@ -43,15 +40,17 @@ export function SourceCard({
         </div>
         <div className="flex items-center gap-2">
           <BalanceEditControl action={setSourceBalance.bind(null, source.id)} balance={source.balance} />
-          <ActionButtonForm
-            action={archiveSource.bind(null, source.id)}
-            variant="secondary"
-            tone="negative"
-            size="sm"
-            className="px-2 py-1 text-xs"
-          >
-            Archive
-          </ActionButtonForm>
+          {!source.is_system && (
+            <ActionButtonForm
+              action={archiveSource.bind(null, source.id)}
+              variant="secondary"
+              tone="negative"
+              size="sm"
+              className="px-2 py-1 text-xs"
+            >
+              Archive
+            </ActionButtonForm>
+          )}
         </div>
       </div>
     </Card>

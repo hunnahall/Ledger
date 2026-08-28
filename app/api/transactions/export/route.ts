@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getFilteredTransactions } from "@/lib/queries/transactions";
 import {
-  getFilteredTransactions,
   resolveCategoryFilter,
   type TransactionFilters,
-} from "@/lib/queries/transactions";
+} from "@/lib/transactions/filters";
 
 function quoteCsv(value: string): string {
   if (/[",\n]/.test(value)) {

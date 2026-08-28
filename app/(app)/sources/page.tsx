@@ -1,26 +1,23 @@
 import Link from "next/link";
 import { getSourcesWithBalance } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
-import { getCurrentBudget } from "@/lib/queries/budgets";
+import { ensureBudgetCurrent } from "@/lib/queries/budgets";
 import { CreateSourceForm } from "@/components/sources/create-source-form";
 import { SourceCard } from "@/components/sources/source-card";
-import { FundCard } from "@/components/sources/fund-card";
 import { groupSourcesByType } from "@/lib/sources/group-sources";
 
 export default async function SourcesPage() {
   // Awaited first, not in the Promise.all below: it resets the current
   // budget's linked source balance for the month if due, and
   // getSourcesWithBalance must see that write.
-  const currentBudget = await getCurrentBudget();
+  await ensureBudgetCurrent();
   const [sources, settings] = await Promise.all([
     getSourcesWithBalance(),
     getSettings(),
   ]);
   const decimalPlaces = settings.decimal_places;
   const grouped = groupSourcesByType(sources);
-  const budgetSource = currentBudget
-    ? sources.find((s) => s.budget_id === currentBudget.id)
-    : undefined;
+  const budgetSource = sources.find((s) => s.type === "budget");
   const floatSource = sources.find((s) => s.type === "float");
   const sinkingFundSource = sources.find((s) => s.type === "sinking_fund");
   const incomeSource = sources.find((s) => s.type === "income");
@@ -82,13 +79,7 @@ export default async function SourcesPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           {grouped.fund.map((source) => (
-            <FundCard
-              key={source.id}
-              fundId={source.fundId}
-              name={source.fundName ?? source.name}
-              balance={source.balance}
-              decimalPlaces={decimalPlaces}
-            />
+            <SourceCard key={source.id} source={source} decimalPlaces={decimalPlaces} />
           ))}
           {grouped.fund.length === 0 && (
             <p className="text-sm text-muted">

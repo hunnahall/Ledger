@@ -1,17 +1,17 @@
 "use client";
 
-import { useRef, useState, useTransition, type KeyboardEvent } from "react";
+import { useRef, type KeyboardEvent } from "react";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Button } from "@/components/ui/button";
+import { useInlineEdit } from "@/components/ui/inline-edit";
 
 type SetBalanceAction = (
   prevState: { error: string } | null,
   formData: FormData,
 ) => Promise<{ error: string } | null>;
 
-// Same toggle-to-inline-input pattern as BudgetRenameControl: a plain
-// button that swaps for an autofocused input on click, committing on
-// blur/Enter and discarding on Escape.
+// Toggle-to-inline-input: a plain button that swaps for an autofocused
+// input on click, committing on blur/Enter and discarding on Escape.
 export function BalanceEditControl({
   action,
   balance,
@@ -19,39 +19,27 @@ export function BalanceEditControl({
   action: SetBalanceAction;
   balance: number;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { editing, setEditing, error, commit, cancel } = useInlineEdit(action);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function commit() {
+  function commitIfChanged() {
     const value = inputRef.current?.value ?? "";
     if (value === "" || Number(value) === balance) {
-      setEditing(false);
-      setError(null);
+      cancel();
       return;
     }
     const formData = new FormData();
     formData.set("amount", value);
-    startTransition(async () => {
-      const result = await action(null, formData);
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      setError(null);
-      setEditing(false);
-    });
+    commit(formData);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     stepAmountByDollar(event);
     if (event.key === "Enter") {
       event.preventDefault();
-      commit();
+      commitIfChanged();
     } else if (event.key === "Escape") {
-      setEditing(false);
-      setError(null);
+      cancel();
     }
   }
 
@@ -77,7 +65,7 @@ export function BalanceEditControl({
         step="0.01"
         defaultValue={balance}
         autoFocus
-        onBlur={commit}
+        onBlur={commitIfChanged}
         onKeyDown={handleKeyDown}
         onFocus={(e) => e.currentTarget.select()}
         className="w-28 rounded-md border border-border bg-background px-2 py-1.5 text-xs"

@@ -7,96 +7,85 @@ import {
   type SinkingFrequency,
 } from "@/lib/budgets/sinking";
 
-// Every user has exactly one budget (see the collapse-to-single-budget
-// migration), permanently named "Monthly" — no is_current filter needed.
-export async function getCurrentBudget() {
+// Every user has exactly one budget bucket — the reserved `budget`-type
+// Source, always named "Monthly", auto-provisioned at signup (see
+// handle_new_user). Resets its balance to this month's total budgeted
+// amount (skipped entirely when Month Ahead is on), credits any due Source
+// Transfers, pools due sinking-expense contributions into the shared
+// Sinking Fund source, and sweeps the shared Income Fund into the budget
+// source — all the first time each is touched that month (no-op once
+// already applied). Every page that displays those balances calls this
+// first. Returns the user id (for callers that need it) or null if
+// unauthenticated.
+export async function ensureBudgetCurrent(): Promise<string | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("budgets").select("*").maybeSingle();
-  if (error) throw new Error(error.message);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
 
-  // Resets the budget's linked source to this month's total budgeted amount
-  // (skipped entirely when Month Ahead is on), credits any due Source
-  // Transfers, pools due sinking-expense contributions into the shared
-  // Sinking Fund source, and sweeps the shared Income Fund into the budget's
-  // linked source — all the first time each is touched that month (no-op
-  // once already applied). Every page that displays those balances goes
-  // through this function — previously Source Transfers were only applied
-  // from the budget's own detail page, so a Source they fund could show
-  // stale on /sources until that specific budget page was next visited.
-  if (data) {
-    const { error: budgetSourceError } = await supabase.rpc("ensure_budget_source_current", {
-      p_budget_id: data.id,
-    });
-    if (budgetSourceError) throw new Error(budgetSourceError.message);
+  const { error: budgetSourceError } = await supabase.rpc("ensure_budget_source_current", {
+    p_user_id: user.id,
+  });
+  if (budgetSourceError) throw new Error(budgetSourceError.message);
 
-    // Independent of each other (source transfers vs. sinking-fund pooling
-    // touch unrelated sources), so run them concurrently rather than one
-    // full round trip after another.
-    const [{ error: transfersError }, { error: sinkingFundError }] = await Promise.all([
-      supabase.rpc("ensure_source_transfers_current", { p_budget_id: data.id }),
-      supabase.rpc("ensure_sinking_fund_current", { p_user_id: data.user_id }),
-    ]);
-    if (transfersError) throw new Error(transfersError.message);
-    if (sinkingFundError) throw new Error(sinkingFundError.message);
+  // Independent of each other (source transfers vs. sinking-fund pooling
+  // touch unrelated sources), so run them concurrently rather than one
+  // full round trip after another.
+  const [{ error: transfersError }, { error: sinkingFundError }] = await Promise.all([
+    supabase.rpc("ensure_source_transfers_current", { p_user_id: user.id }),
+    supabase.rpc("ensure_sinking_fund_current", { p_user_id: user.id }),
+  ]);
+  if (transfersError) throw new Error(transfersError.message);
+  if (sinkingFundError) throw new Error(sinkingFundError.message);
 
-    // Sweeps into the source ensure_budget_source_current just reset above —
-    // must stay after it, not folded into the Promise.all. No-ops unless
-    // Month Ahead is on — see ensure_income_fund_current.
-    const { error: incomeFundError } = await supabase.rpc("ensure_income_fund_current", {
-      p_user_id: data.user_id,
-      p_budget_id: data.id,
-    });
-    if (incomeFundError) throw new Error(incomeFundError.message);
-  }
+  // Sweeps into the source ensure_budget_source_current just reset above —
+  // must stay after it, not folded into the Promise.all. No-ops unless
+  // Month Ahead is on — see ensure_income_fund_current.
+  const { error: incomeFundError } = await supabase.rpc("ensure_income_fund_current", {
+    p_user_id: user.id,
+  });
+  if (incomeFundError) throw new Error(incomeFundError.message);
 
-  return data;
+  return user.id;
 }
 
-export async function getBudgetWithCategories(budgetId: string) {
+export async function getBudgetData() {
   const supabase = await createClient();
   const month = currentMonthISO();
 
-  // Lazy monthly apply — no real cron, just a catch-up check on whichever
-  // budget's page loads next (same reasoning as ensure_budget_source_current
-  // above). Awaited on its own before the Promise.all below since a
-  // just-applied transfer's balance change should be visible in this same
-  // request, not stale until the next load.
-  const { error: transferApplyError } = await supabase.rpc("ensure_source_transfers_current", {
-    p_budget_id: budgetId,
-  });
-  if (transferApplyError) throw new Error(transferApplyError.message);
+  // Awaited first, not folded into the Promise.all below: it resets
+  // balances for the month if due, and the selects below must see that
+  // write.
+  const userId = await ensureBudgetCurrent();
+  if (!userId) return null;
 
   const [
-    { data: budget, error: budgetError },
     { data: categories, error: categoriesError },
     { data: spending, error: spendingError },
     { data: sinkingExpenses, error: sinkingError },
     { data: sourceTransfers, error: sourceTransfersError },
   ] = await Promise.all([
-    // maybeSingle (not single): a missing or not-owned budget should
-    // resolve to null so the page can render a clean 404, not throw.
-    supabase.from("budgets").select("*").eq("id", budgetId).maybeSingle(),
     supabase
       .from("categories")
       .select("*")
-      .eq("budget_id", budgetId)
+      .eq("user_id", userId)
       .is("archived_at", null)
       .order("sort_order", { ascending: true }),
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase
       .from("sinking_expenses")
       .select("*")
-      .eq("budget_id", budgetId)
+      .eq("user_id", userId)
       .is("archived_at", null)
       .order("created_at", { ascending: true }),
     supabase
       .from("source_transfers")
       .select("*, sources(name)")
-      .eq("budget_id", budgetId)
+      .eq("user_id", userId)
       .order("created_at", { ascending: true }),
   ]);
 
-  if (budgetError) throw new Error(budgetError.message);
   if (categoriesError) throw new Error(categoriesError.message);
   if (spendingError) throw new Error(spendingError.message);
   if (sinkingError) throw new Error(sinkingError.message);
@@ -132,7 +121,6 @@ export async function getBudgetWithCategories(budgetId: string) {
   }));
 
   return {
-    budget,
     categories: categoriesWithProgress,
     sinkingExpenses: sinkingExpensesWithMonthly,
     sourceTransfers: sourceTransfersWithSourceName,

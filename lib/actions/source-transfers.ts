@@ -11,7 +11,6 @@ function money(amount: number): string {
 }
 
 export async function createSourceTransfer(
-  budgetId: string,
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -30,7 +29,6 @@ export async function createSourceTransfer(
 
   const { error } = await supabase.from("source_transfers").insert({
     user_id: user.id,
-    budget_id: budgetId,
     source_id: sourceId,
     name,
     amount,
@@ -44,14 +42,13 @@ export async function createSourceTransfer(
 
   await logChange(supabase, user.id, "Budgets", `Source Transfer: ${name}`, null, money(amount));
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/sources");
   return null;
 }
 
 export async function updateSourceTransfer(
   sourceTransferId: string,
-  budgetId: string,
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -117,14 +114,13 @@ export async function updateSourceTransfer(
     );
   }
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/sources");
   return null;
 }
 
 export async function deleteSourceTransfer(
   sourceTransferId: string,
-  budgetId: string,
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -155,7 +151,7 @@ export async function deleteSourceTransfer(
     );
   }
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/sources");
   return null;
 }

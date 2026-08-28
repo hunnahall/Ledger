@@ -1,19 +1,21 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { SpinnerIcon } from "@/components/ui/icons";
 import { INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
+import { useInlineEdit } from "@/components/ui/inline-edit";
 
 type ActionResult = { error: string } | null;
 type UpdateRuleAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
 type DeleteRuleAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
 
-// Toggle-to-inline-edit, same pattern as BalanceEditControl/BudgetRenameControl,
-// but with two fields (pattern + category) so it needs an explicit Save
-// rather than committing on blur — tabbing from the text input into the
-// category select would otherwise fire a premature save.
+// Toggle-to-inline-edit, same underlying state machine as
+// BalanceEditControl (see useInlineEdit), but with two fields (pattern +
+// category) so it needs an explicit Save rather than committing on blur —
+// tabbing from the text input into the category select would otherwise
+// fire a premature save.
 export function VendorRuleRow({
   rule,
   categories,
@@ -32,25 +34,15 @@ export function VendorRuleRow({
   updateAction: UpdateRuleAction;
   deleteAction: DeleteRuleAction;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { editing, setEditing, isPending, error, commit, cancel } = useInlineEdit(updateAction);
   const merchantRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
 
-  function commit() {
+  function handleSave() {
     const formData = new FormData();
     formData.set("merchant", merchantRef.current?.value ?? "");
     formData.set("category_id", categoryRef.current?.value ?? "");
-    startTransition(async () => {
-      const result = await updateAction(null, formData);
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      setError(null);
-      setEditing(false);
-    });
+    commit(formData);
   }
 
   if (editing) {
@@ -83,7 +75,7 @@ export function VendorRuleRow({
           variant="primary"
           size="sm"
           className="px-2 py-1 text-xs"
-          onClick={commit}
+          onClick={handleSave}
           disabled={isPending}
         >
           {isPending ? <SpinnerIcon className="animate-spin" /> : null}
@@ -94,10 +86,7 @@ export function VendorRuleRow({
           variant="secondary"
           size="sm"
           className="px-2 py-1 text-xs"
-          onClick={() => {
-            setEditing(false);
-            setError(null);
-          }}
+          onClick={cancel}
           disabled={isPending}
         >
           Cancel

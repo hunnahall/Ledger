@@ -10,7 +10,6 @@ function money(amount: number): string {
 }
 
 export async function createCategory(
-  budgetId: string,
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -26,7 +25,6 @@ export async function createCategory(
 
   const { error } = await supabase.from("categories").insert({
     user_id: user.id,
-    budget_id: budgetId,
     name,
     monthly_amount: monthlyAmount,
   });
@@ -34,7 +32,7 @@ export async function createCategory(
 
   await logChange(supabase, user.id, "Budgets", `Category: ${name}`, null, money(monthlyAmount));
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/settings");
   revalidatePath("/transactions");
   return null;
@@ -42,7 +40,6 @@ export async function createCategory(
 
 export async function updateCategory(
   categoryId: string,
-  budgetId: string,
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -91,7 +88,7 @@ export async function updateCategory(
     );
   }
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/settings");
   revalidatePath("/transactions");
   return null;
@@ -99,7 +96,6 @@ export async function updateCategory(
 
 export async function deleteCategory(
   categoryId: string,
-  budgetId: string,
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -132,7 +128,7 @@ export async function deleteCategory(
     );
   }
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");

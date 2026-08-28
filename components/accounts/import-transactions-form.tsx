@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState, useState } from "react";
 import { importBankConnectionRange } from "@/lib/actions/simplefin";
 import { MAX_IMPORT_DAYS, daysBetween } from "@/lib/sources/import-range";
 import { Button } from "@/components/ui/button";
@@ -9,45 +9,25 @@ export function ImportTransactionsForm({ connectionId }: { connectionId: string 
   const [open, setOpen] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<{ text: string; tone: "negative" | "positive" } | null>(
+  const [state, formAction, pending] = useActionState(
+    importBankConnectionRange.bind(null, connectionId),
     null,
   );
 
-  const days = daysBetween(startDate, endDate);
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setMessage(null);
-
-    if (!startDate || !endDate) {
-      setMessage({ text: "Choose a start and end date.", tone: "negative" });
-      return;
-    }
-    if (endDate < startDate) {
-      setMessage({ text: "End date must be on or after the start date.", tone: "negative" });
-      return;
-    }
-    if (days !== null && days > MAX_IMPORT_DAYS) {
-      setMessage({
-        text: `Choose a range of ${MAX_IMPORT_DAYS} days or fewer (currently ${days}).`,
-        tone: "negative",
-      });
-      return;
-    }
-
-    setPending(true);
-    try {
-      const count = await importBankConnectionRange(connectionId, startDate, endDate);
-      setMessage({ text: `Imported ${count} transaction${count === 1 ? "" : "s"}.`, tone: "positive" });
+  // useActionState has no "onSuccess" callback — clear the inputs once a
+  // successful submit lands (state.count present, no error), adjusted from
+  // fresh state during render (React's recommended pattern) rather than in
+  // a useEffect, same as SinkingExpenseRow's equivalent prev-value diff.
+  const [prevState, setPrevState] = useState(state);
+  if (state !== prevState) {
+    setPrevState(state);
+    if (state && state.count !== undefined) {
       setStartDate("");
       setEndDate("");
-    } catch (err) {
-      setMessage({ text: err instanceof Error ? err.message : "Import failed.", tone: "negative" });
-    } finally {
-      setPending(false);
     }
   }
+
+  const days = daysBetween(startDate, endDate);
 
   return (
     <div className="flex flex-col items-end gap-2">
@@ -57,13 +37,14 @@ export function ImportTransactionsForm({ connectionId }: { connectionId: string 
 
       {open && (
         <form
-          onSubmit={handleSubmit}
+          action={formAction}
           className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border bg-surface-subtle p-3"
         >
           <label className="flex flex-col gap-1 text-xs text-muted">
             From
             <input
               type="date"
+              name="start_date"
               required
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -74,6 +55,7 @@ export function ImportTransactionsForm({ connectionId }: { connectionId: string 
             To
             <input
               type="date"
+              name="end_date"
               required
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
@@ -91,9 +73,10 @@ export function ImportTransactionsForm({ connectionId }: { connectionId: string 
         </form>
       )}
 
-      {message && (
-        <p className={`text-xs ${message.tone === "negative" ? "text-negative" : "text-positive"}`}>
-          {message.text}
+      {state?.error && <p className="text-xs text-negative">{state.error}</p>}
+      {state?.count !== undefined && (
+        <p className="text-xs text-positive">
+          Imported {state.count} transaction{state.count === 1 ? "" : "s"}.
         </p>
       )}
     </div>

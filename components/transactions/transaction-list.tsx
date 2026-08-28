@@ -11,7 +11,6 @@ import {
   ruleExistsForDescription,
 } from "@/lib/actions/transactions";
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
-import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { formatMoney } from "@/lib/format";
@@ -38,9 +37,7 @@ export type TransactionRowData = {
   isTransfer: boolean;
   isIncome: boolean;
   transferFromSourceId: string | null;
-  transferFromFundId: string | null;
   transferToSourceId: string | null;
-  transferToFundId: string | null;
   excludeFromBudget: boolean;
   notes: string | null;
   isSplit: boolean;
@@ -573,16 +570,8 @@ const TransactionRow = memo(function TransactionRow({
     setRowError(result?.error ?? null);
   }
 
-  const currentTransferFrom = txn.transferFromSourceId
-    ? encodeBucketOption({ type: "source", id: txn.transferFromSourceId })
-    : txn.transferFromFundId
-      ? encodeBucketOption({ type: "fund", id: txn.transferFromFundId })
-      : "";
-  const currentTransferTo = txn.transferToSourceId
-    ? encodeBucketOption({ type: "source", id: txn.transferToSourceId })
-    : txn.transferToFundId
-      ? encodeBucketOption({ type: "fund", id: txn.transferToFundId })
-      : "";
+  const currentTransferFrom = txn.transferFromSourceId ?? "";
+  const currentTransferTo = txn.transferToSourceId ?? "";
 
   const typeLabel = isTransfer
     ? "Transfer"

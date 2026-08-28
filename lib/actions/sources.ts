@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { validateSourceInput } from "@/lib/sources/validate-source";
+import {
+  validateSourceInput,
+  isReservedSourceType,
+  RESERVED_SOURCE_TYPE_MESSAGES,
+  type SourceType,
+} from "@/lib/sources/validate-source";
 import { logChange } from "@/lib/actions/log";
 
 function money(amount: number): string {
@@ -28,17 +33,8 @@ export async function createSource(
   const depositDateInput = String(formData.get("deposit_date") ?? "").trim();
   if (!name) return { error: "Enter a name for the source." };
 
-  if (type === "budget") {
-    return { error: "Budget sources are managed automatically per budget." };
-  }
-  if (type === "float") {
-    return { error: "The Float source is a single default and can't be created by hand." };
-  }
-  if (type === "sinking_fund") {
-    return { error: "The Sinking Fund source is a single default and can't be created by hand." };
-  }
-  if (type === "income") {
-    return { error: "The Income source is a single default and can't be created by hand." };
+  if (isReservedSourceType(type)) {
+    return { error: RESERVED_SOURCE_TYPE_MESSAGES[type] };
   }
 
   const depositDate = type === "reimbursement" ? depositDateInput || null : null;
@@ -52,38 +48,16 @@ export async function createSource(
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: source, error } = await supabase
-    .from("sources")
-    .insert({
-      user_id: user.id,
-      name,
-      type,
-      balance: startingBalance,
-      deposit_date: depositDate,
-    })
-    .select("id")
-    .single();
+  const { error } = await supabase.from("sources").insert({
+    user_id: user.id,
+    name,
+    // Valid by construction: validateSourceInput above already checked
+    // `type` is one of SOURCE_TYPES.
+    type: type as SourceType,
+    balance: startingBalance,
+    deposit_date: depositDate,
+  });
   if (error) return { error: error.message };
-
-  // A Fund-type source always owns a brand-new Fund (rather than picking
-  // one of the user's existing Funds) — creating one is what this form is
-  // for, and the Fund's balance (not this source row's) is what drives its
-  // displayed balance from here on (see getSourcesWithBalance).
-  if (type === "fund") {
-    const { data: fund, error: fundError } = await supabase
-      .from("funds")
-      .insert({ user_id: user.id, name, balance: startingBalance })
-      .select("id")
-      .single();
-    if (fundError) return { error: fundError.message };
-
-    const { error: linkError } = await supabase.from("source_funds").insert({
-      user_id: user.id,
-      source_id: source.id,
-      fund_id: fund.id,
-    });
-    if (linkError) return { error: linkError.message };
-  }
 
   await logChange(supabase, user.id, "Sources", `Source: ${name}`, null, money(startingBalance));
 
@@ -173,85 +147,3 @@ export async function setSourceBalance(
   return null;
 }
 
-export async function archiveFund(
-  fundId: string,
-  _prevState: { error: string } | null,
-  _formData: FormData,
-): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: fund, error: fetchError } = await supabase
-    .from("funds")
-    .select("name, balance")
-    .eq("id", fundId)
-    .maybeSingle();
-  if (fetchError) return { error: fetchError.message };
-
-  // Archives the Fund and its linked Source together (see archive_fund) —
-  // a Fund-type Source always owns exactly one Fund, so leaving the Source
-  // active after its Fund is archived would strand it: still selectable
-  // elsewhere, with nothing left to display a balance for it.
-  const { error } = await supabase.rpc("archive_fund", { p_fund_id: fundId });
-  if (error) return { error: error.message };
-
-  if (fund) {
-    await logChange(
-      supabase,
-      user.id,
-      "Sources",
-      `Fund: ${fund.name}`,
-      `active (${money(fund.balance)})`,
-      "archived",
-    );
-  }
-
-  revalidatePath("/sources");
-  return null;
-}
-
-export async function setFundBalance(
-  fundId: string,
-  _prevState: { error: string } | null,
-  formData: FormData,
-): Promise<{ error: string } | null> {
-  const amount = formData.get("amount");
-  if (amount === null || amount === "") return null;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: fund, error: fetchError } = await supabase
-    .from("funds")
-    .select("name, balance")
-    .eq("id", fundId)
-    .maybeSingle();
-  if (fetchError) return { error: fetchError.message };
-  if (!fund) return { error: "Fund not found." };
-
-  const { error } = await supabase
-    .from("funds")
-    .update({ balance: Number(amount) })
-    .eq("id", fundId);
-  if (error) return { error: error.message };
-
-  if (fund.balance !== Number(amount)) {
-    await logChange(
-      supabase,
-      user.id,
-      "Sources",
-      `${fund.name} — Balance`,
-      money(fund.balance),
-      money(Number(amount)),
-    );
-  }
-
-  revalidatePath("/sources");
-  return null;
-}

@@ -2,13 +2,14 @@ import {
   getFilteredTransactions,
   getFilterOptions,
   getTransactionSplits,
+} from "@/lib/queries/transactions";
+import {
   resolveCategoryFilter,
   resolveSourceFilter,
   type TransactionFilters,
-} from "@/lib/queries/transactions";
+} from "@/lib/transactions/filters";
 import { getAccounts } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
-import { encodeBucketOption } from "@/lib/transactions/bucket-option";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
 import { ExportMenu } from "@/components/transactions/export-menu";
@@ -46,10 +47,7 @@ export default async function TransactionsPage({
   ]);
   const decimalPlaces = settings.decimal_places;
 
-  const bucketOptions = [
-    ...filterOptions.sources.map((s) => ({ value: encodeBucketOption({ type: "source", id: s.id }), label: s.name })),
-    ...filterOptions.funds.map((f) => ({ value: encodeBucketOption({ type: "fund", id: f.id }), label: `${f.name} (fund)` })),
-  ];
+  const bucketOptions = filterOptions.sources.map((s) => ({ value: s.id, label: s.name }));
   const bucketNameByValue = Object.fromEntries(bucketOptions.map((b) => [b.value, b.label]));
 
   const splits = await getTransactionSplits(transactions.map((t) => t.id));
@@ -74,9 +72,7 @@ export default async function TransactionsPage({
     isTransfer: txn.is_transfer,
     isIncome: txn.is_income,
     transferFromSourceId: txn.transfer_from_source_id,
-    transferFromFundId: txn.transfer_from_fund_id,
     transferToSourceId: txn.transfer_to_source_id,
-    transferToFundId: txn.transfer_to_fund_id,
     excludeFromBudget: txn.exclude_from_budget,
     notes: txn.notes,
     isSplit: txn.is_split,

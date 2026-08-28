@@ -15,7 +15,7 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-muted">
-          {data.currentBudget ? data.currentBudget.name : "No current budget set"} &middot;{" "}
+          {data.hasBudget ? "Monthly" : "No current budget set"} &middot;{" "}
           {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
         </p>
       </div>

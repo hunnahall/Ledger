@@ -61,7 +61,6 @@ function summarizeConfig(row: {
 }
 
 export async function createSinkingExpense(
-  budgetId: string,
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -77,7 +76,6 @@ export async function createSinkingExpense(
   const fields = modeFields(formData);
   const { error } = await supabase.from("sinking_expenses").insert({
     user_id: user.id,
-    budget_id: budgetId,
     name,
     ...fields,
   });
@@ -92,14 +90,13 @@ export async function createSinkingExpense(
     summarizeConfig(fields),
   );
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/sources");
   return null;
 }
 
 export async function updateSinkingExpense(
   sinkingExpenseId: string,
-  budgetId: string,
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -143,14 +140,13 @@ export async function updateSinkingExpense(
     await logChange(supabase, user.id, "Budgets", `${name} — Contribution`, oldSummary, newSummary);
   }
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/sources");
   return null;
 }
 
 export async function deleteSinkingExpense(
   sinkingExpenseId: string,
-  budgetId: string,
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
@@ -186,7 +182,7 @@ export async function deleteSinkingExpense(
     );
   }
 
-  revalidatePath(`/budgets/${budgetId}`);
+  revalidatePath("/budgets");
   revalidatePath("/sources");
   return null;
 }

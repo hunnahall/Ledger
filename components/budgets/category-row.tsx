@@ -20,23 +20,21 @@ type Category = {
 
 export function CategoryRow({
   category,
-  budgetId,
   decimalPlaces,
   isLast,
   onAddClick,
 }: {
   category: Category;
-  budgetId: string;
   decimalPlaces: number;
   isLast: boolean;
   onAddClick: () => void;
 }) {
   const [updateState, updateAction] = useActionState(
-    updateCategory.bind(null, category.id, budgetId),
+    updateCategory.bind(null, category.id),
     null,
   );
   const [deleteState, deleteAction] = useActionState(
-    deleteCategory.bind(null, category.id, budgetId),
+    deleteCategory.bind(null, category.id),
     null,
   );
 

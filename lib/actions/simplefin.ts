@@ -131,24 +131,31 @@ export async function syncBankConnection(
 // creates duplicates, it just re-upserts the same rows.
 export async function importBankConnectionRange(
   connectionId: string,
-  startDate: string,
-  endDate: string,
-): Promise<number> {
+  _prevState: { error: string; count?: undefined } | { error?: undefined; count: number } | null,
+  formData: FormData,
+): Promise<{ error: string; count?: undefined } | { error?: undefined; count: number }> {
+  const startDate = String(formData.get("start_date") ?? "");
+  const endDate = String(formData.get("end_date") ?? "");
   if (!startDate || !endDate || endDate < startDate) {
-    throw new Error("Choose a valid date range.");
+    return { error: "Choose a valid date range." };
   }
   const days = daysBetween(startDate, endDate) ?? 0;
   if (days > MAX_IMPORT_DAYS) {
-    throw new Error(`Import range must be ${MAX_IMPORT_DAYS} days or fewer (chose ${days}).`);
+    return { error: `Import range must be ${MAX_IMPORT_DAYS} days or fewer (chose ${days}).` };
   }
 
-  const result = await invokeSync(connectionId, { start_date: startDate, end_date: endDate });
+  let result: { transactionsFetched?: number };
+  try {
+    result = await invokeSync(connectionId, { start_date: startDate, end_date: endDate });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Import failed." };
+  }
 
   revalidatePath("/accounts");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
 
-  return result.transactionsFetched ?? 0;
+  return { count: result.transactionsFetched ?? 0 };
 }
 
 export async function disconnectBankConnection(
