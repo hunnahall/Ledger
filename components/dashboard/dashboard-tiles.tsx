@@ -1,31 +1,47 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { computeProgress } from "@/lib/progress";
 import { useModal } from "@/components/ui/modal";
 import { Card } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { BudgetRateChart } from "@/components/budgets/budget-rate-chart";
 import { TransactionsPopupList } from "@/components/dashboard/transactions-popup-list";
 import type { DashboardTileKind } from "@/lib/actions/dashboard-transactions";
 
-// Client-side home for every clickable piece of the Dashboard (the top 4
-// summary tiles + the Spending-by-category rows) so they can share one
-// useModal() instance instead of each tile owning its own portal. The rest
-// of the Dashboard (Budget Net/Total Net/Float, balances, funds) stays
-// server-rendered directly in app/(app)/dashboard/page.tsx — those are
-// computed combinations or plain balances, not a well-defined transaction
-// list, so they're left non-clickable for now.
-export function DashboardTopTiles({
+// The Dashboard's 9 small stat tiles, all built on the same StatTile shell
+// so they share Income's exact size — a label line plus one content line —
+// and one shared useModal() instance so the four transaction-backed ones
+// (Income, Expenses, Other Inflows, Other Outflows) can each pop open a
+// transaction list without each tile owning its own portal.
+export function DashboardStatTiles({
   income,
   otherInflow,
-  budgetedOutflow,
+  expenses,
   otherOutflow,
+  budgetNet,
+  totalNet,
+  floatBalance,
+  budgetFillPct,
+  totalAllocation,
+  daysInMonth,
+  currentDay,
+  actualByDay,
   decimalPlaces,
 }: {
   income: number;
   otherInflow: number;
-  budgetedOutflow: number;
+  expenses: number;
   otherOutflow: number;
+  budgetNet: number;
+  totalNet: number;
+  floatBalance: number;
+  budgetFillPct: number | null;
+  totalAllocation: number;
+  daysInMonth: number;
+  currentDay: number;
+  actualByDay: number[];
   decimalPlaces: number;
 }) {
   const { open, modal } = useModal();
@@ -36,62 +52,83 @@ export function DashboardTopTiles({
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <TileButton
-          label="Income"
-          amount={income}
-          decimalPlaces={decimalPlaces}
-          valueClassName="text-positive"
-          onClick={() => openTile("Income", { type: "income" })}
-        />
-        <TileButton
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile label="Income" onClick={() => openTile("Income", { type: "income" })}>
+          <Money amount={income} decimalPlaces={decimalPlaces} className="text-positive" />
+        </StatTile>
+        <StatTile label="Expenses" onClick={() => openTile("Expenses", { type: "budgeted_outflow" })}>
+          <Money amount={expenses} decimalPlaces={decimalPlaces} className="text-negative" />
+        </StatTile>
+        <StatTile label="Budget Net">
+          <Money
+            amount={budgetNet}
+            decimalPlaces={decimalPlaces}
+            className={budgetNet < 0 ? "text-negative" : "text-positive"}
+          />
+        </StatTile>
+
+        <StatTile
           label="Other Inflows"
-          amount={otherInflow}
-          decimalPlaces={decimalPlaces}
-          valueClassName="text-positive"
           onClick={() => openTile("Other Inflows", { type: "other_inflow" })}
-        />
-        <TileButton
-          label="Budgeted Outflows"
-          amount={budgetedOutflow}
-          decimalPlaces={decimalPlaces}
-          valueClassName="text-negative"
-          onClick={() => openTile("Budgeted Outflows", { type: "budgeted_outflow" })}
-        />
-        <TileButton
+        >
+          <Money amount={otherInflow} decimalPlaces={decimalPlaces} className="text-positive" />
+        </StatTile>
+        <StatTile
           label="Other Outflows"
-          amount={otherOutflow}
-          decimalPlaces={decimalPlaces}
-          valueClassName="text-negative"
           onClick={() => openTile("Other Outflows", { type: "other_outflow" })}
-        />
+        >
+          <Money amount={otherOutflow} decimalPlaces={decimalPlaces} className="text-negative" />
+        </StatTile>
+        <StatTile label="Total Net">
+          <Money
+            amount={totalNet}
+            decimalPlaces={decimalPlaces}
+            className={totalNet < 0 ? "text-negative" : "text-positive"}
+          />
+        </StatTile>
+
+        <StatTile label="Float">
+          <Money
+            amount={floatBalance}
+            decimalPlaces={decimalPlaces}
+            className={floatBalance < 0 ? "text-negative" : ""}
+          />
+        </StatTile>
+        <StatTile label="Budget Fill">{budgetFillPct === null ? "—" : `${budgetFillPct}%`}</StatTile>
+        <StatTile label="Budget Rate">
+          <BudgetRateChart
+            totalAllocation={totalAllocation}
+            daysInMonth={daysInMonth}
+            currentDay={currentDay}
+            actualByDay={actualByDay}
+          />
+        </StatTile>
       </div>
       {modal}
     </>
   );
 }
 
-function TileButton({
+function StatTile({
   label,
-  amount,
-  decimalPlaces,
-  valueClassName,
+  children,
   onClick,
 }: {
   label: string;
-  amount: number;
-  decimalPlaces: number;
-  valueClassName: string;
-  onClick: () => void;
+  children: ReactNode;
+  onClick?: () => void;
 }) {
+  const content = (
+    <Card className="p-5">
+      <p className="text-xs text-muted">{label}</p>
+      <div className="mt-1 h-7 text-xl font-semibold">{children}</div>
+    </Card>
+  );
+
+  if (!onClick) return content;
   return (
-    <button type="button" onClick={onClick} className="text-left">
-      <Card className="p-5">
-        <p className="text-xs text-muted">{label}</p>
-        <p className={`mt-1 text-xl font-semibold ${valueClassName}`}>
-          <Money amount={amount} decimalPlaces={decimalPlaces} />
-        </p>
-      </Card>
+    <button type="button" onClick={onClick} className="w-full text-left">
+      {content}
     </button>
   );
 }

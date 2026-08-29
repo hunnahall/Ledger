@@ -5,10 +5,10 @@ import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 import { ensureBudgetCurrent } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
 
-// Source Balances mirrors everything under the Sources page's "Budget"
-// heading (budget/sinking_fund/income) plus Reimbursement sources — Float
-// gets its own tile and Funds get their own card, so both are left out here.
-const SOURCE_BALANCE_TYPES = ["budget", "sinking_fund", "income", "reimbursement"];
+// The Balances tile mirrors every Source's balance (everything under the
+// Sources page's "Budget" heading, plus Reimbursements and Funds) — Float
+// gets its own tile, so it's the one type left out here.
+const BALANCE_TILE_TYPES = ["budget", "sinking_fund", "income", "reimbursement", "fund"];
 
 export async function getDashboardData() {
   const supabase = await createClient();
@@ -84,12 +84,12 @@ export async function getDashboardData() {
       budgetedOutflowRaw,
       otherOutflowRaw,
     }),
-    sourceBalances: visibleSourceBalances.filter(
-      (s) => s.type !== null && SOURCE_BALANCE_TYPES.includes(s.type),
-    ),
-    floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
-    funds: visibleSourceBalances
-      .filter((s) => s.type === "fund")
+    balances: visibleSourceBalances
+      .filter(
+        (s): s is typeof s & { id: string; name: string } =>
+          s.id !== null && s.name !== null && s.type !== null && BALANCE_TILE_TYPES.includes(s.type),
+      )
       .map((s) => ({ id: s.id, name: s.name, balance: s.balance ?? 0 })),
+    floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
   };
 }
