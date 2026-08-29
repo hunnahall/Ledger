@@ -715,12 +715,16 @@ const TransactionRow = memo(function TransactionRow({
                 uiSize="sm"
                 // Real categories only apply to Budget-sourced spending (see
                 // v_spending_by_category, scoped to s.type = 'budget'), so
-                // this reads as inert/greyed-out on any other Source — the
-                // one exception is Income, which is its own flag with its
-                // own Source-routing (see handleCategoryChange/
-                // route_income_to_fund) and stays available no matter what
-                // this row's Source is.
-                className={`min-w-0 flex-1 md:w-full ${!isBudgetSource && !isIncome ? "opacity-60" : ""}`}
+                // this reads as inert on any other Source — shaded the same
+                // as the table header (bg-surface-subtle) rather than left
+                // looking like a normal, pickable field. The one exception
+                // is Income, which is its own flag with its own
+                // Source-routing (see handleCategoryChange/
+                // route_income_to_fund) and stays available — and normal-
+                // looking — no matter what this row's Source is. `!` forces
+                // this past the Select's own bg-background, which two
+                // same-specificity utility classes can't reliably do.
+                className={`min-w-0 flex-1 md:w-full ${!isBudgetSource && !isIncome ? "!bg-surface-subtle" : ""}`}
                 value={categoryId}
                 onChange={handleCategoryChange}
                 placeholder={isTransfer ? "—" : isBudgetSource ? "Uncategorized" : "—"}
