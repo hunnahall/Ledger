@@ -9,15 +9,18 @@ export function BudgetRateChart({
   daysInMonth,
   currentDay,
   actualByDay,
-  height = 180,
 }: {
   totalAllocation: number;
   daysInMonth: number;
   currentDay: number;
   actualByDay: number[];
-  height?: number;
 }) {
+  // viewBox coordinate space only — the rendered box is stretched to fill
+  // whatever size the parent gives it (className="h-full w-full" below plus
+  // preserveAspectRatio="none"), so this ratio doesn't have to match the
+  // actual rendered aspect ratio.
   const width = 400;
+  const height = 100;
   const padding = 8;
 
   const paceAtDay = (day: number) => (totalAllocation / daysInMonth) * day;
@@ -44,7 +47,8 @@ export function BudgetRateChart({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full"
+      preserveAspectRatio="none"
+      className="h-full w-full"
       role="img"
       aria-label={`Budget spending pace: ${overPace ? "ahead of" : "on or under"} pace for the month`}
     >

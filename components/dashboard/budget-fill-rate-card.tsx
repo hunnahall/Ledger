@@ -1,11 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { BudgetRateChart } from "@/components/budgets/budget-rate-chart";
 
-// Compact pairing of Budget Fill (a single stat) and Budget Rate (a small
-// pace chart) into one card, sized to fit the same slot the Dashboard's old
-// Account balances card used — a short chart height keeps the combined
-// block no taller than that was.
-export function BudgetFillRateCard({
+// Two separate tiles (Budget Fill, Budget Rate) stacked in a flex column
+// that fills its grid cell — CSS grid stretches that cell to the row's
+// height (set by the taller Spending By Category tile next to it), and the
+// flex-1 children split that height evenly, so the two tiles plus the gap
+// between them always add up to exactly Spending By Category's height.
+export function BudgetFillRateTiles({
   budgetFillPct,
   totalAllocation,
   daysInMonth,
@@ -19,21 +20,25 @@ export function BudgetFillRateCard({
   actualByDay: number[];
 }) {
   return (
-    <Card className="p-5">
-      <div className="flex items-baseline justify-between">
-        <p className="font-medium">Budget Fill</p>
-        <p className="text-lg font-semibold">{budgetFillPct === null ? "—" : `${budgetFillPct}%`}</p>
-      </div>
-      <div className="mt-4">
-        <p className="mb-1 text-xs text-muted">Budget Rate</p>
-        <BudgetRateChart
-          totalAllocation={totalAllocation}
-          daysInMonth={daysInMonth}
-          currentDay={currentDay}
-          actualByDay={actualByDay}
-          height={90}
-        />
-      </div>
-    </Card>
+    <div className="flex flex-col gap-4">
+      <Card className="flex-1 p-5">
+        <p className="text-xs text-muted">Budget Fill</p>
+        <p className="mt-1 text-xl font-semibold">
+          {budgetFillPct === null ? "—" : `${budgetFillPct}%`}
+        </p>
+      </Card>
+
+      <Card className="flex flex-1 flex-col p-5">
+        <p className="text-xs text-muted">Budget Rate</p>
+        <div className="mt-1 min-h-0 flex-1">
+          <BudgetRateChart
+            totalAllocation={totalAllocation}
+            daysInMonth={daysInMonth}
+            currentDay={currentDay}
+            actualByDay={actualByDay}
+          />
+        </div>
+      </Card>
+    </div>
   );
 }

@@ -5,7 +5,7 @@ import { getSettings } from "@/lib/queries/settings";
 import { Card } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
 import { DashboardTopTiles, SpendingByCategoryCard } from "@/components/dashboard/dashboard-tiles";
-import { BudgetFillRateCard } from "@/components/dashboard/budget-fill-rate-card";
+import { BudgetFillRateTiles } from "@/components/dashboard/budget-fill-rate-card";
 
 export default async function DashboardPage() {
   const [data, settings, rateData] = await Promise.all([
@@ -79,7 +79,7 @@ export default async function DashboardPage() {
         />
 
         {rateData && (
-          <BudgetFillRateCard
+          <BudgetFillRateTiles
             budgetFillPct={budgetFillPct}
             totalAllocation={rateData.totalAllocation}
             daysInMonth={rateData.daysInMonth}
