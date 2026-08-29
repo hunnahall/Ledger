@@ -1,17 +1,37 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { createVendorRule } from "@/lib/actions/vendor-rules";
 import { INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 
-export function CreateVendorRuleForm({ categories }: { categories: { id: string; name: string }[] }) {
+export function CreateVendorRuleForm({
+  categories,
+  onDone,
+}: {
+  categories: { id: string; name: string }[];
+  onDone?: () => void;
+}) {
   const [state, formAction] = useActionState(createVendorRule, null);
+  const submittedRef = useRef(false);
+
+  // useActionState's `state` is `null` both before the first submit and
+  // after a successful one — indistinguishable on its own — so only treat
+  // a null state as "done" once a submit has actually happened.
+  useEffect(() => {
+    if (submittedRef.current && state === null) {
+      submittedRef.current = false;
+      onDone?.();
+    }
+  }, [state, onDone]);
 
   return (
     <form
       action={formAction}
+      onSubmit={() => {
+        submittedRef.current = true;
+      }}
       className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border p-3"
     >
       <label className="flex flex-col gap-1 text-xs text-muted">

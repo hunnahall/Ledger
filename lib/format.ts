@@ -47,3 +47,10 @@ export function formatDate(dateString: string) {
     timeZone: "UTC",
   });
 }
+
+// Compact MM/DD display (e.g. transactions table rows) — sliced straight
+// off the YYYY-MM-DD column rather than parsed as a Date, so there's no
+// timezone-shifting-the-day-back risk at all.
+export function formatShortDate(dateString: string) {
+  return `${dateString.slice(5, 7)}/${dateString.slice(8, 10)}`;
+}

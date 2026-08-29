@@ -104,6 +104,103 @@ export async function archiveSource(
   return null;
 }
 
+export async function renameSource(
+  sourceId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { error: "Enter a name for the source." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("sources")
+    .select("name")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "Source not found." };
+
+  const { error } = await supabase.from("sources").update({ name }).eq("id", sourceId);
+  if (error) return { error: error.message };
+
+  if (existing.name !== name) {
+    await logChange(
+      supabase,
+      user.id,
+      "Sources",
+      `Source name (was ${existing.name})`,
+      existing.name,
+      name,
+    );
+  }
+
+  revalidatePath("/sources");
+  revalidatePath("/dashboard");
+  revalidatePath("/budget");
+  revalidatePath("/transactions");
+  return null;
+}
+
+export async function deleteSource(
+  sourceId: string,
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: source, error: fetchError } = await supabase
+    .from("sources")
+    .select("name, balance, is_system")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!source) return { error: "Source not found." };
+  if (source.is_system) {
+    return { error: "System sources can't be deleted — archive instead." };
+  }
+
+  // source_transfers.source_id is `not null ... on delete cascade` (unlike
+  // transactions.source_id / transaction_splits.source_id, which are `on
+  // delete set null`) — deleting a source with an active Source Transfer
+  // would silently delete that Source Transfer too, so block it instead.
+  const { data: transfers, error: transfersError } = await supabase
+    .from("source_transfers")
+    .select("name")
+    .eq("source_id", sourceId);
+  if (transfersError) return { error: transfersError.message };
+  if (transfers && transfers.length > 0) {
+    const names = transfers.map((t) => t.name).join(", ");
+    return {
+      error: `Remove the Source Transfer${transfers.length > 1 ? "s" : ""} using this source first: ${names}.`,
+    };
+  }
+
+  // transactions.source_id, transactions.transfer_from_source_id,
+  // transactions.transfer_to_source_id, and transaction_splits.source_id
+  // are all `on delete set null`, so affected transactions fall back to
+  // No source automatically.
+  const { error } = await supabase.from("sources").delete().eq("id", sourceId);
+  if (error) return { error: error.message };
+
+  await logChange(supabase, user.id, "Sources", `Source: ${source.name}`, money(source.balance), null);
+
+  revalidatePath("/sources");
+  revalidatePath("/dashboard");
+  revalidatePath("/budget");
+  revalidatePath("/transactions");
+  return null;
+}
+
 export async function setSourceBalance(
   sourceId: string,
   _prevState: { error: string } | null,

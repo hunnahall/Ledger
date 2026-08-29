@@ -32,7 +32,7 @@ export async function createCategory(
 
   await logChange(supabase, user.id, "Budgets", `Category: ${name}`, null, money(monthlyAmount));
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/settings");
   revalidatePath("/transactions");
   return null;
@@ -88,7 +88,7 @@ export async function updateCategory(
     );
   }
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/settings");
   revalidatePath("/transactions");
   return null;
@@ -128,7 +128,7 @@ export async function deleteCategory(
     );
   }
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");

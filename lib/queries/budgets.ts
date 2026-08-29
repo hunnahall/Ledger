@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { currentMonthISO, monthsRemaining } from "@/lib/dates";
+import { currentMonthISO, monthsRemaining, nextMonthISO, daysInMonthISO } from "@/lib/dates";
 import { computeProgress, spentFromRawAmount } from "@/lib/progress";
 import {
   goalMonthlyAmount,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/budgets/sinking";
 
 // Every user has exactly one budget bucket — the reserved `budget`-type
-// Source, always named "Monthly", auto-provisioned at signup (see
+// Source, always named "Budget", auto-provisioned at signup (see
 // handle_new_user). Resets its balance to this month's total budgeted
 // amount (skipped entirely when Month Ahead is on), credits any due Source
 // Transfers, pools due sinking-expense contributions into the shared
@@ -124,5 +124,70 @@ export async function getBudgetData() {
     categories: categoriesWithProgress,
     sinkingExpenses: sinkingExpensesWithMonthly,
     sourceTransfers: sourceTransfersWithSourceName,
+  };
+}
+
+// Backs the Budget page's "Budget Fill" stat (income this month / total
+// budget allocation) and "Budget Rate" chart (cumulative Budget-sourced
+// spend per day vs. a flat linear pace). Deliberately independent of
+// getBudgetData/ensureBudgetCurrent above — this only reads, no resets to
+// apply, so it can run concurrently with the rest of the page's data
+// fetching without racing ensure_budget_source_current's write.
+export async function getBudgetRateData() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const month = currentMonthISO();
+  const daysInMonth = daysInMonthISO(month);
+  const today = new Date();
+  const currentDay = Math.min(daysInMonth, today.getUTCDate());
+
+  // Same "did this transaction pay out of the Budget source" filter as
+  // v_spending_by_category (supabase/migrations/20260829010000_...) — kept
+  // as a plain query here instead of a view since this is a one-off
+  // day-bucketed shape nothing else needs. Splits aren't broken out (same
+  // simplification as the dashboard tile popups): a single user's monthly
+  // transaction volume is small enough that this stays a reasonable read
+  // for a pace chart, not a ledger of record.
+  const { data: spending, error } = await supabase
+    .from("transactions")
+    .select("posted_date, amount, sources!source_id(type)")
+    .eq("user_id", user.id)
+    .gte("posted_date", month)
+    .lt("posted_date", nextMonthISO(month))
+    .eq("is_transfer", false)
+    .eq("exclude_from_budget", false)
+    .eq("is_split", false)
+    .lt("amount", 0);
+  if (error) throw new Error(error.message);
+
+  const spendByDay = new Map<number, number>();
+  for (const row of spending ?? []) {
+    if ((row.sources as { type: string } | null)?.type !== "budget") continue;
+    const day = Number(row.posted_date.slice(8, 10));
+    spendByDay.set(day, (spendByDay.get(day) ?? 0) + Math.abs(row.amount));
+  }
+
+  let cumulative = 0;
+  const actualByDay: number[] = [];
+  for (let day = 1; day <= currentDay; day++) {
+    cumulative += spendByDay.get(day) ?? 0;
+    actualByDay.push(cumulative);
+  }
+
+  const { data: inflowOutflow } = await supabase
+    .from("v_inflow_outflow")
+    .select("income")
+    .eq("month", month)
+    .maybeSingle();
+
+  return {
+    income: inflowOutflow?.income ?? 0,
+    daysInMonth,
+    currentDay,
+    actualByDay,
   };
 }

@@ -90,7 +90,7 @@ export async function createSinkingExpense(
     summarizeConfig(fields),
   );
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/sources");
   return null;
 }
@@ -140,7 +140,7 @@ export async function updateSinkingExpense(
     await logChange(supabase, user.id, "Budgets", `${name} — Contribution`, oldSummary, newSummary);
   }
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/sources");
   return null;
 }
@@ -182,7 +182,7 @@ export async function deleteSinkingExpense(
     );
   }
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/sources");
   return null;
 }

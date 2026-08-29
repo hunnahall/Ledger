@@ -42,7 +42,7 @@ export async function createSourceTransfer(
 
   await logChange(supabase, user.id, "Budgets", `Source Transfer: ${name}`, null, money(amount));
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/sources");
   return null;
 }
@@ -114,7 +114,7 @@ export async function updateSourceTransfer(
     );
   }
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/sources");
   return null;
 }
@@ -151,7 +151,7 @@ export async function deleteSourceTransfer(
     );
   }
 
-  revalidatePath("/budgets");
+  revalidatePath("/budget");
   revalidatePath("/sources");
   return null;
 }

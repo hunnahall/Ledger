@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/queries/settings";
-import { computeProgress } from "@/lib/progress";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import { Card } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
+import { DashboardTopTiles, SpendingByCategoryCard } from "@/components/dashboard/dashboard-tiles";
 
 export default async function DashboardPage() {
   const [data, settings] = await Promise.all([getDashboardData(), getSettings()]);
@@ -15,48 +14,33 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-muted">
-          {data.hasBudget ? "Monthly" : "No current budget set"} &middot;{" "}
+          {data.hasBudget ? "Budget" : "No current budget set"} &middot;{" "}
           {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-5">
-          <p className="text-xs text-muted">Income</p>
-          <p className="mt-1 text-xl font-semibold text-positive">
-            <Money amount={data.income} decimalPlaces={decimalPlaces} />
-          </p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-xs text-muted">Other Inflows</p>
-          <p className="mt-1 text-xl font-semibold text-positive">
-            <Money amount={data.otherInflow} decimalPlaces={decimalPlaces} />
-          </p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-xs text-muted">Budgeted Outflows</p>
-          <p className="mt-1 text-xl font-semibold text-negative">
-            <Money amount={data.budgetedOutflow} decimalPlaces={decimalPlaces} />
-          </p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-xs text-muted">Other Outflows</p>
-          <p className="mt-1 text-xl font-semibold text-negative">
-            <Money amount={data.otherOutflow} decimalPlaces={decimalPlaces} />
-          </p>
-        </Card>
-      </div>
+      <DashboardTopTiles
+        income={data.income}
+        otherInflow={data.otherInflow}
+        budgetedOutflow={data.budgetedOutflow}
+        otherOutflow={data.otherOutflow}
+        decimalPlaces={decimalPlaces}
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-5">
           <p className="text-xs text-muted">Budget Net</p>
-          <p className={`mt-1 text-xl font-semibold ${data.budgetNet < 0 ? "text-negative" : ""}`}>
+          <p
+            className={`mt-1 text-xl font-semibold ${data.budgetNet < 0 ? "text-negative" : "text-positive"}`}
+          >
             <Money amount={data.budgetNet} decimalPlaces={decimalPlaces} />
           </p>
         </Card>
         <Card className="p-5">
           <p className="text-xs text-muted">Total Net</p>
-          <p className={`mt-1 text-xl font-semibold ${data.totalNet < 0 ? "text-negative" : ""}`}>
+          <p
+            className={`mt-1 text-xl font-semibold ${data.totalNet < 0 ? "text-negative" : "text-positive"}`}
+          >
             <Money amount={data.totalNet} decimalPlaces={decimalPlaces} />
           </p>
         </Card>
@@ -69,37 +53,19 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5">
-          <p className="mb-3 font-medium">Spending by category</p>
-          {data.categorySpending.length === 0 && (
+        <SpendingByCategoryCard
+          categorySpending={data.categorySpending}
+          decimalPlaces={decimalPlaces}
+          emptyState={
             <p className="text-sm text-muted">
               No categories in your current budget yet.{" "}
-              <Link href="/budgets" className="underline">
+              <Link href="/budget" className="underline">
                 Set one up
               </Link>
               .
             </p>
-          )}
-          <div className="flex flex-col gap-3">
-            {data.categorySpending.map((c) => {
-              const { over } = computeProgress({ total: c.monthly_amount, spent: c.spent });
-              return (
-                <div key={c.id}>
-                  <div className="flex justify-between text-sm">
-                    <span>{c.name}</span>
-                    <span className={over ? "text-negative" : "text-muted"}>
-                      <Money amount={c.spent} decimalPlaces={decimalPlaces} /> /{" "}
-                      <Money amount={c.monthly_amount} decimalPlaces={decimalPlaces} />
-                    </span>
-                  </div>
-                  <div className="mt-1">
-                    <ProgressBar total={c.monthly_amount} spent={c.spent} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+          }
+        />
 
         <Card className="p-5">
           <p className="mb-3 font-medium">Account balances</p>

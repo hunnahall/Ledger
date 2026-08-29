@@ -75,6 +75,7 @@ export async function connectBankConnection(
   });
 
   revalidatePath("/accounts");
+  revalidatePath("/settings");
   return null;
 }
 
@@ -118,6 +119,7 @@ export async function syncBankConnection(
   }
 
   revalidatePath("/accounts");
+  revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
   return null;
@@ -152,6 +154,7 @@ export async function importBankConnectionRange(
   }
 
   revalidatePath("/accounts");
+  revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
 
@@ -170,5 +173,6 @@ export async function disconnectBankConnection(
   if (error) return { error: error.message };
 
   revalidatePath("/accounts");
+  revalidatePath("/settings");
   return null;
 }

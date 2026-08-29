@@ -1,15 +1,10 @@
-import { getAccounts, getBankConnections } from "@/lib/queries/accounts";
+import { getAccounts } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
 import { deleteManualAccount } from "@/lib/actions/accounts";
-import { disconnectBankConnection, syncBankConnection } from "@/lib/actions/simplefin";
-import { ImportTransactionsForm } from "@/components/accounts/import-transactions-form";
 import { CreateManualAccountForm } from "@/components/accounts/create-manual-account-form";
-import { ConnectBankConnectionForm } from "@/components/accounts/connect-bank-connection-form";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { Money } from "@/components/ui/money";
-import { LocalTimestamp } from "@/components/ui/local-timestamp";
 
 const TYPE_LABELS: Record<string, string> = {
   checking: "Checking",
@@ -19,11 +14,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default async function AccountsPage() {
-  const [accounts, connections, settings] = await Promise.all([
-    getAccounts(),
-    getBankConnections(),
-    getSettings(),
-  ]);
+  const [accounts, settings] = await Promise.all([getAccounts(), getSettings()]);
   const decimalPlaces = settings.decimal_places;
 
   return (
@@ -86,79 +77,6 @@ export default async function AccountsPage() {
       </Card>
 
       <CreateManualAccountForm />
-
-      <Card className="p-5">
-        <p className="font-medium">Connected banks (SimpleFin)</p>
-        <p className="mt-1 text-sm text-muted">
-          Each connection can cover multiple accounts. Syncs pull roughly a day of
-          overlap each time, so re-syncing is always safe. Use Import to backfill a
-          specific date range (up to 90 days at a time) — re-importing an overlapping
-          range is also safe and won&apos;t create duplicates.
-        </p>
-
-        <div className="mt-4 flex flex-col gap-3">
-          {connections.map((connection) => (
-            <div
-              key={connection.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
-            >
-              <div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">
-                    {connection.accounts.length > 0
-                      ? connection.accounts.map((a) => a.account_name).join(", ")
-                      : "No accounts yet"}
-                  </span>
-                  <Badge className={connection.status === "error" ? "text-negative" : undefined}>
-                    {connection.status}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted">
-                  {connection.last_synced_at ? (
-                    <>
-                      Last synced <LocalTimestamp iso={connection.last_synced_at} />
-                    </>
-                  ) : (
-                    "Never synced"
-                  )}
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <ActionButtonForm
-                  action={syncBankConnection.bind(null, connection.id)}
-                  variant="secondary"
-                  size="sm"
-                >
-                  Sync now
-                </ActionButtonForm>
-                <ImportTransactionsForm connectionId={connection.id} />
-                <ActionButtonForm
-                  action={disconnectBankConnection.bind(null, connection.id)}
-                  variant="secondary"
-                  tone="negative"
-                  size="sm"
-                >
-                  Disconnect
-                </ActionButtonForm>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <ConnectBankConnectionForm />
-        <p className="mt-2 text-xs text-muted">
-          Get a setup token from{" "}
-          <a
-            href="https://beta-bridge.simplefin.org/"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            your SimpleFin Bridge account
-          </a>
-          . It can only be claimed once.
-        </p>
-      </Card>
     </div>
   );
 }

@@ -40,7 +40,7 @@ export default async function SourcesPage() {
           {!budgetSource && (
             <p className="text-sm text-muted">
               No current budget set.{" "}
-              <Link href="/budgets" className="underline">
+              <Link href="/budget" className="underline">
                 Set one up
               </Link>
               .

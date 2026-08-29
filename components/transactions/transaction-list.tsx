@@ -13,7 +13,7 @@ import {
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 import { stepAmountByDollar } from "@/lib/dollar-step";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatShortDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -620,14 +620,9 @@ const TransactionRow = memo(function TransactionRow({
                 aria-label={`Select transaction: ${txn.description}`}
               />
             </span>
-            <input
-              type="date"
-              form={`txn-${txn.id}`}
-              name="posted_date"
-              value={postedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              className="shrink-0 rounded border border-transparent bg-transparent px-0.5 text-xs text-muted hover:border-border focus:border-border focus:outline-none md:w-28 md:text-sm"
-            />
+            <span className="shrink-0 px-0.5 text-xs text-muted md:w-28 md:text-sm">
+              {formatShortDate(postedDate)}
+            </span>
           </div>
 
           <div className="flex items-center justify-between gap-2 md:contents">
@@ -864,6 +859,17 @@ const TransactionRow = memo(function TransactionRow({
                   if (e.key === "Enter") e.currentTarget.blur();
                 }}
                 className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+
+            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+              Date
+              <input
+                type="date"
+                name="posted_date"
+                value={postedDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
               />
             </label>
 

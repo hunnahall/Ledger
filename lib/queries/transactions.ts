@@ -77,7 +77,7 @@ export async function getFilterOptions() {
     .order("name");
   if (sourcesError) throw new Error(sourcesError.message);
 
-  // The current budget's own Source (e.g. "Monthly") is what most
+  // The current budget's own Source (e.g. "Budget") is what most
   // transactions actually get assigned to, so it leads the list instead of
   // just falling wherever it lands alphabetically — everything else stays
   // alphabetical behind it.
