@@ -283,9 +283,9 @@ export function TransactionList({
                 { value: UNCATEGORIZED_FILTER_VALUE, label: "Uncategorized" },
                 ...categories.map((c) => ({ value: c.id, label: c.name })),
               ]}
-              className="w-40 shrink-0 font-medium"
+              className="w-48 shrink-0 font-medium"
             />
-            <span className="w-20 shrink-0 text-center font-medium">Rule</span>
+            <span className="w-14 shrink-0 text-right font-medium">Rule</span>
             <span className="w-8 shrink-0"></span>
             <span className="flex w-10 shrink-0 items-center justify-center">
               <SearchToggle />
@@ -670,7 +670,7 @@ const TransactionRow = memo(function TransactionRow({
 
           <div className="flex items-center justify-between gap-2 md:contents">
             <span
-              className="min-w-0 truncate font-medium md:max-w-[260px] md:flex-1"
+              className="min-w-0 truncate font-medium md:max-w-[260px] md:flex-1 md:text-center"
               title={txn.description}
             >
               {txn.description}
@@ -681,7 +681,7 @@ const TransactionRow = memo(function TransactionRow({
               )}
             </span>
             <span
-              className={`shrink-0 whitespace-nowrap text-right font-medium md:ml-4 md:w-24 ${
+              className={`shrink-0 whitespace-nowrap font-medium md:ml-4 md:w-24 md:text-center ${
                 txn.amount < 0 ? "text-negative" : "text-positive"
               }`}
             >
@@ -708,7 +708,7 @@ const TransactionRow = memo(function TransactionRow({
               ))}
               {!isTransfer && txn.amount > 0 && <option value={ADD_SOURCE}>+ Add source</option>}
             </Select>
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-40 md:flex-none">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-48 md:flex-none">
               <Select
                 form={`txn-${txn.id}`}
                 name="category_id"
@@ -752,7 +752,7 @@ const TransactionRow = memo(function TransactionRow({
 
           <div className="flex items-center justify-between gap-2 text-xs text-muted md:contents">
             <span className="md:hidden">Add Rule</span>
-            <span className="flex items-center justify-center md:w-20 md:shrink-0">
+            <span className="flex items-center justify-end md:w-14 md:shrink-0">
               <button
                 type="button"
                 onClick={handleToggleBuildRule}

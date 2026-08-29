@@ -56,9 +56,21 @@ export function ClearFiltersButton({ className }: { className?: string }) {
   );
 }
 
-function FilterSummary({ label, active }: { label: string; active: boolean }) {
+function FilterSummary({
+  label,
+  active,
+  align = "center",
+}: {
+  label: string;
+  active: boolean;
+  align?: "start" | "center";
+}) {
   return (
-    <summary className="flex cursor-pointer list-none items-center justify-center gap-1 [&::-webkit-details-marker]:hidden">
+    <summary
+      className={`flex cursor-pointer list-none items-center gap-1 [&::-webkit-details-marker]:hidden ${
+        align === "start" ? "justify-start pl-0.5" : "justify-center"
+      }`}
+    >
       {label}
       {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-mark" aria-hidden="true" />}
       <ChevronDownIcon size={10} className="shrink-0" />
@@ -127,7 +139,7 @@ export function DateRangeColumnFilter({ label, className }: { label: string; cla
 
   return (
     <details className={`relative ${className ?? ""}`}>
-      <FilterSummary label={label} active={Boolean(from || to)} />
+      <FilterSummary label={label} active={Boolean(from || to)} align="start" />
       <form
         className="absolute left-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-lg border border-card-border bg-surface p-3 text-xs normal-case text-foreground shadow-elevated"
         onSubmit={(e) => {
