@@ -59,7 +59,7 @@ export function DashboardStatTiles({
         <StatTile label="Expenses" onClick={() => openTile("Expenses", { type: "budgeted_outflow" })}>
           <Money amount={expenses} decimalPlaces={decimalPlaces} className="text-negative" />
         </StatTile>
-        <StatTile label="Budget Net">
+        <StatTile label="Budget Net" onClick={() => openTile("Budget Net", { type: "budget_net" })}>
           <Money
             amount={budgetNet}
             decimalPlaces={decimalPlaces}
@@ -79,7 +79,7 @@ export function DashboardStatTiles({
         >
           <Money amount={otherOutflow} decimalPlaces={decimalPlaces} className="text-negative" />
         </StatTile>
-        <StatTile label="Total Net">
+        <StatTile label="Total Net" onClick={() => openTile("Total Net", { type: "total_net" })}>
           <Money
             amount={totalNet}
             decimalPlaces={decimalPlaces}
@@ -87,7 +87,7 @@ export function DashboardStatTiles({
           />
         </StatTile>
 
-        <StatTile label="Float">
+        <StatTile label="Float" onClick={() => openTile("Float", { type: "float" })}>
           <Money
             amount={floatBalance}
             decimalPlaces={decimalPlaces}
@@ -95,7 +95,10 @@ export function DashboardStatTiles({
           />
         </StatTile>
         <StatTile label="Budget Fill">{budgetFillPct === null ? "—" : `${budgetFillPct}%`}</StatTile>
-        <StatTile label="Budget Rate">
+        <StatTile
+          label="Budget Rate"
+          onClick={() => openTile("Budget Rate", { type: "budgeted_outflow" })}
+        >
           <BudgetRateChart
             totalAllocation={totalAllocation}
             daysInMonth={daysInMonth}

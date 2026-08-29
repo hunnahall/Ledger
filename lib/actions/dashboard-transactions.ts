@@ -8,7 +8,10 @@ export type DashboardTileKind =
   | { type: "income" }
   | { type: "other_inflow" }
   | { type: "budgeted_outflow" }
-  | { type: "other_outflow" };
+  | { type: "other_outflow" }
+  | { type: "budget_net" }
+  | { type: "total_net" }
+  | { type: "float" };
 
 export type DashboardTileTransaction = {
   id: string;
@@ -29,12 +32,49 @@ export async function getDashboardTileTransactions(
   kind: DashboardTileKind,
 ): Promise<DashboardTileTransaction[]> {
   const supabase = await createClient();
+
+  // Float's tile is a running balance (never reset monthly, unlike every
+  // other tile here), so its breakdown has to be all-time to actually sum
+  // to the balance shown — every other kind stays scoped to the current
+  // month, matching the month-scoped figure it explains.
+  if (kind.type === "float") {
+    const { data: floatSource, error: floatSourceError } = await supabase
+      .from("sources")
+      .select("id")
+      .eq("type", "float")
+      .maybeSingle();
+    if (floatSourceError) throw new Error(floatSourceError.message);
+    if (!floatSource) return [];
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, posted_date, description, amount, is_transfer, transfer_from_source_id, transfer_to_source_id")
+      .or(
+        `source_id.eq.${floatSource.id},transfer_from_source_id.eq.${floatSource.id},transfer_to_source_id.eq.${floatSource.id}`,
+      )
+      .order("posted_date", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    // A transfer row's own `amount` is an unsigned magnitude (direction is
+    // in transfer_from/to_source_id, per transactions_sync_transfer_balance)
+    // — sign it relative to Float specifically so the list reads the same
+    // way "amount < 0 ? negative : positive" does everywhere else.
+    return (data ?? []).map((r) => {
+      const amount = r.is_transfer
+        ? r.transfer_to_source_id === floatSource.id
+          ? Math.abs(r.amount)
+          : -Math.abs(r.amount)
+        : r.amount;
+      return { id: r.id, postedDate: r.posted_date, description: r.description, amount };
+    });
+  }
+
   const month = currentMonthISO();
   const nextMonth = nextMonthISO(month);
 
   let query = supabase
     .from("transactions")
-    .select("id, posted_date, description, amount, sources!source_id(type)")
+    .select("id, posted_date, description, amount, is_income, sources!source_id(type)")
     .gte("posted_date", month)
     .lt("posted_date", nextMonth)
     .eq("is_transfer", false)
@@ -55,6 +95,13 @@ export async function getDashboardTileTransactions(
     case "other_outflow":
       query = query.lt("amount", 0);
       break;
+    // budget_net (income - budgeted outflows) and total_net (every inflow
+    // minus every outflow) don't need an amount-sign filter at the DB level
+    // — they're unioning multiple of the kinds above, filtered in JS below
+    // instead so one query covers all of it.
+    case "budget_net":
+    case "total_net":
+      break;
   }
 
   const { data, error } = await query;
@@ -67,6 +114,22 @@ export async function getDashboardTileTransactions(
       const isBudget = (r.sources as { type: string } | null)?.type === "budget";
       return isBudget === wantBudget;
     });
+  } else if (kind.type === "budget_net") {
+    // Same two components computeDashboardTotals sums for budgetNet —
+    // income transactions plus budget-sourced expenses, nothing else.
+    rows = rows.filter((r) => {
+      if (r.is_income) return r.amount > 0;
+      return r.amount < 0 && (r.sources as { type: string } | null)?.type === "budget";
+    });
+  } else if (kind.type === "total_net") {
+    // totalNet = income + otherInflow - budgetedOutflow - otherOutflow, and
+    // budgetedOutflow/otherOutflow both come from v_outflow_by_bucket, which
+    // silently drops any outflow with no source at all (`where source_type
+    // is not null`) — inflows have no such requirement. Mirror that here so
+    // this sums to the exact same figure the tile shows, not a superset of
+    // it that happens to include sourceless expenses the tile itself never
+    // counted.
+    rows = rows.filter((r) => r.amount > 0 || r.sources !== null);
   }
 
   return rows.map((r) => ({
