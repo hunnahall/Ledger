@@ -11,7 +11,8 @@ export type DashboardTileKind =
   | { type: "other_outflow" }
   | { type: "budget_net" }
   | { type: "total_net" }
-  | { type: "float" };
+  | { type: "float" }
+  | { type: "source"; sourceId: string };
 
 export type DashboardTileTransaction = {
   id: string;
@@ -33,10 +34,11 @@ export async function getDashboardTileTransactions(
 ): Promise<DashboardTileTransaction[]> {
   const supabase = await createClient();
 
-  // Float's tile is a running balance (never reset monthly, unlike every
-  // other tile here), so its breakdown has to be all-time to actually sum
-  // to the balance shown — every other kind stays scoped to the current
-  // month, matching the month-scoped figure it explains.
+  // Float and a single Source's tile are both running balances (never reset
+  // monthly, unlike every other tile here), so their breakdown has to be
+  // all-time to actually sum to the balance shown — every other kind stays
+  // scoped to the current month, matching the month-scoped figure it
+  // explains.
   if (kind.type === "float") {
     const { data: floatSource, error: floatSourceError } = await supabase
       .from("sources")
@@ -45,28 +47,11 @@ export async function getDashboardTileTransactions(
       .maybeSingle();
     if (floatSourceError) throw new Error(floatSourceError.message);
     if (!floatSource) return [];
+    return getSourceTransactions(supabase, floatSource.id);
+  }
 
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("id, posted_date, description, amount, is_transfer, transfer_from_source_id, transfer_to_source_id")
-      .or(
-        `source_id.eq.${floatSource.id},transfer_from_source_id.eq.${floatSource.id},transfer_to_source_id.eq.${floatSource.id}`,
-      )
-      .order("posted_date", { ascending: false });
-    if (error) throw new Error(error.message);
-
-    // A transfer row's own `amount` is an unsigned magnitude (direction is
-    // in transfer_from/to_source_id, per transactions_sync_transfer_balance)
-    // — sign it relative to Float specifically so the list reads the same
-    // way "amount < 0 ? negative : positive" does everywhere else.
-    return (data ?? []).map((r) => {
-      const amount = r.is_transfer
-        ? r.transfer_to_source_id === floatSource.id
-          ? Math.abs(r.amount)
-          : -Math.abs(r.amount)
-        : r.amount;
-      return { id: r.id, postedDate: r.posted_date, description: r.description, amount };
-    });
+  if (kind.type === "source") {
+    return getSourceTransactions(supabase, kind.sourceId);
   }
 
   const month = currentMonthISO();
@@ -138,4 +123,33 @@ export async function getDashboardTileTransactions(
     description: r.description,
     amount: r.amount,
   }));
+}
+
+// All-time transaction list for a single Source's running balance (Float or
+// any Balances-tile row) — every transaction booked to it plus any transfer
+// in/out, since sources.balance is kept in sync with both by the DB
+// triggers in transactions_sync_transfer_balance/sync_source_or_fund_balance.
+async function getSourceTransactions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sourceId: string,
+): Promise<DashboardTileTransaction[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, posted_date, description, amount, is_transfer, transfer_from_source_id, transfer_to_source_id")
+    .or(`source_id.eq.${sourceId},transfer_from_source_id.eq.${sourceId},transfer_to_source_id.eq.${sourceId}`)
+    .order("posted_date", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  // A transfer row's own `amount` is an unsigned magnitude (direction is in
+  // transfer_from/to_source_id) — sign it relative to this source so the
+  // list reads the same way "amount < 0 ? negative : positive" does
+  // everywhere else.
+  return (data ?? []).map((r) => {
+    const amount = r.is_transfer
+      ? r.transfer_to_source_id === sourceId
+        ? Math.abs(r.amount)
+        : -Math.abs(r.amount)
+      : r.amount;
+    return { id: r.id, postedDate: r.posted_date, description: r.description, amount };
+  });
 }

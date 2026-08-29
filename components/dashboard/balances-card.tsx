@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useModal } from "@/components/ui/modal";
 import { Card } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
 import { ChevronDownIcon } from "@/components/ui/icons";
+import { TransactionsPopupList } from "@/components/dashboard/transactions-popup-list";
 
 type SortDirection = "desc" | "asc" | null;
 
@@ -20,6 +22,7 @@ export function BalancesCard({
   decimalPlaces: number;
 }) {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const { open, modal } = useModal();
 
   function cycleSortDirection() {
     setSortDirection((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null));
@@ -55,14 +58,27 @@ export function BalancesCard({
           />
         </button>
       </div>
-      <div className="flex flex-col gap-2 text-sm">
+      <div className="flex flex-col divide-y divide-border text-sm">
         {sortedBalances.map((b) => (
-          <div key={b.id} className="flex justify-between">
+          <button
+            key={b.id}
+            type="button"
+            className="flex w-full justify-between py-2 text-left first:pt-0 last:pb-0"
+            onClick={() =>
+              open(
+                <TransactionsPopupList
+                  title={b.name}
+                  kind={{ type: "source", sourceId: b.id }}
+                  decimalPlaces={decimalPlaces}
+                />,
+              )
+            }
+          >
             <span>{b.name}</span>
             <span className={b.balance < 0 ? "text-negative" : ""}>
               <Money amount={b.balance} decimalPlaces={decimalPlaces} />
             </span>
-          </div>
+          </button>
         ))}
         {balances.length === 0 && (
           <p className="text-muted">
@@ -74,6 +90,7 @@ export function BalancesCard({
           </p>
         )}
       </div>
+      {modal}
     </Card>
   );
 }
