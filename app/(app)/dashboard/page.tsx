@@ -1,13 +1,24 @@
 import Link from "next/link";
 import { getDashboardData } from "@/lib/queries/dashboard";
+import { getBudgetRateData } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { Card } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
 import { DashboardTopTiles, SpendingByCategoryCard } from "@/components/dashboard/dashboard-tiles";
+import { BudgetFillRateCard } from "@/components/dashboard/budget-fill-rate-card";
 
 export default async function DashboardPage() {
-  const [data, settings] = await Promise.all([getDashboardData(), getSettings()]);
+  const [data, settings, rateData] = await Promise.all([
+    getDashboardData(),
+    getSettings(),
+    getBudgetRateData(),
+  ]);
   const decimalPlaces = settings.decimal_places;
+
+  const budgetFillPct =
+    rateData && rateData.totalAllocation > 0
+      ? Math.round((rateData.income / rateData.totalAllocation) * 100)
+      : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,31 +78,18 @@ export default async function DashboardPage() {
           }
         />
 
-        <Card className="p-5">
-          <p className="mb-3 font-medium">Account balances</p>
-          <div className="flex flex-col gap-2 text-sm">
-            {data.accountBalances.map((a) => (
-              <div key={a.id} className="flex justify-between">
-                <span>{a.account_name}</span>
-                <span>
-                  <Money amount={a.current_balance ?? 0} decimalPlaces={decimalPlaces} />
-                </span>
-              </div>
-            ))}
-            {data.accountBalances.length === 0 && (
-              <p className="text-muted">
-                No accounts yet.{" "}
-                <Link href="/accounts" className="underline">
-                  Add one
-                </Link>
-                .
-              </p>
-            )}
-          </div>
-        </Card>
+        {rateData && (
+          <BudgetFillRateCard
+            budgetFillPct={budgetFillPct}
+            totalAllocation={rateData.totalAllocation}
+            daysInMonth={rateData.daysInMonth}
+            currentDay={rateData.currentDay}
+            actualByDay={rateData.actualByDay}
+          />
+        )}
 
         <Card className="p-5">
-          <p className="mb-3 font-medium">Source balances</p>
+          <p className="mb-3 font-medium">Source Balances</p>
           <div className="flex flex-col gap-2 text-sm">
             {data.sourceBalances.map((s) => (
               <div key={s.id} className="flex justify-between">

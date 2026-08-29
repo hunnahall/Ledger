@@ -23,7 +23,6 @@ export async function getDashboardData() {
     { data: spending, error: spendingError },
     { data: inflowOutflow, error: inflowOutflowError },
     { data: outflowByBucket, error: outflowByBucketError },
-    { data: accountBalances, error: accountBalancesError },
     { data: sourceBalances, error: sourceBalancesError },
     settings,
     { data: categories, error: categoriesError },
@@ -31,7 +30,6 @@ export async function getDashboardData() {
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
     supabase.from("v_outflow_by_bucket").select("*").eq("month", month),
-    supabase.from("v_account_balances").select("*"),
     supabase.from("v_source_balances").select("*"),
     getSettings(),
     userId
@@ -51,7 +49,6 @@ export async function getDashboardData() {
     spendingError,
     inflowOutflowError,
     outflowByBucketError,
-    accountBalancesError,
     sourceBalancesError,
     categoriesError,
   ]) {
@@ -87,7 +84,6 @@ export async function getDashboardData() {
       budgetedOutflowRaw,
       otherOutflowRaw,
     }),
-    accountBalances: accountBalances ?? [],
     sourceBalances: visibleSourceBalances.filter(
       (s) => s.type !== null && SOURCE_BALANCE_TYPES.includes(s.type),
     ),

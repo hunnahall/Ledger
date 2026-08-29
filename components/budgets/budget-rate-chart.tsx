@@ -5,22 +5,23 @@
 // text-positive/text-negative tokens (app/globals.css) so it stays
 // theme-aware like the rest of the app.
 export function BudgetRateChart({
-  categoriesTotal,
+  totalAllocation,
   daysInMonth,
   currentDay,
   actualByDay,
+  height = 180,
 }: {
-  categoriesTotal: number;
+  totalAllocation: number;
   daysInMonth: number;
   currentDay: number;
   actualByDay: number[];
+  height?: number;
 }) {
   const width = 400;
-  const height = 180;
   const padding = 8;
 
-  const paceAtDay = (day: number) => (categoriesTotal / daysInMonth) * day;
-  const maxY = Math.max(categoriesTotal, ...actualByDay, 1);
+  const paceAtDay = (day: number) => (totalAllocation / daysInMonth) * day;
+  const maxY = Math.max(totalAllocation, ...actualByDay, 1);
 
   const x = (day: number) => padding + (day / daysInMonth) * (width - padding * 2);
   const y = (amount: number) => height - padding - (amount / maxY) * (height - padding * 2);

@@ -145,6 +145,42 @@ export async function getBudgetRateData() {
   const today = new Date();
   const currentDay = Math.min(daysInMonth, today.getUTCDate());
 
+  // Total budget allocation is categories + sinking expenses + source
+  // transfers together (same three components getBudgetData's totalMonthly
+  // sums on the Budget page), not just categories — a sinking expense or
+  // source transfer allocation is still money the budget has committed.
+  const [
+    { data: categories, error: categoriesError },
+    { data: sinkingExpenses, error: sinkingError },
+    { data: sourceTransfers, error: sourceTransfersError },
+  ] = await Promise.all([
+    supabase.from("categories").select("monthly_amount").eq("user_id", user.id).is("archived_at", null),
+    supabase
+      .from("sinking_expenses")
+      .select("*")
+      .eq("user_id", user.id)
+      .is("archived_at", null),
+    supabase.from("source_transfers").select("amount").eq("user_id", user.id),
+  ]);
+  if (categoriesError) throw new Error(categoriesError.message);
+  if (sinkingError) throw new Error(sinkingError.message);
+  if (sourceTransfersError) throw new Error(sourceTransfersError.message);
+
+  const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
+  const sinkingTotal = (sinkingExpenses ?? []).reduce((sum, expense) => {
+    const monthlyAmount =
+      expense.contribution_type === "goal"
+        ? goalMonthlyAmount(
+            expense.target_amount ?? 0,
+            expense.contributed_to_date,
+            monthsRemaining(expense.target_date ?? month, month),
+          )
+        : monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency);
+    return sum + monthlyAmount;
+  }, 0);
+  const sourceTransfersTotal = (sourceTransfers ?? []).reduce((sum, t) => sum + t.amount, 0);
+  const totalAllocation = categoriesTotal + sinkingTotal + sourceTransfersTotal;
+
   // Same "did this transaction pay out of the Budget source" filter as
   // v_spending_by_category (supabase/migrations/20260829010000_...) — kept
   // as a plain query here instead of a view since this is a one-off
@@ -186,6 +222,7 @@ export async function getBudgetRateData() {
 
   return {
     income: inflowOutflow?.income ?? 0,
+    totalAllocation,
     daysInMonth,
     currentDay,
     actualByDay,

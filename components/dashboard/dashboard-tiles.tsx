@@ -109,7 +109,7 @@ export function SpendingByCategoryCard({
 
   return (
     <Card className="p-5">
-      <p className="mb-3 font-medium">Spending by category</p>
+      <p className="mb-3 font-medium">Spending By Category</p>
       {categorySpending.length === 0 && emptyState}
       <div className="flex flex-col gap-3">
         {categorySpending.map((c) => {
