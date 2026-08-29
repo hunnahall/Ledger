@@ -568,12 +568,18 @@ const TransactionRow = memo(function TransactionRow({
 
     // A real category only applies while Source is Budget (see the
     // Category select below) — clear a stale pick when moving off it so
-    // the now-hidden dropdown and the saved data agree. Income is exempt
-    // (its own flag, not gated by Source), and there's nothing to clear
-    // when there was no category to begin with.
+    // the now-hidden dropdown and the saved data agree. Income is
+    // normally exempt (its own flag, not gated by Source) — except when
+    // Source resets to "No source": that's this row's one way out of
+    // Income once picked, since the Category select otherwise only ever
+    // offers "Income" (already selected) on any non-Budget Source, with
+    // nothing else there to switch to instead.
     const leavingBudget = newSourceId !== budgetSourceId;
-    const clearCategory = leavingBudget && !isIncome && Boolean(categoryId);
+    const resettingToNoSource = newSourceId === "";
+    const clearIncome = resettingToNoSource && isIncome;
+    const clearCategory = (leavingBudget && !isIncome && Boolean(categoryId)) || clearIncome;
     if (clearCategory) setCategoryId("");
+    if (clearIncome) setIsIncome(false);
 
     if (selected && selectedCount > 1) {
       onBulkApplySource(newSourceId || null);
@@ -586,6 +592,7 @@ const TransactionRow = memo(function TransactionRow({
     // changing), so this has to opt out explicitly.
     const overrides: Record<string, string> = { source_id: newSourceId, rule_action: "skip" };
     if (clearCategory) overrides.category_id = "";
+    if (clearIncome) overrides.is_income = "";
     await saveRow(overrides);
   }
 
