@@ -127,6 +127,13 @@ export function TransactionList({
   // whether it's expanded.
   const rowVirtualizer = useWindowVirtualizer({
     count: transactions.length,
+    // Keyed by transaction id rather than the default (array index) — an
+    // edit that reorders the list (e.g. changing a row's date moves it to
+    // a new index) would otherwise leave the measurement cache mapping the
+    // old index's cached height/position onto whatever transaction now
+    // sits there, which is what produced the blank-row/overlapping-row
+    // glitch on a date change.
+    getItemKey: (index) => transactions[index].id,
     estimateSize: () => 48,
     overscan: 10,
     scrollMargin: listEl?.offsetTop ?? 0,
