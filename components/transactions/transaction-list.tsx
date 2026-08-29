@@ -20,7 +20,7 @@ import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { AddIcon, ChevronDownIcon, SpinnerIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
+import { ClearFiltersButton, DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 import { SearchToggle } from "./search-toggle";
 
 export type TransactionRowData = {
@@ -76,6 +76,7 @@ export function TransactionList({
   bucketOptions,
   bucketNameByValue,
   decimalPlaces,
+  budgetSourceId,
 }: {
   transactions: TransactionRowData[];
   categories: Option[];
@@ -83,6 +84,11 @@ export function TransactionList({
   bucketOptions: BucketOption[];
   bucketNameByValue: Record<string, string>;
   decimalPlaces: number;
+  // The reserved Budget-type Source's id — Category only applies to
+  // spending tracked against the Budget (see v_spending_by_category, which
+  // already scopes to s.type = 'budget'), so the Category select is only
+  // enabled on a row whose Source matches this.
+  budgetSourceId: string | null;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Which rows have "Add Rule" toggled on — lifted up here (keyed by
@@ -192,12 +198,20 @@ export function TransactionList({
   const applyBulkSource = useCallback(
     (sourceId: string | null) => {
       const ids = Array.from(selectedIds);
+      // Same rule as a single row's handleSourceChange: a real category only
+      // applies while Source is Budget, so moving a batch off it clears
+      // whatever categories they were carrying too (Income-marked rows are
+      // already category-less, so this is a no-op for them either way).
+      const leavingBudget = sourceId !== budgetSourceId;
       startTransition(async () => {
-        const result = await bulkUpdateTransactions(ids, { sourceId });
+        const result = await bulkUpdateTransactions(ids, {
+          sourceId,
+          ...(leavingBudget ? { categoryId: null } : {}),
+        });
         setBulkError(result?.error ?? null);
       });
     },
-    [selectedIds],
+    [selectedIds, budgetSourceId],
   );
 
   return (
@@ -225,7 +239,10 @@ export function TransactionList({
       )}
 
       {transactions.length === 0 ? (
-        <Card className="text-center text-sm text-muted">No transactions match these filters.</Card>
+        <Card className="flex flex-col items-center gap-2 text-center text-sm text-muted">
+          <span>No transactions match these filters.</span>
+          <ClearFiltersButton className="font-medium text-foreground hover:underline" />
+        </Card>
       ) : (
         // Below md, each transaction renders as a stacked card instead of a
         // table row — a real <table> forces every column onto one line, which
@@ -251,15 +268,6 @@ export function TransactionList({
             <span className="md:max-w-[260px] md:flex-1 text-center font-medium">Description</span>
             <span className="md:ml-4 w-24 shrink-0 text-center font-medium">Amount</span>
             <SelectColumnFilter
-              label="Category"
-              paramKey="category_id"
-              options={[
-                { value: UNCATEGORIZED_FILTER_VALUE, label: "Uncategorized" },
-                ...categories.map((c) => ({ value: c.id, label: c.name })),
-              ]}
-              className="w-40 shrink-0 font-medium"
-            />
-            <SelectColumnFilter
               label="Source"
               paramKey="source_id"
               options={[
@@ -268,11 +276,21 @@ export function TransactionList({
               ]}
               className="w-40 shrink-0 font-medium"
             />
+            <SelectColumnFilter
+              label="Category"
+              paramKey="category_id"
+              options={[
+                { value: UNCATEGORIZED_FILTER_VALUE, label: "Uncategorized" },
+                ...categories.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              className="w-40 shrink-0 font-medium"
+            />
             <span className="w-20 shrink-0 text-center font-medium">Rule</span>
             <span className="w-8 shrink-0"></span>
             <span className="flex w-10 shrink-0 items-center justify-center">
               <SearchToggle />
             </span>
+            <ClearFiltersButton className="shrink-0 whitespace-nowrap text-xs font-medium normal-case text-muted hover:text-foreground hover:underline" />
           </div>
           <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -297,6 +315,7 @@ export function TransactionList({
                     bucketOptions={bucketOptions}
                     bucketNameByValue={bucketNameByValue}
                     decimalPlaces={decimalPlaces}
+                    budgetSourceId={budgetSourceId}
                     index={virtualRow.index}
                     selected={selectedIds.has(txn.id)}
                     onToggleSelect={toggleSelect}
@@ -328,6 +347,7 @@ const TransactionRow = memo(function TransactionRow({
   bucketOptions,
   bucketNameByValue,
   decimalPlaces,
+  budgetSourceId,
   index,
   selected,
   onToggleSelect,
@@ -344,6 +364,7 @@ const TransactionRow = memo(function TransactionRow({
   bucketOptions: BucketOption[];
   bucketNameByValue: Record<string, string>;
   decimalPlaces: number;
+  budgetSourceId: string | null;
   // This row's position in the (already-filtered/sorted) transactions
   // array — the range endpoint for shift+click select (see toggleSelect).
   index: number;
@@ -382,6 +403,10 @@ const TransactionRow = memo(function TransactionRow({
   const [rowError, setRowError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Real categories only apply to Budget-sourced spending — see the Category
+  // select below (and its className/options) for what this gates.
+  const isBudgetSource = budgetSourceId !== null && sourceId === budgetSourceId;
 
   // The row keeps a stable key (just txn.id) across saves so React updates
   // this DOM subtree in place instead of tearing it down and rebuilding it
@@ -541,6 +566,15 @@ const TransactionRow = memo(function TransactionRow({
     }
     setSourceId(newSourceId);
 
+    // A real category only applies while Source is Budget (see the
+    // Category select below) — clear a stale pick when moving off it so
+    // the now-hidden dropdown and the saved data agree. Income is exempt
+    // (its own flag, not gated by Source), and there's nothing to clear
+    // when there was no category to begin with.
+    const leavingBudget = newSourceId !== budgetSourceId;
+    const clearCategory = leavingBudget && !isIncome && Boolean(categoryId);
+    if (clearCategory) setCategoryId("");
+
     if (selected && selectedCount > 1) {
       onBulkApplySource(newSourceId || null);
       return;
@@ -550,7 +584,9 @@ const TransactionRow = memo(function TransactionRow({
     // default whenever category_id is present on the save, and it always
     // is here (this row's current one, unrelated to what's actually
     // changing), so this has to opt out explicitly.
-    await saveRow({ source_id: newSourceId, rule_action: "skip" });
+    const overrides: Record<string, string> = { source_id: newSourceId, rule_action: "skip" };
+    if (clearCategory) overrides.category_id = "";
+    await saveRow(overrides);
   }
 
   async function handleDateChange(newDate: string) {
@@ -647,34 +683,6 @@ const TransactionRow = memo(function TransactionRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:contents">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-40 md:flex-none">
-              <Select
-                form={`txn-${txn.id}`}
-                name="category_id"
-                uiSize="sm"
-                className="min-w-0 flex-1 md:w-full"
-                value={categoryId}
-                onChange={handleCategoryChange}
-                placeholder={isTransfer ? "—" : "Uncategorized"}
-                disabled={isTransfer}
-              >
-                <option value="">Uncategorized</option>
-                {!isTransfer && txn.amount > 0 && <option value={INCOME}>Income</option>}
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-              {txn.categorySource === "rule" && (
-                <span
-                  className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
-                  title="Auto-categorized from a learned rule"
-                >
-                  auto
-                </span>
-              )}
-            </div>
             <Select
               form={`txn-${txn.id}`}
               name="source_id"
@@ -693,6 +701,42 @@ const TransactionRow = memo(function TransactionRow({
               ))}
               {!isTransfer && txn.amount > 0 && <option value={ADD_SOURCE}>+ Add source</option>}
             </Select>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-40 md:flex-none">
+              <Select
+                form={`txn-${txn.id}`}
+                name="category_id"
+                uiSize="sm"
+                // Real categories only apply to Budget-sourced spending (see
+                // v_spending_by_category, scoped to s.type = 'budget'), so
+                // this reads as inert/greyed-out on any other Source — the
+                // one exception is Income, which is its own flag with its
+                // own Source-routing (see handleCategoryChange/
+                // route_income_to_fund) and stays available no matter what
+                // this row's Source is.
+                className={`min-w-0 flex-1 md:w-full ${!isBudgetSource && !isIncome ? "opacity-60" : ""}`}
+                value={categoryId}
+                onChange={handleCategoryChange}
+                placeholder={isTransfer ? "—" : isBudgetSource ? "Uncategorized" : "—"}
+                disabled={isTransfer}
+              >
+                {isBudgetSource && <option value="">Uncategorized</option>}
+                {!isTransfer && txn.amount > 0 && <option value={INCOME}>Income</option>}
+                {isBudgetSource &&
+                  categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </Select>
+              {(isBudgetSource || isIncome) && txn.categorySource === "rule" && (
+                <span
+                  className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
+                  title="Auto-categorized from a learned rule"
+                >
+                  auto
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 text-xs text-muted md:contents">

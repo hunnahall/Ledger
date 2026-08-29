@@ -30,6 +30,32 @@ function closeDetails(el: HTMLElement) {
   el.closest("details")?.removeAttribute("open");
 }
 
+// Every param a column filter or the search box can set — kept in one place
+// so "Clear filters" resets exactly what those controls touch, no more and
+// no less (e.g. it leaves pagination or other unrelated params alone if any
+// get added later).
+const CLEARABLE_FILTER_KEYS = ["date_from", "date_to", "account_id", "category_id", "source_id", "search"];
+
+// Renders nothing when no filter is active — there's nothing to clear, and
+// an always-visible button here would invite clicks that do nothing.
+export function ClearFiltersButton({ className }: { className?: string }) {
+  const searchParams = useSearchParams();
+  const setParams = useSetSearchParams();
+  const active = CLEARABLE_FILTER_KEYS.some((key) => searchParams.get(key));
+
+  if (!active) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => setParams(Object.fromEntries(CLEARABLE_FILTER_KEYS.map((key) => [key, null])))}
+      className={className}
+    >
+      Clear filters
+    </button>
+  );
+}
+
 function FilterSummary({ label, active }: { label: string; active: boolean }) {
   return (
     <summary className="flex cursor-pointer list-none items-center justify-center gap-1 [&::-webkit-details-marker]:hidden">

@@ -118,6 +118,7 @@ export default async function TransactionsPage({
           bucketOptions={bucketOptions}
           bucketNameByValue={bucketNameByValue}
           decimalPlaces={decimalPlaces}
+          budgetSourceId={filterOptions.defaultSourceId}
         />
       </section>
     </div>
