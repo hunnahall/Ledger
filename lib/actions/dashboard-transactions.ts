@@ -34,11 +34,14 @@ export async function getDashboardTileTransactions(
 ): Promise<DashboardTileTransaction[]> {
   const supabase = await createClient();
 
-  // Float and a single Source's tile are both running balances (never reset
-  // monthly, unlike every other tile here), so their breakdown has to be
-  // all-time to actually sum to the balance shown — every other kind stays
+  const month = currentMonthISO();
+  const nextMonth = nextMonthISO(month);
+
+  // Float's tile is a running balance (never reset monthly, unlike every
+  // other tile here), so its breakdown has to be all-time to actually sum
+  // to the balance shown — every other kind, "source" included, stays
   // scoped to the current month, matching the month-scoped figure it
-  // explains.
+  // explains (v_spending_by_source for "source").
   if (kind.type === "float") {
     const { data: floatSource, error: floatSourceError } = await supabase
       .from("sources")
@@ -51,11 +54,24 @@ export async function getDashboardTileTransactions(
   }
 
   if (kind.type === "source") {
-    return getSourceTransactions(supabase, kind.sourceId);
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, posted_date, description, amount")
+      .eq("source_id", kind.sourceId)
+      .eq("is_transfer", false)
+      .eq("exclude_from_budget", false)
+      .lt("amount", 0)
+      .gte("posted_date", month)
+      .lt("posted_date", nextMonth)
+      .order("posted_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      postedDate: r.posted_date,
+      description: r.description,
+      amount: r.amount,
+    }));
   }
-
-  const month = currentMonthISO();
-  const nextMonth = nextMonthISO(month);
 
   let query = supabase
     .from("transactions")
@@ -125,10 +141,10 @@ export async function getDashboardTileTransactions(
   }));
 }
 
-// All-time transaction list for a single Source's running balance (Float or
-// any Balances-tile row) — every transaction booked to it plus any transfer
-// in/out, since sources.balance is kept in sync with both by the DB
-// triggers in transactions_sync_transfer_balance/sync_source_or_fund_balance.
+// All-time transaction list for the Float source's running balance — every
+// transaction booked to it plus any transfer in/out, since sources.balance
+// is kept in sync with both by the DB triggers in
+// transactions_sync_transfer_balance/sync_source_or_fund_balance.
 async function getSourceTransactions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   sourceId: string,

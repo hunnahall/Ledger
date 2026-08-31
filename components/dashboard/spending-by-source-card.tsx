@@ -10,15 +10,16 @@ import { TransactionsPopupList } from "@/components/dashboard/transactions-popup
 
 type SortDirection = "desc" | "asc" | null;
 
-// Every Source's balance (the old Source Balances + Funds cards merged
-// into one list), sortable by amount — same none -> high-to-low ->
-// low-to-high three-state cycle as CategoriesTable's "Monthly amount"
-// header on the Budget page.
-export function BalancesCard({
-  balances,
+// How much moved out of each Source this month (the old Source Balances +
+// Funds cards merged into one list, now showing spend instead of running
+// balance), sortable by amount — same none -> high-to-low -> low-to-high
+// three-state cycle as CategoriesTable's "Monthly amount" header on the
+// Budget page.
+export function SpendingBySourceCard({
+  spending,
   decimalPlaces,
 }: {
-  balances: { id: string; name: string; balance: number }[];
+  spending: { id: string; name: string; spent: number }[];
   decimalPlaces: number;
 }) {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -28,17 +29,17 @@ export function BalancesCard({
     setSortDirection((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null));
   }
 
-  const sortedBalances =
+  const sortedSpending =
     sortDirection === null
-      ? balances
-      : [...balances].sort((a, b) =>
-          sortDirection === "desc" ? b.balance - a.balance : a.balance - b.balance,
+      ? spending
+      : [...spending].sort((a, b) =>
+          sortDirection === "desc" ? b.spent - a.spent : a.spent - b.spent,
         );
 
   return (
     <Card className="p-5">
       <div className="mb-3 flex items-center justify-between">
-        <p className="font-medium">Balances</p>
+        <p className="font-medium">Spending By Source</p>
         <button
           type="button"
           onClick={cycleSortDirection}
@@ -59,28 +60,28 @@ export function BalancesCard({
         </button>
       </div>
       <div className="flex flex-col divide-y divide-border text-sm">
-        {sortedBalances.map((b) => (
+        {sortedSpending.map((s) => (
           <button
-            key={b.id}
+            key={s.id}
             type="button"
             className="flex w-full justify-between py-2 text-left first:pt-0 last:pb-0"
             onClick={() =>
               open(
                 <TransactionsPopupList
-                  title={b.name}
-                  kind={{ type: "source", sourceId: b.id }}
+                  title={s.name}
+                  kind={{ type: "source", sourceId: s.id }}
                   decimalPlaces={decimalPlaces}
                 />,
               )
             }
           >
-            <span>{b.name}</span>
-            <span className={b.balance < 0 ? "text-negative" : ""}>
-              <Money amount={b.balance} decimalPlaces={decimalPlaces} />
+            <span>{s.name}</span>
+            <span>
+              <Money amount={s.spent} decimalPlaces={decimalPlaces} />
             </span>
           </button>
         ))}
-        {balances.length === 0 && (
+        {spending.length === 0 && (
           <p className="text-muted">
             No sources yet.{" "}
             <Link href="/sources" className="underline">

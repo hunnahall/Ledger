@@ -737,7 +737,7 @@ const TransactionRow = memo(function TransactionRow({
                 placeholder={isTransfer ? "—" : isBudgetSource ? "Uncategorized" : "—"}
                 disabled={isTransfer}
               >
-                {isBudgetSource && <option value="">Uncategorized</option>}
+                {(isBudgetSource || isIncome) && <option value="">Uncategorized</option>}
                 {!isTransfer && txn.amount > 0 && <option value={INCOME}>Income</option>}
                 {isBudgetSource &&
                   categories.map((c) => (

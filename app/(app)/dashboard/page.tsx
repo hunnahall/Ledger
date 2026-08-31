@@ -3,7 +3,7 @@ import { getDashboardData } from "@/lib/queries/dashboard";
 import { getBudgetRateData } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { DashboardStatTiles, SpendingByCategoryCard } from "@/components/dashboard/dashboard-tiles";
-import { BalancesCard } from "@/components/dashboard/balances-card";
+import { SpendingBySourceCard } from "@/components/dashboard/spending-by-source-card";
 
 export default async function DashboardPage() {
   const [data, settings, rateData] = await Promise.all([
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
           }
         />
 
-        <BalancesCard balances={data.balances} decimalPlaces={decimalPlaces} />
+        <SpendingBySourceCard spending={data.spendingBySource} decimalPlaces={decimalPlaces} />
       </div>
     </div>
   );

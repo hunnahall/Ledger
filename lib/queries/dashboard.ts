@@ -5,9 +5,10 @@ import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 import { ensureBudgetCurrent } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
 
-// The Balances tile mirrors every Source's balance (everything under the
-// Sources page's "Budget" heading, plus Reimbursements and Funds) — Float
-// gets its own tile, so it's the one type left out here.
+// The Spending By Source tile mirrors every Source's monthly spend
+// (everything under the Sources page's "Budget" heading, plus
+// Reimbursements and Funds) — Float gets its own tile, so it's the one
+// type left out here.
 const BALANCE_TILE_TYPES = ["budget", "sinking_fund", "income", "reimbursement", "fund"];
 
 export async function getDashboardData() {
@@ -24,6 +25,7 @@ export async function getDashboardData() {
     { data: inflowOutflow, error: inflowOutflowError },
     { data: outflowByBucket, error: outflowByBucketError },
     { data: sourceBalances, error: sourceBalancesError },
+    { data: spendingBySource, error: spendingBySourceError },
     settings,
     { data: categories, error: categoriesError },
   ] = await Promise.all([
@@ -31,6 +33,7 @@ export async function getDashboardData() {
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
     supabase.from("v_outflow_by_bucket").select("*").eq("month", month),
     supabase.from("v_source_balances").select("*"),
+    supabase.from("v_spending_by_source").select("*").eq("month", month),
     getSettings(),
     userId
       ? supabase
@@ -50,6 +53,7 @@ export async function getDashboardData() {
     inflowOutflowError,
     outflowByBucketError,
     sourceBalancesError,
+    spendingBySourceError,
     categoriesError,
   ]) {
     if (error) throw new Error(error.message);
@@ -75,6 +79,10 @@ export async function getDashboardData() {
     (s) => settings.month_ahead || s.type !== "income",
   );
 
+  const spentBySourceId = new Map(
+    (spendingBySource ?? []).map((s) => [s.source_id, spentFromRawAmount(s.amount)]),
+  );
+
   return {
     hasBudget: userId !== null,
     categorySpending,
@@ -84,12 +92,12 @@ export async function getDashboardData() {
       budgetedOutflowRaw,
       otherOutflowRaw,
     }),
-    balances: visibleSourceBalances
+    spendingBySource: visibleSourceBalances
       .filter(
         (s): s is typeof s & { id: string; name: string } =>
           s.id !== null && s.name !== null && s.type !== null && BALANCE_TILE_TYPES.includes(s.type),
       )
-      .map((s) => ({ id: s.id, name: s.name, balance: s.balance ?? 0 })),
+      .map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
     floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
   };
 }
