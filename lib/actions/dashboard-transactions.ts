@@ -109,7 +109,15 @@ export async function getDashboardTileTransactions(
   if (error) throw new Error(error.message);
 
   let rows = data ?? [];
-  if (kind.type === "budgeted_outflow" || kind.type === "other_outflow") {
+  if (kind.type === "category") {
+    // Mirrors v_spending_by_category, which scopes to the reserved Budget
+    // source — a category only applies while a row's Source is Budget (see
+    // transaction-list.tsx), so a category_id surviving on a row whose
+    // Source has since moved off Budget (stale pre-fix data, or a future
+    // regression) shouldn't leak into this popup even though it's excluded
+    // from the tile's own total already.
+    rows = rows.filter((r) => (r.sources as { type: string } | null)?.type === "budget");
+  } else if (kind.type === "budgeted_outflow" || kind.type === "other_outflow") {
     const wantBudget = kind.type === "budgeted_outflow";
     rows = rows.filter((r) => {
       const isBudget = (r.sources as { type: string } | null)?.type === "budget";
