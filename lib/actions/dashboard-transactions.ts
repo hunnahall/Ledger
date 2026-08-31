@@ -54,13 +54,16 @@ export async function getDashboardTileTransactions(
   }
 
   if (kind.type === "source") {
+    // No amount-sign filter — v_spending_by_source nets any inflow (a
+    // refund, reimbursement, income) tied to this Source against its
+    // outflows, so this popup has to list both sides to sum to the same
+    // total the tile shows.
     const { data, error } = await supabase
       .from("transactions")
       .select("id, posted_date, description, amount")
       .eq("source_id", kind.sourceId)
       .eq("is_transfer", false)
       .eq("exclude_from_budget", false)
-      .lt("amount", 0)
       .gte("posted_date", month)
       .lt("posted_date", nextMonth)
       .order("posted_date", { ascending: false });
