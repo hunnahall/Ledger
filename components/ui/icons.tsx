@@ -211,6 +211,21 @@ export function SpinnerIcon({ size = 16, className }: { size?: number; className
   );
 }
 
+export function ForecastIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 -960 960 960"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M136-160v-80l64-64v144h-64Zm160 0v-224l64-64v288h-64Zm160 0v-288l64 65v223h-64Zm160 0v-223l64-64v287h-64Zm160 0v-384l64-64v448h-64ZM136-389v-90l304-304 160 160 264-264v90L600-433 440-593 136-389Z" />
+    </svg>
+  );
+}
+
 export function LogIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
     <svg

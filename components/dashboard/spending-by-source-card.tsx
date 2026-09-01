@@ -18,9 +18,11 @@ type SortDirection = "desc" | "asc" | null;
 export function SpendingBySourceCard({
   spending,
   decimalPlaces,
+  monthISO,
 }: {
   spending: { id: string; name: string; spent: number }[];
   decimalPlaces: number;
+  monthISO: string;
 }) {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const { open, modal } = useModal();
@@ -70,6 +72,7 @@ export function SpendingBySourceCard({
                 <TransactionsPopupList
                   title={s.name}
                   kind={{ type: "source", sourceId: s.id }}
+                  monthISO={monthISO}
                   decimalPlaces={decimalPlaces}
                 />,
               )

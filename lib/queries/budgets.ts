@@ -133,17 +133,20 @@ export async function getBudgetData() {
 // getBudgetData/ensureBudgetCurrent above — this only reads, no resets to
 // apply, so it can run concurrently with the rest of the page's data
 // fetching without racing ensure_budget_source_current's write.
-export async function getBudgetRateData() {
+export async function getBudgetRateData(monthISO: string = currentMonthISO()) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const month = currentMonthISO();
+  const month = monthISO;
   const daysInMonth = daysInMonthISO(month);
+  // A past month is already fully elapsed, so the actual-spend line should
+  // run through its last day rather than today's day-of-month (which, for
+  // a month that isn't the current one, has no relationship to it at all).
   const today = new Date();
-  const currentDay = Math.min(daysInMonth, today.getUTCDate());
+  const currentDay = month === currentMonthISO() ? Math.min(daysInMonth, today.getUTCDate()) : daysInMonth;
 
   // Total budget allocation is categories + sinking expenses + source
   // transfers together (same three components getBudgetData's totalMonthly

@@ -15,9 +15,10 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
     // different order and visibly jump. id never changes, so it's a stable
     // final tiebreaker even though its own ordering is arbitrary.
     .order("id", { ascending: false })
-    // Safety cap, not real pagination — retention_days (60/120 max) already
-    // keeps normal usage well under this; just guards against an unbounded
-    // fetch (3 joined relations) for an outlier account.
+    // Safety cap, not real pagination — the fixed 3-month retention window
+    // (purge_expired_data) already keeps normal usage well under this; just
+    // guards against an unbounded fetch (3 joined relations) for an outlier
+    // account.
     .limit(2000);
 
   if (filters.dateFrom) query = query.gte("posted_date", filters.dateFrom);

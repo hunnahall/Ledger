@@ -169,12 +169,107 @@ export type Database = {
         }
         Relationships: []
       }
+      forecast_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          forecast_id: string
+          id: string
+          is_expense: boolean
+          month: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          forecast_id: string
+          id?: string
+          is_expense?: boolean
+          month: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          forecast_id?: string
+          id?: string
+          is_expense?: boolean
+          month?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecast_entries_forecast_id_fkey"
+            columns: ["forecast_id"]
+            isOneToOne: false
+            referencedRelation: "forecasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forecasts: {
+        Row: {
+          created_at: string
+          id: string
+          monthly_transfer_override: number | null
+          name: string
+          source_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          monthly_transfer_override?: number | null
+          name: string
+          source_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          monthly_transfer_override?: number | null
+          name?: string
+          source_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecasts_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forecasts_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "v_reimbursements_pending"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forecasts_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "v_source_balances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           created_at: string
           decimal_places: number
           month_ahead: boolean
-          retention_days: number
           updated_at: string
           user_id: string
         }
@@ -182,7 +277,6 @@ export type Database = {
           created_at?: string
           decimal_places?: number
           month_ahead?: boolean
-          retention_days?: number
           updated_at?: string
           user_id: string
         }
@@ -190,7 +284,6 @@ export type Database = {
           created_at?: string
           decimal_places?: number
           month_ahead?: boolean
-          retention_days?: number
           updated_at?: string
           user_id?: string
         }

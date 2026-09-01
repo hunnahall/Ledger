@@ -12,6 +12,16 @@ export function nextMonthISO(monthISO: string): string {
   return `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
 }
 
+// First-of-previous-month for a YYYY-MM-01 month string — symmetric to
+// nextMonthISO, used to walk backward (e.g. building the Dashboard's
+// selectable-months list).
+export function previousMonthISO(monthISO: string): string {
+  const [year, month] = monthISO.split("-").map(Number);
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  return `${prevYear}-${String(prevMonth).padStart(2, "0")}-01`;
+}
+
 // Number of days in a YYYY-MM-01 month string.
 export function daysInMonthISO(monthISO: string): number {
   const [year, month] = monthISO.split("-").map(Number);

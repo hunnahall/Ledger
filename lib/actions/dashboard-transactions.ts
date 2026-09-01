@@ -31,10 +31,11 @@ export type DashboardTileTransaction = {
 // replicating for a read-only summary popup).
 export async function getDashboardTileTransactions(
   kind: DashboardTileKind,
+  monthISO: string = currentMonthISO(),
 ): Promise<DashboardTileTransaction[]> {
   const supabase = await createClient();
 
-  const month = currentMonthISO();
+  const month = monthISO;
   const nextMonth = nextMonthISO(month);
 
   // Float's tile is a running balance (never reset monthly, unlike every

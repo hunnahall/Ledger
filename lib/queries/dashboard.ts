@@ -11,9 +11,9 @@ import { getSettings } from "@/lib/queries/settings";
 // type left out here.
 const BALANCE_TILE_TYPES = ["budget", "sinking_fund", "income", "reimbursement", "fund"];
 
-export async function getDashboardData() {
+export async function getDashboardData(monthISO: string = currentMonthISO()) {
   const supabase = await createClient();
-  const month = currentMonthISO();
+  const month = monthISO;
 
   // Awaited first, not folded into the Promise.all below: it resets the
   // current budget's linked source balance for the month if due, and

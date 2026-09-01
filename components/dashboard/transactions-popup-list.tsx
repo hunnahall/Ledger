@@ -15,10 +15,12 @@ import { Money } from "@/components/ui/money";
 export function TransactionsPopupList({
   title,
   kind,
+  monthISO,
   decimalPlaces,
 }: {
   title: string;
   kind: DashboardTileKind;
+  monthISO: string;
   decimalPlaces: number;
 }) {
   const [transactions, setTransactions] = useState<DashboardTileTransaction[] | null>(null);
@@ -27,10 +29,10 @@ export function TransactionsPopupList({
   useEffect(() => {
     // Fetch once on mount: useModal (components/ui/modal.tsx) unmounts this
     // component entirely on close and mounts a fresh instance on the next
-    // open, so `kind` never changes across the lifetime of one instance —
-    // no need to track it as a dependency.
+    // open, so `kind`/`monthISO` never change across the lifetime of one
+    // instance — no need to track them as dependencies.
     let cancelled = false;
-    getDashboardTileTransactions(kind)
+    getDashboardTileTransactions(kind, monthISO)
       .then((rows) => {
         if (!cancelled) setTransactions(rows);
       })

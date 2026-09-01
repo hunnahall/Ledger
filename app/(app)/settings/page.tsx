@@ -5,7 +5,6 @@ import { getBankConnections } from "@/lib/queries/accounts";
 import { deleteVendorRule, updateVendorRule } from "@/lib/actions/vendor-rules";
 import { disconnectBankConnection, syncBankConnection } from "@/lib/actions/simplefin";
 import { DecimalPlacesForm } from "@/components/settings/decimal-places-form";
-import { RetentionForm } from "@/components/settings/retention-form";
 import { MonthAheadForm } from "@/components/settings/month-ahead-form";
 import { RunRulesButton } from "@/components/settings/run-rules-button";
 import { AddVendorRuleButton } from "@/components/settings/add-vendor-rule-button";
@@ -40,10 +39,6 @@ export default async function SettingsPage() {
         <Card className="min-w-56 flex-1 p-5">
           <p className="text-sm font-medium">Appearance</p>
           <ThemeToggle className="mt-3" />
-        </Card>
-
-        <Card className="min-w-56 flex-1 p-5">
-          <RetentionForm retentionDays={settings.retention_days} />
         </Card>
 
         <Card className="min-w-56 flex-1 p-5">

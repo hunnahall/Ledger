@@ -29,6 +29,7 @@ export function DashboardStatTiles({
   currentDay,
   actualByDay,
   decimalPlaces,
+  monthISO,
 }: {
   income: number;
   otherInflow: number;
@@ -43,11 +44,12 @@ export function DashboardStatTiles({
   currentDay: number;
   actualByDay: number[];
   decimalPlaces: number;
+  monthISO: string;
 }) {
   const { open, modal } = useModal();
 
   function openTile(title: string, kind: DashboardTileKind) {
-    open(<TransactionsPopupList title={title} kind={kind} decimalPlaces={decimalPlaces} />);
+    open(<TransactionsPopupList title={title} kind={kind} monthISO={monthISO} decimalPlaces={decimalPlaces} />);
   }
 
   return (
@@ -139,10 +141,12 @@ function StatTile({
 export function SpendingByCategoryCard({
   categorySpending,
   decimalPlaces,
+  monthISO,
   emptyState,
 }: {
   categorySpending: { id: string; name: string; monthly_amount: number; spent: number }[];
   decimalPlaces: number;
+  monthISO: string;
   emptyState: React.ReactNode;
 }) {
   const { open, modal } = useModal();
@@ -164,6 +168,7 @@ export function SpendingByCategoryCard({
                   <TransactionsPopupList
                     title={c.name}
                     kind={{ type: "category", categoryId: c.id }}
+                    monthISO={monthISO}
                     decimalPlaces={decimalPlaces}
                   />,
                 )
