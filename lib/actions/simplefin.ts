@@ -125,6 +125,39 @@ export async function syncBankConnection(
   return null;
 }
 
+// Syncs every connected bank at once — the "Sync" button on the
+// Transactions page, which (unlike Settings) has no single connection to
+// scope to. Uses the same rolling-window sync as syncBankConnection, just
+// fanned out across all of the user's connections.
+export async function syncAllBankConnections(
+  _prevState: { error: string } | null,
+  _formData: FormData,
+): Promise<{ error: string } | null> {
+  const supabase = await createClient();
+  const { data: connections, error: fetchError } = await supabase
+    .from("bank_connections")
+    .select("id");
+  if (fetchError) return { error: fetchError.message };
+  if (!connections || connections.length === 0) {
+    return { error: "No banks connected — add one on the Settings page." };
+  }
+
+  const results = await Promise.allSettled(connections.map((c) => invokeSync(c.id)));
+  const failures = results.filter((r) => r.status === "rejected").length;
+
+  revalidatePath("/accounts");
+  revalidatePath("/settings");
+  revalidatePath("/transactions");
+  revalidatePath("/dashboard");
+
+  if (failures > 0) {
+    return {
+      error: `${failures} of ${connections.length} connection${connections.length === 1 ? "" : "s"} failed to sync.`,
+    };
+  }
+  return null;
+}
+
 // Backfills one bank connection over an explicit date range (as opposed to
 // syncBankConnection's rolling window since last sync) — see the "Import"
 // control on the Accounts page. Dedup is handled entirely server-side: the

@@ -8,11 +8,13 @@ export type ForecastEntryInput = {
 
 export type ForecastPoint = { monthISO: string; value: number };
 
-// Cumulative running balance: each month adds the recurring monthly
-// transfer, then applies that month's manual entries — starting with the
-// first (current) month, not a month later — so an expense entered for the
-// current month reduces that same month's point, matching how a real
-// ledger balance would already reflect it.
+// Cumulative running balance. The first (current) month starts from the
+// Source's actual current balance rather than adding another monthly
+// transfer on top of it — that transfer, if due, is already reflected in
+// the live balance — but still applies any manual entries logged against
+// the current month, so those still move the starting point. Every month
+// after that adds the recurring transfer, then applies that month's manual
+// entries.
 export function projectForecast({
   startingBalance,
   monthlyTransfer,
@@ -39,7 +41,11 @@ export function projectForecast({
   let monthISO = startMonthISO;
   for (let i = 0; i < months; i++) {
     const bucket = byMonth.get(monthISO);
-    running = running + monthlyTransfer - (bucket?.expenses ?? 0) + (bucket?.deposits ?? 0);
+    running =
+      running +
+      (i === 0 ? 0 : monthlyTransfer) -
+      (bucket?.expenses ?? 0) +
+      (bucket?.deposits ?? 0);
     points.push({ monthISO, value: running });
     monthISO = nextMonthISO(monthISO);
   }

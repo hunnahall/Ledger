@@ -7,9 +7,9 @@ import { getSettings } from "@/lib/queries/settings";
 
 // The Spending By Source tile mirrors every Source's monthly spend
 // (everything under the Sources page's "Budget" heading, plus
-// Reimbursements and Funds) — Float gets its own tile, so it's the one
-// type left out here.
-const BALANCE_TILE_TYPES = ["budget", "sinking_fund", "income", "reimbursement", "fund"];
+// Reimbursements and Funds) — Float and Income get their own tiles, so
+// they're left out here.
+const BALANCE_TILE_TYPES = ["budget", "sinking_fund", "reimbursement", "fund"];
 
 export async function getDashboardData(monthISO: string = currentMonthISO()) {
   const supabase = await createClient();

@@ -2,7 +2,7 @@
 
 import { currentMonthISO } from "@/lib/dates";
 import { useSetSearchParams } from "@/components/transactions/column-filter";
-import { cn } from "@/lib/cn";
+import { Select } from "@/components/ui/select";
 
 function monthLabel(monthISO: string) {
   return new Date(`${monthISO}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -22,22 +22,17 @@ export function MonthPicker({ months, selected }: { months: string[]; selected: 
   const setParams = useSetSearchParams();
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <Select
+      uiSize="sm"
+      className="w-44"
+      value={selected}
+      onChange={(monthISO) => setParams({ month: monthISO === currentMonthISO() ? null : monthISO })}
+    >
       {months.map((monthISO) => (
-        <button
-          key={monthISO}
-          type="button"
-          onClick={() => setParams({ month: monthISO === currentMonthISO() ? null : monthISO })}
-          className={cn(
-            "rounded-md border px-2.5 py-1 text-xs",
-            monthISO === selected
-              ? "border-foreground bg-foreground text-surface"
-              : "border-border bg-transparent hover:bg-background",
-          )}
-        >
+        <option key={monthISO} value={monthISO}>
           {monthLabel(monthISO)}
-        </button>
+        </option>
       ))}
-    </div>
+    </Select>
   );
 }

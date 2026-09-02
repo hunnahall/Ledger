@@ -13,6 +13,7 @@ import { getSettings } from "@/lib/queries/settings";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
 import { ExportMenu } from "@/components/transactions/export-menu";
+import { SyncButton } from "@/components/transactions/sync-button";
 
 type SearchParams = {
   date_from?: string;
@@ -92,7 +93,10 @@ export default async function TransactionsPage({
           <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
           <p className="mt-1 text-sm text-muted">Your income and expenses.</p>
         </div>
-        <ExportMenu />
+        <div className="flex items-center gap-2">
+          <SyncButton />
+          <ExportMenu />
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">
