@@ -11,9 +11,14 @@ describe("parseMonthYear", () => {
     expect(parseMonthYear("00/26")).toBeNull();
   });
 
+  it("accepts a single-digit month", () => {
+    expect(parseMonthYear("9/26")).toBe("2026-09-01");
+    expect(parseMonthYear("1/27")).toBe("2027-01-01");
+  });
+
   it("rejects a malformed string", () => {
     expect(parseMonthYear("2026-08")).toBeNull();
-    expect(parseMonthYear("8/26")).toBeNull();
+    expect(parseMonthYear("8/2026")).toBeNull();
   });
 });
 

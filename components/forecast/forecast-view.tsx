@@ -4,11 +4,13 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { renameForecast, updateForecastSource, deleteForecast } from "@/lib/actions/forecasts";
 import { projectForecast } from "@/lib/forecast/project";
+import { formatMonthYear, monthLabel } from "@/lib/forecast/month";
 import { formatMoney } from "@/lib/format";
 import { ForecastPicker } from "@/components/forecast/forecast-picker";
 import { ForecastChart } from "@/components/forecast/forecast-chart";
 import { ForecastEntriesTable } from "@/components/forecast/forecast-entries-table";
 import { MonthlyTransferControl } from "@/components/forecast/monthly-transfer-control";
+import { StartingBalanceControl } from "@/components/forecast/starting-balance-control";
 import { NameEditControl } from "@/components/sources/name-edit-control";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,8 @@ type ForecastDetail = {
   sourceId: string;
   sourceName: string;
   sourceBalance: number;
+  startingBalanceOverride: number | null;
+  effectiveStartingBalance: number;
   monthlyTransferOverride: number | null;
   transferIsLive: boolean;
   effectiveMonthlyTransfer: number;
@@ -77,11 +81,16 @@ function ForecastDetailView({
   const [deletePending, startDeleteTransition] = useTransition();
 
   const points = projectForecast({
-    startingBalance: forecast.sourceBalance,
+    startingBalance: forecast.effectiveStartingBalance,
     monthlyTransfer: forecast.effectiveMonthlyTransfer,
     entries: forecast.entries.map((e) => ({ month: e.month, isExpense: e.isExpense, amount: e.amount })),
     startMonthISO: currentMonthISO,
   });
+
+  // The entry forms pick a month from exactly what the graph plots, in the
+  // same order, rather than free-typing mm/yy — same months.length as
+  // projectForecast's default 12.
+  const monthOptions = points.map((p) => ({ value: formatMonthYear(p.monthISO), label: monthLabel(p.monthISO) }));
 
   async function handleSourceChange(sourceId: string) {
     if (sourceId === forecast.sourceId) return;
@@ -143,28 +152,42 @@ function ForecastDetailView({
         </Select>
       </div>
 
-      {forecast.transferIsLive ? (
-        <p className="text-sm text-muted">
-          Monthly transfer: {formatMoney(forecast.effectiveMonthlyTransfer, decimalPlaces)}/mo — set on the{" "}
-          <a href="/budget" className="underline">
-            Budgets page
-          </a>
-        </p>
-      ) : (
-        <MonthlyTransferControl
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <StartingBalanceControl
           forecastId={forecast.id}
-          amount={forecast.monthlyTransferOverride}
+          override={forecast.startingBalanceOverride}
+          liveBalance={forecast.sourceBalance}
           decimalPlaces={decimalPlaces}
         />
-      )}
+
+        {forecast.transferIsLive ? (
+          <p className="text-sm text-muted">
+            Monthly transfer: {formatMoney(forecast.effectiveMonthlyTransfer, decimalPlaces)}/mo — set on the{" "}
+            <a href="/budget" className="underline">
+              Budgets page
+            </a>
+          </p>
+        ) : (
+          <MonthlyTransferControl
+            forecastId={forecast.id}
+            amount={forecast.monthlyTransferOverride}
+            decimalPlaces={decimalPlaces}
+          />
+        )}
+      </div>
 
       <Card className="p-5">
-        <div className="h-64">
+        <div className="h-96">
           <ForecastChart points={points} />
         </div>
       </Card>
 
-      <ForecastEntriesTable forecastId={forecast.id} entries={forecast.entries} decimalPlaces={decimalPlaces} />
+      <ForecastEntriesTable
+        forecastId={forecast.id}
+        entries={forecast.entries}
+        decimalPlaces={decimalPlaces}
+        monthOptions={monthOptions}
+      />
     </div>
   );
 }

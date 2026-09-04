@@ -18,6 +18,8 @@ type ForecastEntry = {
   updatedAt: string;
 };
 
+type MonthOption = { value: string; label: string };
+
 // Bottom-of-page manual entries table — a separate add-form above a plain
 // list, same shape as SinkingExpensesTable/manual-transaction-form.tsx, not
 // inline-in-table. No virtualization (unlike the Transactions page's
@@ -27,10 +29,14 @@ export function ForecastEntriesTable({
   forecastId,
   entries,
   decimalPlaces,
+  monthOptions,
 }: {
   forecastId: string;
   entries: ForecastEntry[];
   decimalPlaces: number;
+  // The exact months the graph plots, in graph order — a dropdown instead
+  // of free-typed mm/yy, so an entry can never land outside the chart.
+  monthOptions: MonthOption[];
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [, createAction] = useActionState(createForecastEntry.bind(null, forecastId), null);
@@ -44,6 +50,7 @@ export function ForecastEntriesTable({
           decimalPlaces={decimalPlaces}
           isLast={!showAdd && index === entries.length - 1}
           onAddClick={() => setShowAdd(true)}
+          monthOptions={monthOptions}
         />
       ))}
 
@@ -61,14 +68,18 @@ export function ForecastEntriesTable({
             >
               <label className="flex flex-col gap-1 text-sm">
                 Month
-                <Input
-                  type="text"
+                <Select
                   name="month"
-                  placeholder="mm/yy"
-                  pattern="\d{2}/\d{2}"
-                  required
-                  className="w-20"
-                />
+                  uiSize="sm"
+                  className="w-28"
+                  defaultValue={monthOptions[0]?.value}
+                >
+                  {monthOptions.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </Select>
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 Description

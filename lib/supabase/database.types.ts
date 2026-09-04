@@ -220,6 +220,7 @@ export type Database = {
           monthly_transfer_override: number | null
           name: string
           source_id: string
+          starting_balance_override: number | null
           updated_at: string
           user_id: string
         }
@@ -229,6 +230,7 @@ export type Database = {
           monthly_transfer_override?: number | null
           name: string
           source_id: string
+          starting_balance_override?: number | null
           updated_at?: string
           user_id: string
         }
@@ -238,6 +240,7 @@ export type Database = {
           monthly_transfer_override?: number | null
           name?: string
           source_id?: string
+          starting_balance_override?: number | null
           updated_at?: string
           user_id?: string
         }

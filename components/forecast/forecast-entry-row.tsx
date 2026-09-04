@@ -1,7 +1,7 @@
 "use client";
 
 import { updateForecastEntry, deleteForecastEntry } from "@/lib/actions/forecasts";
-import { formatMonthYear } from "@/lib/forecast/month";
+import { formatMonthYear, monthLabel } from "@/lib/forecast/month";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
@@ -17,17 +17,28 @@ type ForecastEntry = {
   updatedAt: string;
 };
 
+type MonthOption = { value: string; label: string };
+
 export function ForecastEntryRow({
   entry,
   decimalPlaces,
   isLast,
   onAddClick,
+  monthOptions,
 }: {
   entry: ForecastEntry;
   decimalPlaces: number;
   isLast: boolean;
   onAddClick: () => void;
+  monthOptions: MonthOption[];
 }) {
+  // An entry dated outside the graph's current window (e.g. logged before
+  // this month rolled forward) still needs a matching option so the select
+  // shows its real value instead of silently falling back to the first one.
+  const currentValue = formatMonthYear(entry.month);
+  const options = monthOptions.some((m) => m.value === currentValue)
+    ? monthOptions
+    : [{ value: currentValue, label: monthLabel(entry.month) }, ...monthOptions];
   return (
     <ExpandableRow
       colSpan={4}
@@ -51,16 +62,19 @@ export function ForecastEntryRow({
         </>
       }
     >
-      <Input
+      <Select
         key={`month-${entry.updatedAt}`}
-        type="text"
         name="month"
-        defaultValue={formatMonthYear(entry.month)}
-        placeholder="mm/yy"
-        pattern="\d{2}/\d{2}"
-        required
-        className="w-20"
-      />
+        uiSize="sm"
+        className="w-28"
+        defaultValue={currentValue}
+      >
+        {options.map((m) => (
+          <option key={m.value} value={m.value}>
+            {m.label}
+          </option>
+        ))}
+      </Select>
       <Input
         key={`description-${entry.updatedAt}`}
         type="text"

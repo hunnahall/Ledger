@@ -94,6 +94,33 @@ export async function updateMonthlyTransferOverride(
   return null;
 }
 
+export async function updateStartingBalanceOverride(
+  forecastId: string,
+  _prevState: { error: string } | null,
+  formData: FormData,
+): Promise<{ error: string } | null> {
+  // A cleared field means "fall back to the Source's live balance", which
+  // is a null override rather than zero — same convention as
+  // updateMonthlyTransferOverride.
+  const raw = formData.get("starting_balance_override");
+  let amount: number | null = null;
+  if (raw !== null && raw !== "") {
+    const parsed = parseMoney(raw);
+    if ("error" in parsed) return parsed;
+    amount = parsed.amount;
+  }
+
+  const { supabase } = await requireUser();
+  const { error } = await supabase
+    .from("forecasts")
+    .update({ starting_balance_override: amount })
+    .eq("id", forecastId);
+  if (error) return { error: error.message };
+
+  revalidateForecastPages();
+  return null;
+}
+
 export async function deleteForecast(
   forecastId: string,
   _prevState: { error: string } | null,

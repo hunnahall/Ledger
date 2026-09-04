@@ -34,7 +34,7 @@ export async function getForecast(id: string) {
 
   const { data: forecast, error: forecastError } = await supabase
     .from("forecasts")
-    .select("id, name, source_id, monthly_transfer_override")
+    .select("id, name, source_id, monthly_transfer_override, starting_balance_override")
     .eq("id", id)
     .maybeSingle();
   if (forecastError) throw new Error(forecastError.message);
@@ -56,12 +56,18 @@ export async function getForecast(id: string) {
   const transferIsLive = liveTransfer !== null;
   const effectiveMonthlyTransfer = liveTransfer ?? forecast.monthly_transfer_override ?? 0;
 
+  const sourceBalance = source?.balance ?? 0;
+  const startingBalanceOverride = forecast.starting_balance_override;
+  const effectiveStartingBalance = startingBalanceOverride ?? sourceBalance;
+
   return {
     id: forecast.id,
     name: forecast.name,
     sourceId: forecast.source_id,
     sourceName: source?.name ?? "",
-    sourceBalance: source?.balance ?? 0,
+    sourceBalance,
+    startingBalanceOverride,
+    effectiveStartingBalance,
     monthlyTransferOverride: forecast.monthly_transfer_override,
     transferIsLive,
     effectiveMonthlyTransfer,
