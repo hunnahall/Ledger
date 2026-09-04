@@ -124,7 +124,9 @@ function StatTile({
   onClick?: () => void;
 }) {
   const content = (
-    <Card className="p-5">
+    // Only the tiles that open a popup react to the pointer; a plain stat
+    // tile is content, not a control.
+    <Card interactive={Boolean(onClick)} className="p-5">
       <p className="text-xs text-muted">{label}</p>
       <div className="mt-1 h-7 text-xl font-semibold">{children}</div>
     </Card>
@@ -132,7 +134,11 @@ function StatTile({
 
   if (!onClick) return content;
   return (
-    <button type="button" onClick={onClick} className="w-full text-left">
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+    >
       {content}
     </button>
   );

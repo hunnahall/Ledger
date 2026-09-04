@@ -5,6 +5,7 @@ import { createVendorRule } from "@/lib/actions/vendor-rules";
 import { INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 export function CreateVendorRuleForm({
   categories,
@@ -36,12 +37,11 @@ export function CreateVendorRuleForm({
     >
       <label className="flex flex-col gap-1 text-xs text-muted">
         If description contains
-        <input
+        <Input
           type="text"
           name="merchant"
           required
           placeholder="e.g. Trader Joe's"
-          className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs text-muted">

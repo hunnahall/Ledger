@@ -2,6 +2,7 @@
 
 import { useRef, type KeyboardEvent } from "react";
 import { useInlineEdit } from "@/components/ui/inline-edit";
+import { Input } from "@/components/ui/input";
 
 type RenameAction = (
   prevState: { error: string } | null,
@@ -50,7 +51,8 @@ export function NameEditControl({ action, name }: { action: RenameAction; name: 
 
   return (
     <div className="flex flex-col gap-1">
-      <input
+      <Input
+        uiSize="sm"
         ref={inputRef}
         type="text"
         defaultValue={name}
@@ -58,7 +60,7 @@ export function NameEditControl({ action, name }: { action: RenameAction; name: 
         onBlur={commitIfChanged}
         onKeyDown={handleKeyDown}
         onFocus={(e) => e.currentTarget.select()}
-        className="w-40 rounded-md border border-border bg-background px-2 py-1 text-sm font-medium"
+        className="w-40 text-sm font-medium"
       />
       {error && <p className="text-xs text-negative">{error}</p>}
     </div>

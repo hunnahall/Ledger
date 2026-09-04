@@ -23,7 +23,7 @@ export function ExportMenu() {
       <a
         href={`/api/transactions/export${range === "30d" ? "?range=30d" : ""}`}
         aria-label="Export CSV"
-        className="flex items-center justify-center rounded-md bg-mark p-2 text-mark-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-elevated hover:brightness-95 active:translate-y-0 active:scale-[0.98]"
+        className="flex items-center justify-center rounded-md bg-mark p-2 text-mark-foreground shadow-xs transition-[filter,box-shadow] duration-[120ms] ease-standard hover:brightness-[0.96] active:brightness-[0.92]"
       >
         <ShareIcon />
       </a>

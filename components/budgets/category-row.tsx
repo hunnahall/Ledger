@@ -7,6 +7,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
+import { Input } from "@/components/ui/input";
 
 type Category = {
   id: string;
@@ -39,19 +40,19 @@ export function CategoryRow({
   );
 
   return (
-    <tr className="border-b border-border last:border-0">
+    <tr className="border-b border-border transition-colors duration-[120ms] ease-standard last:border-0 hover:bg-paper-a1">
       <td colSpan={3} className="px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <form action={updateAction} className="flex flex-wrap items-center gap-3">
-            <input
+            <Input
               key={`name-${category.updated_at}`}
               type="text"
               name="name"
               defaultValue={category.name}
               required
-              className="w-40 rounded-md border border-border bg-background px-3 py-1.5"
+              className="w-40"
             />
-            <input
+            <Input
               key={`amount-${category.updated_at}`}
               type="number"
               name="monthly_amount"
@@ -59,7 +60,7 @@ export function CategoryRow({
               min="0"
               onKeyDown={stepAmountByDollar}
               defaultValue={category.monthly_amount}
-              className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
+              className="w-28"
             />
             <Button type="submit" size="sm">
               Save

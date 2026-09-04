@@ -15,6 +15,7 @@ import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { ExpandableRow } from "@/components/budgets/expandable-row";
+import { Input } from "@/components/ui/input";
 
 type SinkingExpense = {
   id: string;
@@ -74,13 +75,13 @@ export function SinkingExpenseRow({
         </>
       }
     >
-      <input
+      <Input
         key={`name-${expense.updated_at}`}
         type="text"
         name="name"
         defaultValue={expense.name}
         required
-        className="w-32 rounded-md border border-border bg-background px-3 py-1.5"
+        className="w-32"
       />
 
       <Select
@@ -97,7 +98,7 @@ export function SinkingExpenseRow({
 
       {mode === "frequency" ? (
         <>
-          <input
+          <Input
             key={`amount-${expense.updated_at}`}
             type="number"
             name="amount"
@@ -105,7 +106,7 @@ export function SinkingExpenseRow({
             min="0"
             onKeyDown={stepAmountByDollar}
             defaultValue={expense.amount}
-            className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
+            className="w-24"
           />
           <Select
             key={`frequency-${expense.updated_at}`}
@@ -122,7 +123,7 @@ export function SinkingExpenseRow({
         </>
       ) : (
         <>
-          <input
+          <Input
             key={`target_amount-${expense.updated_at}`}
             type="number"
             name="target_amount"
@@ -131,15 +132,15 @@ export function SinkingExpenseRow({
             onKeyDown={stepAmountByDollar}
             placeholder="Target amount"
             defaultValue={expense.target_amount ?? 0}
-            className="w-28 rounded-md border border-border bg-background px-3 py-1.5"
+            className="w-28"
           />
-          <input
+          <Input
             key={`target_date-${expense.updated_at}`}
             type="date"
             name="target_date"
             defaultValue={expense.target_date ?? ""}
             required={mode === "goal"}
-            className="w-36 rounded-md border border-border bg-background px-3 py-1.5"
+            className="w-36"
           />
         </>
       )}

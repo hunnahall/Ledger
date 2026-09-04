@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
 
 type SavedForecast = { id: string; name: string; sourceName: string; updatedAt: string };
 type SourceOption = { id: string; name: string };
@@ -82,12 +83,12 @@ export function ForecastPicker({
           <form action={createAction} className="flex flex-wrap items-end gap-3 border-t border-border p-4">
             <label className="flex flex-col gap-1 text-sm">
               Name
-              <input
+              <Input
                 type="text"
                 name="name"
                 required
                 placeholder="e.g. Travel"
-                className="w-40 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                className="w-40"
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">

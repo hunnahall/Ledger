@@ -17,14 +17,14 @@ export function AppNav({ children }: { children: ReactNode }) {
         onClick={() => setOpen((o) => !o)}
         aria-label="Toggle menu"
         aria-expanded={open}
-        className="flex items-center gap-2.5 text-foreground transition-transform duration-150 hover:scale-105 active:scale-95 md:hidden"
+        className="flex items-center gap-2.5 text-foreground transition-opacity duration-[120ms] ease-standard hover:opacity-70 md:hidden"
       >
         <LedgerMark size={32} />
         <p className="text-2xl font-semibold tracking-tight">Ledger</p>
       </button>
 
       {open && (
-        <div className="absolute inset-x-0 top-full border-b border-card-border bg-surface shadow-elevated md:hidden">
+        <div className="absolute inset-x-0 top-full border-b border-card-border bg-surface opacity-100 shadow-popover transition-[opacity,transform] duration-[120ms] ease-entrance starting:-translate-y-1 starting:opacity-0 md:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {NAV_LINKS.map((link) => (
               <NavLink key={link.href} {...link} onClick={() => setOpen(false)} />

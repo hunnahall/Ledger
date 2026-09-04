@@ -5,6 +5,7 @@ import { changePassword, deleteAccount, signOut } from "@/lib/actions/auth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/messages";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 // Deleting an account removes every transaction, source, rule and forecast
 // with no undo, so it asks for the address to be typed rather than a single
@@ -31,10 +32,9 @@ function DeleteAccount({ email }: { email: string }) {
       </p>
       <label className="flex flex-col gap-1 text-sm">
         Type <span className="font-medium">{email}</span> to confirm
-        <input
+        <Input
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
       </label>
       <div className="flex gap-2">
@@ -73,24 +73,22 @@ export function AccountCard({ email }: { email: string }) {
       <form action={formAction} className="mt-4 flex flex-col gap-3 sm:max-w-sm">
         <label className="flex flex-col gap-1 text-sm">
           New password ({MIN_PASSWORD_LENGTH}+ characters)
-          <input
+          <Input
             type="password"
             name="password"
             autoComplete="new-password"
             minLength={MIN_PASSWORD_LENGTH}
             required
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Confirm new password
-          <input
+          <Input
             type="password"
             name="confirm_password"
             autoComplete="new-password"
             minLength={MIN_PASSWORD_LENGTH}
             required
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           />
         </label>
         <Button type="submit" variant="accent" className="w-fit">

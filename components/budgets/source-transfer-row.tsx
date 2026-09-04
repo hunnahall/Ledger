@@ -5,6 +5,7 @@ import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { ExpandableRow } from "@/components/budgets/expandable-row";
+import { Input } from "@/components/ui/input";
 
 type SourceTransfer = {
   id: string;
@@ -47,13 +48,13 @@ export function SourceTransferRow({
         </>
       }
     >
-      <input
+      <Input
         key={`name-${transfer.updated_at}`}
         type="text"
         name="name"
         defaultValue={transfer.name}
         required
-        className="w-36 rounded-md border border-border bg-background px-3 py-1.5"
+        className="w-36"
       />
       <Select
         key={`source-${transfer.updated_at}`}
@@ -68,7 +69,7 @@ export function SourceTransferRow({
           </option>
         ))}
       </Select>
-      <input
+      <Input
         key={`amount-${transfer.updated_at}`}
         type="number"
         name="amount"
@@ -76,7 +77,7 @@ export function SourceTransferRow({
         min="0.01"
         onKeyDown={stepAmountByDollar}
         defaultValue={transfer.amount}
-        className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
+        className="w-24"
       />
     </ExpandableRow>
   );

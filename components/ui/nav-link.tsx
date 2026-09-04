@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/cn";
+import { NAV_ITEM_BASE, NAV_ITEM_ACTIVE, NAV_ITEM_IDLE } from "./sidebar-link";
 import type { NAV_LINKS } from "./nav-links";
 
 export function NavLink({
   href,
   label,
+  icon: Icon,
   onClick,
 }: (typeof NAV_LINKS)[number] & { onClick?: () => void }) {
   const pathname = usePathname();
@@ -16,10 +19,16 @@ export function NavLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`px-3 py-2 text-sm font-medium text-foreground underline decoration-2 underline-offset-4 transition-colors duration-150 ${
-        isActive ? "decoration-mark" : "decoration-transparent hover:decoration-mark"
-      }`}
+      aria-current={isActive ? "page" : undefined}
+      // ml-3 mirrors the sidebar's inset so the active bar has the same 12px
+      // of room to sit in.
+      className={cn(
+        "ml-3",
+        NAV_ITEM_BASE,
+        isActive ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE,
+      )}
     >
+      <Icon size={18} className="shrink-0" />
       {label}
     </Link>
   );

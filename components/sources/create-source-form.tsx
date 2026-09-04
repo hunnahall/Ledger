@@ -10,6 +10,7 @@ import {
   CREATABLE_SOURCE_TYPES,
   SOURCE_TYPE_LABELS as TYPE_LABELS,
 } from "@/lib/sources/validate-source";
+import { Input } from "@/components/ui/input";
 
 
 export function CreateSourceForm() {
@@ -21,12 +22,12 @@ export function CreateSourceForm() {
       <form action={formAction} className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
           New source name
-          <input
+          <Input
             type="text"
             name="name"
             required
             placeholder="Reimbursement"
-            className="w-44 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="w-44"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -43,24 +44,23 @@ export function CreateSourceForm() {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Balance
-          <input
+          <Input
             type="number"
             name="balance"
             step="0.01"
             onKeyDown={stepAmountByDollar}
             defaultValue={0}
-            className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="w-28"
           />
         </label>
 
         {type === "reimbursement" && (
           <label className="flex flex-col gap-1 text-sm">
             Deposit date
-            <input
+            <Input
               type="date"
               name="deposit_date"
               required
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
           </label>
         )}

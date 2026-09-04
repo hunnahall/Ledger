@@ -1,28 +1,18 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, Inter, Instrument_Sans, Lato } from "next/font/google";
+import { Hanken_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 
+// Loaded without a `weight` so both arrive as variable fonts — the display
+// weight can then sit between the named steps (see the h1/h2 sizing in
+// app/(app)/*) instead of snapping to 600.
 const hankenGrotesk = Hanken_Grotesk({
   variable: "--font-hanken-grotesk",
   subsets: ["latin"],
-  weight: ["600", "700"],
 });
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-});
-
-const instrumentSans = Instrument_Sans({
-  variable: "--font-instrument-sans",
-  subsets: ["latin"],
-  weight: ["500"],
-});
-
-const lato = Lato({
-  variable: "--font-lato",
-  subsets: ["latin"],
-  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -34,7 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${hankenGrotesk.variable} ${inter.variable} ${instrumentSans.variable} ${lato.variable} h-full antialiased`}
+      className={`${hankenGrotesk.variable} ${inter.variable} h-full antialiased`}
     >
       <head>
         <script

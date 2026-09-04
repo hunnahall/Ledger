@@ -7,6 +7,7 @@ import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Button } from "@/components/ui/button";
 import { SortableHeader, useSortDirection } from "@/components/ui/sortable-header";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
+import { Input } from "@/components/ui/input";
 
 type Category = {
   id: string;
@@ -63,24 +64,24 @@ export function CategoriesTable({
             >
               <label className="flex flex-col gap-1 text-sm">
                 New category
-                <input
+                <Input
                   type="text"
                   name="name"
                   required
                   placeholder="e.g. Groceries"
-                  className="w-40 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-40"
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 Monthly amount
-                <input
+                <Input
                   type="number"
                   name="monthly_amount"
                   step="0.01"
                   min="0"
                   onKeyDown={stepAmountByDollar}
                   defaultValue={0}
-                  className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-28"
                 />
               </label>
               <Button type="submit" variant="accent" size="sm">

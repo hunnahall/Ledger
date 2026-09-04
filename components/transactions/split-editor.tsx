@@ -6,6 +6,7 @@ import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { formatMoney } from "@/lib/format";
 import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 type Option = { id: string; name: string };
 type Split = { id: string; categoryId: string | null; sourceId: string | null; amount: number };
@@ -72,14 +73,15 @@ export function SplitEditor({
                 </option>
               ))}
             </Select>
-            <input
+            <Input
+              uiSize="sm"
               type="number"
               step="0.01"
               name={`split_amount_${i}`}
               onKeyDown={stepAmountByDollar}
               defaultValue={existing?.amount ?? ""}
               placeholder="Amount"
-              className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs"
+              className="w-24"
             />
           </div>
         );

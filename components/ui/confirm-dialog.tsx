@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 
 /**
  * Renders a Yes/No confirmation modal on demand. `confirm(message)` resolves
@@ -29,27 +30,21 @@ export function useConfirm() {
 
   const dialog = message
     ? createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => respond(false)}
+        <DialogShell
+          role="alertdialog"
+          panelClassName="w-full max-w-sm"
+          onDismiss={() => respond(false)}
         >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            className="w-full max-w-sm rounded-lg border border-card-border bg-surface p-5 shadow-elevated"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm">{message}</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" size="sm" onClick={() => respond(false)}>
-                No
-              </Button>
-              <Button type="button" variant="primary" size="sm" onClick={() => respond(true)}>
-                Yes
-              </Button>
-            </div>
+          <p className="text-sm">{message}</p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button type="button" size="sm" onClick={() => respond(false)}>
+              No
+            </Button>
+            <Button type="button" variant="primary" size="sm" onClick={() => respond(true)}>
+              Yes
+            </Button>
           </div>
-        </div>,
+        </DialogShell>,
         document.body,
       )
     : null;

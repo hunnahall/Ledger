@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SearchIcon } from "@/components/ui/icons";
 import { useSetSearchParams } from "./column-filter";
+import { Input } from "@/components/ui/input";
 
 export function SearchToggle() {
   const searchParams = useSearchParams();
@@ -28,7 +29,7 @@ export function SearchToggle() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Search transactions"
-        className="flex items-center justify-center rounded-md p-2 text-muted transition-colors duration-150 hover:bg-surface-subtle hover:text-foreground"
+        className="flex items-center justify-center rounded-md p-2 text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground"
       >
         <SearchIcon size={24} />
       </button>
@@ -43,7 +44,7 @@ export function SearchToggle() {
         setParams({ search: value || null });
       }}
     >
-      <input
+      <Input
         type="text"
         autoFocus
         value={value}
@@ -52,7 +53,7 @@ export function SearchToggle() {
           if (!value) setOpen(false);
         }}
         placeholder="Search…"
-        className="w-20 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+        className="w-20"
       />
       {value && (
         <button

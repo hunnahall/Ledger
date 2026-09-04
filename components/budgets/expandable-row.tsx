@@ -42,7 +42,7 @@ export function ExpandableRow({
 
   return (
     <>
-      <tr className="border-b border-border last:border-0 align-middle">
+      <tr className="border-b border-border align-middle transition-colors duration-[120ms] ease-standard last:border-0 hover:bg-paper-a1">
         {compactCells}
         <td className="px-4 py-3">
           <div className="flex items-center justify-end gap-1">
@@ -51,7 +51,7 @@ export function ExpandableRow({
               onClick={() => setExpanded((e) => !e)}
               aria-label={expanded ? collapseLabel : expandLabel}
               aria-expanded={expanded}
-              className="rounded p-1 text-muted transition-transform duration-150 hover:bg-background"
+              className="rounded-sm p-1 text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground"
             >
               <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
             </button>

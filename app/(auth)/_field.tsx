@@ -1,5 +1,7 @@
 // Shared input styling for the auth forms — identical markup was repeated
 // across login and signup before the reset pages doubled it again.
+import { Input } from "@/components/ui/input";
+
 export function AuthField({
   label,
   name,
@@ -18,14 +20,13 @@ export function AuthField({
   return (
     <label className="flex flex-col gap-1 text-sm">
       {label}
-      <input
+      <Input
         type={type}
         name={name}
         required
         autoComplete={autoComplete}
         minLength={minLength}
         defaultValue={defaultValue}
-        className="rounded-md border border-border bg-background px-3 py-2 text-sm"
       />
     </label>
   );

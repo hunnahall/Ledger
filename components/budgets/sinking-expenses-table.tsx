@@ -13,6 +13,7 @@ import { SinkingExpenseRow } from "@/components/budgets/sinking-expense-row";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
+import { Input } from "@/components/ui/input";
 
 type SinkingExpense = {
   id: string;
@@ -66,12 +67,12 @@ export function SinkingExpensesTable({
             >
               <label className="flex flex-col gap-1 text-sm">
                 New sinking expense
-                <input
+                <Input
                   type="text"
                   name="name"
                   required
                   placeholder="e.g. Car insurance"
-                  className="w-32 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-32"
                 />
               </label>
 
@@ -93,14 +94,14 @@ export function SinkingExpensesTable({
                 <>
                   <label className="flex flex-col gap-1 text-sm">
                     Amount
-                    <input
+                    <Input
                       type="number"
                       name="amount"
                       step="0.01"
                       min="0"
                       onKeyDown={stepAmountByDollar}
                       defaultValue={0}
-                      className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      className="w-24"
                     />
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
@@ -118,23 +119,23 @@ export function SinkingExpensesTable({
                 <>
                   <label className="flex flex-col gap-1 text-sm">
                     Target amount
-                    <input
+                    <Input
                       type="number"
                       name="target_amount"
                       step="0.01"
                       min="0"
                       onKeyDown={stepAmountByDollar}
                       defaultValue={0}
-                      className="w-28 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      className="w-28"
                     />
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
                     Target date
-                    <input
+                    <Input
                       type="date"
                       name="target_date"
                       required={mode === "goal"}
-                      className="w-36 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      className="w-36"
                     />
                   </label>
                 </>

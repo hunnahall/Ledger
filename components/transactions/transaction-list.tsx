@@ -12,6 +12,7 @@ import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transa
 import { SplitEditor } from "@/components/transactions/split-editor";
 import { INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
+import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
@@ -19,6 +20,7 @@ import { AddIcon, ChevronDownIcon, SpinnerIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ClearFiltersButton, DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 import { SearchToggle } from "./search-toggle";
+import { Input } from "@/components/ui/input";
 
 export type TransactionRowData = {
   id: string;
@@ -255,8 +257,8 @@ export function TransactionList({
         // into a single-line table on wider screens without duplicating any
         // fields, so there's one row layout, not two parallel ones to keep in
         // sync.
-        <div className="rounded-lg border border-border text-sm">
-          <div className="hidden items-center gap-1.5 border-b border-border bg-surface-subtle px-2 py-2 text-left text-sm text-muted md:flex">
+        <div className="overflow-hidden rounded-lg border border-border bg-surface text-sm shadow-card">
+          <div className="sticky top-0 z-10 hidden items-center gap-1.5 border-b border-border bg-surface-subtle/85 px-2 py-2 text-left text-sm text-muted backdrop-blur md:flex">
             <span className="flex w-8 shrink-0 items-center">
               <input
                 ref={selectAllRef}
@@ -615,7 +617,13 @@ const TransactionRow = memo(function TransactionRow({
   return (
     <>
       {dialog}
-      <div className={isLastRow ? "" : "border-b border-border"}>
+      <div
+        className={cn(
+          "transition-colors duration-[120ms] ease-standard",
+          isLastRow ? "" : "border-b border-border",
+          selected ? "bg-accent/8" : "hover:bg-paper-a1",
+        )}
+      >
         {/* Below md this is a stacked card (each inner group is its own
             flex row); at md+ every inner group switches to `contents`,
             which dissolves its own box so its children fall in as direct
@@ -695,10 +703,8 @@ const TransactionRow = memo(function TransactionRow({
                 // is Income, which is its own flag with its own
                 // Source-routing (see handleCategoryChange/
                 // route_income_to_fund) and stays available — and normal-
-                // looking — no matter what this row's Source is. `!` forces
-                // this past the Select's own bg-background, which two
-                // same-specificity utility classes can't reliably do.
-                className={`min-w-0 flex-1 md:w-full ${!isBudgetSource && !isIncome ? "!bg-surface-subtle" : ""}`}
+                // looking — no matter what this row's Source is.
+                className={`min-w-0 flex-1 md:w-full ${!isBudgetSource && !isIncome ? "bg-surface-subtle" : ""}`}
                 value={categoryId}
                 onChange={handleCategoryChange}
                 placeholder={isTransfer ? "—" : isBudgetSource ? "Uncategorized" : "—"}
@@ -737,7 +743,7 @@ const TransactionRow = memo(function TransactionRow({
                     : "Rule-building off for this row"
                 }
                 title="Prompt to save a rule when this row's category changes"
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-150 ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-[120ms] ease-standard ${
                   buildRule
                     ? "border-mark bg-mark text-mark-foreground"
                     : "border-border text-muted hover:bg-background hover:text-foreground"
@@ -754,7 +760,7 @@ const TransactionRow = memo(function TransactionRow({
               onClick={() => setExpanded((e) => !e)}
               aria-label={expanded ? "Collapse details" : "Expand details"}
               aria-expanded={expanded}
-              className="rounded p-1 text-muted transition-transform duration-150 hover:bg-background md:order-2 md:flex md:w-10 md:items-center md:justify-center"
+              className="rounded-sm p-1 text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground md:order-2 md:flex md:w-10 md:items-center md:justify-center"
             >
               <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
             </button>
@@ -788,12 +794,13 @@ const TransactionRow = memo(function TransactionRow({
             <form action={createSourceAction} className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1 text-xs text-muted">
                 New source name
-                <input
+                <Input
+                  uiSize="sm"
                   type="text"
                   name="new_source_name"
                   required
                   placeholder="e.g. Bonus"
-                  className="w-40 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                  className="w-40"
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-muted">
@@ -877,7 +884,7 @@ const TransactionRow = memo(function TransactionRow({
 
             <label className="flex min-w-32 flex-1 items-center gap-1.5 text-xs text-muted">
               <span className="sr-only">Notes</span>
-              <input
+              <Input
                 type="text"
                 name="notes"
                 defaultValue={txn.notes ?? ""}
@@ -887,18 +894,18 @@ const TransactionRow = memo(function TransactionRow({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") e.currentTarget.blur();
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                className="w-full"
               />
             </label>
 
             <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
               Date
-              <input
+              <Input
+                uiSize="sm"
                 type="date"
                 name="posted_date"
                 value={postedDate}
                 onChange={(e) => handleDateChange(e.target.value)}
-                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
               />
             </label>
 

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { connectBankConnection } from "@/lib/actions/simplefin";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function ConnectBankConnectionForm() {
   const [state, formAction] = useActionState(connectBankConnection, null);
@@ -14,12 +15,11 @@ export function ConnectBankConnectionForm() {
     >
       <label className="flex flex-1 min-w-64 flex-col gap-1 text-sm">
         SimpleFin setup token
-        <input
+        <Input
           type="text"
           name="setup_token"
           required
           placeholder="Paste the setup token from your SimpleFin Bridge account"
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
       </label>
       <Button type="submit" variant="accent">

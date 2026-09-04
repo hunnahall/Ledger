@@ -7,6 +7,7 @@ import { ForecastEntryRow } from "@/components/forecast/forecast-entry-row";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
+import { Input } from "@/components/ui/input";
 
 type ForecastEntry = {
   id: string;
@@ -60,23 +61,23 @@ export function ForecastEntriesTable({
             >
               <label className="flex flex-col gap-1 text-sm">
                 Month
-                <input
+                <Input
                   type="text"
                   name="month"
                   placeholder="mm/yy"
                   pattern="\d{2}/\d{2}"
                   required
-                  className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-20"
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 Description
-                <input
+                <Input
                   type="text"
                   name="description"
                   required
                   placeholder="e.g. Hotel"
-                  className="w-40 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-40"
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">
@@ -88,13 +89,13 @@ export function ForecastEntriesTable({
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 Amount
-                <input
+                <Input
                   type="number"
                   name="amount"
                   step="0.01"
                   min="0.01"
                   onKeyDown={stepAmountByDollar}
-                  className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-24"
                 />
               </label>
 

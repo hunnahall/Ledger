@@ -3,13 +3,16 @@ import { Sidebar } from "@/components/ui/sidebar";
 import { signOut } from "@/lib/actions/auth";
 import { getSettings } from "@/lib/queries/settings";
 import { TimezoneSync } from "@/components/settings/timezone-sync";
+import { CommandPalette } from "@/components/ui/command-palette";
+import { getPaletteTargets } from "@/lib/queries/palette";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const settings = await getSettings();
+  const [settings, paletteTargets] = await Promise.all([getSettings(), getPaletteTargets()]);
 
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
       <TimezoneSync storedTimezone={settings.timezone} />
+      <CommandPalette targets={paletteTargets} />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* md+ uses the Sidebar for branding/nav/logout instead. */}
@@ -19,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <form action={signOut}>
                 <button
                   type="submit"
-                  className="rounded-md px-3 py-2 text-sm font-medium text-muted underline decoration-2 decoration-transparent underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-mark md:ml-2"
+                  className="ml-3 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground"
                 >
                   Log out
                 </button>

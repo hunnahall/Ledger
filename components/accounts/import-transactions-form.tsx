@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { importBankConnectionRange } from "@/lib/actions/simplefin";
 import { MAX_IMPORT_DAYS, daysBetween } from "@/lib/sources/import-range";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function ImportTransactionsForm({ connectionId }: { connectionId: string }) {
   const [open, setOpen] = useState(false);
@@ -42,24 +43,22 @@ export function ImportTransactionsForm({ connectionId }: { connectionId: string 
         >
           <label className="flex flex-col gap-1 text-xs text-muted">
             From
-            <input
+            <Input
               type="date"
               name="start_date"
               required
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs text-muted">
             To
-            <input
+            <Input
               type="date"
               name="end_date"
               required
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
             />
           </label>
           {days !== null && (

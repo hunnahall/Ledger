@@ -6,6 +6,7 @@ import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { ExpandableRow } from "@/components/budgets/expandable-row";
+import { Input } from "@/components/ui/input";
 
 type ForecastEntry = {
   id: string;
@@ -50,7 +51,7 @@ export function ForecastEntryRow({
         </>
       }
     >
-      <input
+      <Input
         key={`month-${entry.updatedAt}`}
         type="text"
         name="month"
@@ -58,15 +59,15 @@ export function ForecastEntryRow({
         placeholder="mm/yy"
         pattern="\d{2}/\d{2}"
         required
-        className="w-20 rounded-md border border-border bg-background px-3 py-1.5"
+        className="w-20"
       />
-      <input
+      <Input
         key={`description-${entry.updatedAt}`}
         type="text"
         name="description"
         defaultValue={entry.description}
         required
-        className="w-40 rounded-md border border-border bg-background px-3 py-1.5"
+        className="w-40"
       />
       <Select
         key={`type-${entry.updatedAt}`}
@@ -78,7 +79,7 @@ export function ForecastEntryRow({
         <option value="expense">Expense</option>
         <option value="deposit">Deposit</option>
       </Select>
-      <input
+      <Input
         key={`amount-${entry.updatedAt}`}
         type="number"
         name="amount"
@@ -86,7 +87,7 @@ export function ForecastEntryRow({
         min="0.01"
         onKeyDown={stepAmountByDollar}
         defaultValue={entry.amount}
-        className="w-24 rounded-md border border-border bg-background px-3 py-1.5"
+        className="w-24"
       />
     </ExpandableRow>
   );

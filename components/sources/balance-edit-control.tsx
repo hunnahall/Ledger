@@ -4,6 +4,7 @@ import { useRef, type KeyboardEvent } from "react";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Button } from "@/components/ui/button";
 import { useInlineEdit } from "@/components/ui/inline-edit";
+import { Input } from "@/components/ui/input";
 
 type SetBalanceAction = (
   prevState: { error: string } | null,
@@ -59,7 +60,8 @@ export function BalanceEditControl({
 
   return (
     <div className="flex flex-col gap-1">
-      <input
+      <Input
+        uiSize="sm"
         ref={inputRef}
         type="number"
         step="0.01"
@@ -68,7 +70,7 @@ export function BalanceEditControl({
         onBlur={commitIfChanged}
         onKeyDown={handleKeyDown}
         onFocus={(e) => e.currentTarget.select()}
-        className="w-28 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+        className="w-28"
       />
       {error && <p className="text-xs text-negative">{error}</p>}
     </div>

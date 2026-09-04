@@ -7,6 +7,7 @@ import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
+import { Input } from "@/components/ui/input";
 
 type SourceTransfer = {
   id: string;
@@ -56,12 +57,12 @@ export function SourceTransfersTable({
             >
               <label className="flex flex-col gap-1 text-sm">
                 New Source Transfer
-                <input
+                <Input
                   type="text"
                   name="name"
                   required
                   placeholder="e.g. Savings"
-                  className="w-36 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-36"
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">
@@ -77,14 +78,14 @@ export function SourceTransfersTable({
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 Monthly amount
-                <input
+                <Input
                   type="number"
                   name="amount"
                   step="0.01"
                   min="0.01"
                   onKeyDown={stepAmountByDollar}
                   defaultValue={0}
-                  className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="w-24"
                 />
               </label>
               <Button type="submit" variant="accent" size="sm">

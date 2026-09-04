@@ -12,7 +12,7 @@ export function Money({
 }) {
   const { whole, fraction } = formatMoneyParts(amount, decimalPlaces);
   return (
-    <span className={cn("font-data tabular-nums", className)}>
+    <span className={cn("font-data tabular-nums slashed-zero", className)}>
       {whole}
       {fraction && <span className="text-[0.75em] opacity-70">{fraction}</span>}
     </span>

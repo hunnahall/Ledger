@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { createManualTransaction, suggestCategoryForDescription } from "@/lib/actions/transactions";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -14,8 +15,6 @@ type TypeChoice = "expense" | "income" | "transfer" | "exclude";
 type IncomeAction = "include_in_budget" | "add_to_source" | "create_source";
 
 const fieldLabel = "flex flex-col gap-1 text-xs text-muted";
-const fieldInput =
-  "rounded-md border border-border bg-background px-2 py-1.5 text-sm";
 
 export function ManualTransactionForm({
   accounts,
@@ -104,7 +103,7 @@ export function ManualTransactionForm({
       >
         <label className={fieldLabel}>
           Date
-          <input type="date" name="posted_date" required className={fieldInput} />
+          <Input type="date" name="posted_date" required />
         </label>
         <label className={fieldLabel}>
           Account
@@ -118,25 +117,24 @@ export function ManualTransactionForm({
         </label>
         <label className={`flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted`}>
           Description
-          <input
+          <Input
             type="text"
             name="description"
             required
             placeholder="e.g. Trader Joe's"
-            className={fieldInput}
             onBlur={(e) => handleDescriptionBlur(e.target.value)}
           />
         </label>
         <label className={fieldLabel}>
           Amount
-          <input
+          <Input
             type="number"
             name="amount"
             step="0.01"
             min="0"
             required
             onKeyDown={stepAmountByDollar}
-            className={`w-28 ${fieldInput}`}
+            className="w-28"
           />
         </label>
 
@@ -261,12 +259,12 @@ export function ManualTransactionForm({
               <>
                 <label className={fieldLabel}>
                   New source name
-                  <input
+                  <Input
                     type="text"
                     name="new_source_name"
                     required
                     placeholder="e.g. Bonus"
-                    className={`w-36 ${fieldInput}`}
+                    className="w-36"
                   />
                 </label>
                 <label className={fieldLabel}>

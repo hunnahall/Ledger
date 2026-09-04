@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { LedgerMark } from "./mark";
 import { SidebarLink } from "./sidebar-link";
 import { NAV_LINKS } from "./nav-links";
-import { ChevronDownIcon, LogOutIcon } from "./icons";
+import { ChevronDownIcon, LogOutIcon, SearchIcon } from "./icons";
+import { PALETTE_OPEN_EVENT } from "./command-palette";
 import { signOut } from "@/lib/actions/auth";
 
 // Dividers are anchored to specific hrefs (rather than array indices) so
@@ -12,19 +13,49 @@ import { signOut } from "@/lib/actions/auth";
 // reordered.
 const DIVIDER_AFTER = new Set(["/dashboard", "/sources"]);
 
+// Same shape as the theme preference (see components/ui/theme-toggle.tsx):
+// localStorage is the store, a custom event is the subscription, and the
+// server snapshot is the expanded default so hydration matches.
+const STORAGE_KEY = "ledger-sidebar-collapsed";
+const COLLAPSE_EVENT = "ledger-sidebar-change";
+
+function readCollapsed() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    // Private mode or blocked storage: stay expanded.
+    return false;
+  }
+}
+
+function getServerCollapsed() {
+  return false;
+}
+
+function subscribe(callback: () => void) {
+  window.addEventListener(COLLAPSE_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(COLLAPSE_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
 export function Sidebar() {
-  // Not persisted beyond this mount: the (app) layout stays mounted across
-  // client-side navigation between its pages, so this already survives
-  // normal in-app browsing — it only resets on a full page reload.
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(subscribe, readCollapsed, getServerCollapsed);
 
   function toggleCollapsed() {
-    setCollapsed((prev) => !prev);
+    try {
+      localStorage.setItem(STORAGE_KEY, collapsed ? "0" : "1");
+    } catch {
+      // Preference just won't survive the reload.
+    }
+    window.dispatchEvent(new Event(COLLAPSE_EVENT));
   }
 
   return (
     <aside
-      className={`hidden shrink-0 border-r border-border bg-surface md:sticky md:top-0 md:flex md:h-dvh md:flex-col ${
+      className={`hidden shrink-0 border-r border-border bg-surface transition-[width] duration-[160ms] ease-standard md:sticky md:top-0 md:flex md:h-dvh md:flex-col ${
         collapsed ? "md:w-[76px]" : "md:w-44"
       }`}
     >
@@ -50,9 +81,34 @@ export function Sidebar() {
           type="button"
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="shrink-0 rounded p-1 text-muted transition-colors duration-150 hover:bg-surface-subtle hover:text-foreground"
+          className="shrink-0 rounded-sm p-1 text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground"
         >
           <ChevronDownIcon size={14} className={collapsed ? "-rotate-90" : "rotate-90"} />
+        </button>
+      </div>
+
+      {/* The palette itself is mounted once in the (app) layout; this just
+          asks it to open, and advertises the shortcut for anyone who hasn't
+          found it. */}
+      <div className="px-3 pt-3">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(PALETTE_OPEN_EVENT))}
+          title="Search (⌘K)"
+          aria-label="Open command palette"
+          className={`flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-sm text-muted transition-colors duration-[120ms] ease-standard hover:border-border-strong hover:text-foreground ${
+            collapsed ? "justify-center px-0" : ""
+          }`}
+        >
+          <SearchIcon size={16} className="shrink-0" />
+          {!collapsed && (
+            <>
+              <span className="truncate">Search</span>
+              <kbd className="ml-auto rounded-sm border border-border px-1 py-0.5 font-sans text-[0.625rem] text-muted">
+                ⌘K
+              </kbd>
+            </>
+          )}
         </button>
       </div>
 
@@ -74,7 +130,7 @@ export function Sidebar() {
           <button
             type="submit"
             title={collapsed ? "Log out" : undefined}
-            className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-150 hover:bg-surface-subtle hover:text-foreground ${
+            className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground ${
               collapsed ? "justify-center px-0" : ""
             }`}
           >

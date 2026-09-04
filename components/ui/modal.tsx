@@ -2,14 +2,14 @@
 
 import { useCallback, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { DialogShell } from "@/components/ui/dialog-shell";
 
 /**
  * Renders arbitrary content in a centered modal on demand. `open(node)`
- * shows it, `close()` (or clicking the overlay) hides it. Same overlay/
- * panel styling as useConfirm (components/ui/confirm-dialog.tsx) for visual
- * consistency, but generalized to hold any content instead of a fixed
- * Yes/No message — wider and scrollable since callers here (a transaction
- * list, a form) need more room than a confirmation prompt.
+ * shows it, `close()` (or clicking the overlay, or Escape) hides it. Shares
+ * DialogShell with useConfirm (components/ui/confirm-dialog.tsx), so the two
+ * stay identical; this one is just wider and scrollable, since callers here
+ * (a transaction list, a form) need more room than a confirmation prompt.
  */
 export function useModal() {
   const [content, setContent] = useState<ReactNode | null>(null);
@@ -19,19 +19,13 @@ export function useModal() {
 
   const modal = content
     ? createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={close}
+        <DialogShell
+          role="dialog"
+          panelClassName="w-full max-w-lg max-h-[85vh] overflow-y-auto"
+          onDismiss={close}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg border border-card-border bg-surface p-5 shadow-elevated"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {content}
-          </div>
-        </div>,
+          {content}
+        </DialogShell>,
         document.body,
       )
     : null;

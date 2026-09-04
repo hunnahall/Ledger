@@ -6,6 +6,8 @@ import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { SpinnerIcon } from "@/components/ui/icons";
 import { INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
 import { useInlineEdit } from "@/components/ui/inline-edit";
+import { FIELD_BASE, Input } from "@/components/ui/input";
+import { cn } from "@/lib/cn";
 
 type ActionResult = { error: string } | null;
 type UpdateRuleAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -49,19 +51,20 @@ export function VendorRuleRow({
     return (
       <li className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
         <span className="text-muted">If</span>
-        <input
+        <Input
+          uiSize="sm"
           ref={merchantRef}
           type="text"
           defaultValue={rule.merchantNormalized}
           autoFocus
           onFocus={(e) => e.currentTarget.select()}
-          className="w-40 rounded-md border border-border bg-background px-2 py-1 text-xs"
+          className="w-40"
         />
         <span className="text-muted">then</span>
         <select
           ref={categoryRef}
           defaultValue={rule.isIncome ? INCOME_RULE_TARGET : (rule.categoryId ?? "")}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+          className={cn(FIELD_BASE, "px-2 py-1 text-xs")}
         >
           <option value={INCOME_RULE_TARGET}>Income</option>
           {categories.map((c) => (

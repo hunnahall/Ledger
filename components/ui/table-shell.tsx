@@ -12,7 +12,7 @@ export function TableShell({ columns, children }: { columns: ReactNode[]; childr
     <div className="rounded-lg border border-border bg-surface">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border text-left text-xs text-muted">
+          <tr className="border-b border-border bg-surface-subtle text-left text-xs text-muted">
             {columns.map((column, index) => (
               <th key={index} className="px-4 py-3 font-medium">
                 {column}

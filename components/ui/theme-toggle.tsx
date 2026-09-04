@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-type Theme = "system" | "light" | "dark";
+export type Theme = "system" | "light" | "dark";
 
 const STORAGE_KEY = "ledger-theme";
 const THEME_EVENT = "ledger-theme-change";
@@ -26,19 +26,21 @@ function subscribe(callback: () => void) {
   };
 }
 
+/** Exported so other entry points into the same preference — the command
+ * palette's theme actions — write it exactly the way this control does. */
+export function setTheme(next: Theme) {
+  if (next === "system") {
+    localStorage.removeItem(STORAGE_KEY);
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    localStorage.setItem(STORAGE_KEY, next);
+    document.documentElement.setAttribute("data-theme", next);
+  }
+  window.dispatchEvent(new Event(THEME_EVENT));
+}
+
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, readTheme, getServerTheme);
-
-  function handleChange(next: Theme) {
-    if (next === "system") {
-      localStorage.removeItem(STORAGE_KEY);
-      document.documentElement.removeAttribute("data-theme");
-    } else {
-      localStorage.setItem(STORAGE_KEY, next);
-      document.documentElement.setAttribute("data-theme", next);
-    }
-    window.dispatchEvent(new Event(THEME_EVENT));
-  }
 
   return (
     <div className={`flex w-fit gap-1 rounded-md border border-border p-1 ${className}`}>
@@ -46,11 +48,11 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         <button
           key={option}
           type="button"
-          onClick={() => handleChange(option)}
-          className={`rounded px-3 py-1.5 text-sm font-medium capitalize transition-colors duration-150 ${
+          onClick={() => setTheme(option)}
+          className={`rounded-sm px-3 py-1.5 text-sm font-medium capitalize transition-colors duration-[120ms] ease-standard ${
             theme === option
               ? "bg-mark text-mark-foreground"
-              : "text-foreground hover:bg-border/60"
+              : "text-foreground hover:bg-paper-a2"
           }`}
         >
           {option}

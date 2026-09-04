@@ -12,9 +12,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
+import { FIELD_BASE, type FieldSize } from "@/components/ui/input";
 import { ChevronDownIcon, CheckIcon } from "@/components/ui/icons";
-
-type FieldSize = "sm" | "md";
 
 const SIZE_CLASSES: Record<FieldSize, string> = {
   sm: "px-2 py-1.5 text-sm",
@@ -190,8 +189,8 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn(
-          "flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background text-left transition-colors duration-150",
-          "hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-60",
+          FIELD_BASE,
+          "flex w-full items-center justify-between gap-2 text-left",
           SIZE_CLASSES[uiSize],
           className,
         )}
@@ -199,7 +198,7 @@ export function Select({
         <span className={cn("truncate", !selectedOption && "text-muted")}>
           {selectedOption?.label ?? placeholder ?? ""}
         </span>
-        <ChevronDownIcon size={14} className={cn("shrink-0 text-muted transition-transform duration-150", open && "rotate-180")} />
+        <ChevronDownIcon size={14} className={cn("shrink-0 text-muted transition-transform duration-[120ms] ease-standard", open && "rotate-180")} />
       </button>
 
       {open &&
@@ -208,7 +207,14 @@ export function Select({
           <ul
             ref={panelRef}
             role="listbox"
-            className="fixed z-50 max-h-64 overflow-y-auto rounded-md border border-card-border bg-surface py-1 text-sm shadow-elevated"
+            // Fades and settles into place rather than snapping in. The
+            // pre-open state is @starting-style (Tailwind's `starting:`), so
+            // the entrance needs no mount-and-flip state of its own.
+            className={cn(
+              "fixed z-50 max-h-64 overflow-y-auto rounded-lg border border-card-border bg-surface py-1 text-sm shadow-popover",
+              "transition-[opacity,transform] duration-[120ms] ease-entrance",
+              "opacity-100 translate-y-0 starting:opacity-0 starting:-translate-y-1",
+            )}
             style={{
               left: placement.left,
               minWidth: placement.width,
@@ -227,7 +233,7 @@ export function Select({
                 onClick={() => commit(option.value)}
                 className={cn(
                   "flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5 truncate",
-                  index === highlighted ? "bg-surface-subtle" : "",
+                  index === highlighted ? "bg-paper-a2" : "",
                   option.value === selected ? "font-medium" : "",
                 )}
               >

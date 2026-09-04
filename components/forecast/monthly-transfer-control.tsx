@@ -6,6 +6,7 @@ import { stepAmountByDollar } from "@/lib/dollar-step";
 import { useInlineEdit } from "@/components/ui/inline-edit";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
+import { Input } from "@/components/ui/input";
 
 // Only rendered when the chosen Source has no real Source Transfer on the
 // Budgets page (see ForecastView) — this value is forecast-local (see
@@ -63,7 +64,7 @@ export function MonthlyTransferControl({
 
   return (
     <div className="flex items-center gap-2">
-      <input
+      <Input
         ref={inputRef}
         type="number"
         step="0.01"
@@ -73,7 +74,7 @@ export function MonthlyTransferControl({
         onBlur={commitIfChanged}
         onKeyDown={handleKeyDown}
         onFocus={(e) => e.currentTarget.select()}
-        className="w-28 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+        className="w-28"
       />
       <span className="text-sm text-muted">/mo</span>
       {error && <p className="text-xs text-negative">{error}</p>}
