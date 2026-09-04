@@ -5,7 +5,7 @@ export default function Loading() {
     <div className="flex flex-col gap-6">
       <PageHeaderSkeleton
         title="Forecast"
-        subtitle="Project a Source's balance forward under its monthly transfer plus any manual entries you add here — read-only against the rest of the app, never writes back to Sources or Budgets."
+        subtitle="Create Forecasts that project a Source's balance forward, given transfers and transactions."
       />
       <div className="flex flex-col gap-3">
         {Array.from({ length: 4 }, (_, i) => (

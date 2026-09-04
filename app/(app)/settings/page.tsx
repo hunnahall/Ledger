@@ -104,10 +104,8 @@ export default async function SettingsPage() {
       <Card className="p-5">
         <p className="font-medium">Connected banks (SimpleFin)</p>
         <p className="mt-1 text-sm text-muted">
-          Each connection can cover multiple accounts. Syncs pull roughly a day of
-          overlap each time, so re-syncing is always safe. Use Import to backfill a
-          specific date range (up to 90 days at a time) — re-importing an overlapping
-          range is also safe and won&apos;t create duplicates.
+          Connections can cover multiple accounts. Re-syncing or importing transactions is
+          always safe.
         </p>
 
         <div className="mt-4 flex flex-col gap-3">

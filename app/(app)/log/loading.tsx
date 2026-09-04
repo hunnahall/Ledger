@@ -5,7 +5,7 @@ export default function Loading() {
     <div className="flex flex-col gap-6">
       <PageHeaderSkeleton
         title="Log"
-        subtitle="Manual changes made on the Budgets, Sources, and Accounts pages — not Transactions, which already keeps its own record on each transaction."
+        subtitle="Track manual changes made throughout the app."
       />
       <SkeletonTable rows={12} />
     </div>

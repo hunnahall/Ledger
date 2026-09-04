@@ -10,8 +10,7 @@ export default async function LogPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Log</h1>
         <p className="mt-1 text-sm text-muted">
-          Manual changes made on the Budgets, Sources, and Accounts pages — not Transactions,
-          which already keeps its own record on each transaction.
+          Track manual changes made throughout the app.
         </p>
       </div>
 
