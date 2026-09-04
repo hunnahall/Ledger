@@ -1,4 +1,4 @@
-export type SourceLike = { type: string };
+type SourceLike = { type: string };
 
 export function groupSourcesByType<T extends SourceLike>(sources: T[]) {
   const groups = {

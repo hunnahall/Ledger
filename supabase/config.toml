@@ -1,0 +1,12 @@
+# Committed so the edge function's auth posture is version-controlled rather
+# than left to whatever the dashboard happens to be set to. It was found set
+# to false, which left the function callable by anyone on the internet.
+#
+# The function no longer *depends* on this — it has no cross-user mode, and
+# it proves ownership of the connection through an RLS-scoped client built
+# from the caller's own JWT. Verifying at the gateway just means an
+# unauthenticated request never reaches the function body at all.
+project_id = "bvnupilhiklmlpixtrha"
+
+[functions.simplefin-sync]
+verify_jwt = true

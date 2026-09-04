@@ -18,7 +18,7 @@ export async function getForecasts() {
 
 // Live lookup, not a cached amount on the forecast row — a forecast must
 // never drift from whatever's actually configured on the Budgets page.
-export async function getSourceTransferAmount(sourceId: string): Promise<number | null> {
+async function getSourceTransferAmount(sourceId: string): Promise<number | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("source_transfers")

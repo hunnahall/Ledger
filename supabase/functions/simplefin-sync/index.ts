@@ -1,12 +1,17 @@
-// Syncs one (manual "Sync now") or all (cron) SimpleFin bank connections.
+// Syncs one SimpleFin bank connection on demand — the "Sync now" button on
+// Settings, the "Sync" button on Transactions (which fans out one call per
+// connection), and the Import backfill on Accounts.
 //
-// Invocation:
-//   - Manual: caller's own JWT, body { connection_id }. The connection must
-//     belong to the caller (enforced by querying it through an RLS-scoped
-//     client).
-//   - Cron: service-role JWT, no body (or {} ) — syncs every active
-//     connection across all users. Only the service_role JWT is allowed to
-//     omit connection_id.
+// Every invocation carries the caller's own JWT and a body { connection_id }.
+// The connection must belong to the caller, enforced by looking it up through
+// an RLS-scoped client built from that JWT before any service-role client
+// exists.
+//
+// There is deliberately no "sync every connection across all users" mode.
+// Syncing is manual by design, so this function never acts across users and
+// never has to decide who it is acting for from a role claim — which is what
+// the removed cron branch did, by base64-decoding the JWT payload without
+// verifying its signature. config.toml pins verify_jwt = true regardless.
 //
 // SimpleFin has no mTLS/cert requirement — the access URL itself carries
 // HTTP Basic Auth credentials (https://user:pass@bridge.simplefin.org/...).
@@ -15,6 +20,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { normalizeMerchant } from "./merchant.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -22,48 +28,6 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const MAX_IMPORT_DAYS = 90;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-function normalizeMerchant(description: string): string {
-  return description
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((token) => token && !/^\d+$/.test(token))
-    .join(" ")
-    .trim();
-}
-
-// See lib/transactions/match-vendor-rule.ts (duplicated, not imported —
-// this function is otherwise self-contained, same as normalizeMerchant
-// above). Longest matching pattern wins when more than one rule's pattern
-// appears in the description, so a specific multi-word rule beats a
-// shorter, more generic one covering the same transaction.
-function findMatchingRule<T extends { merchant_normalized: string }>(
-  rules: T[],
-  merchantNormalized: string,
-): T | null {
-  let best: T | null = null;
-  for (const rule of rules) {
-    if (!rule.merchant_normalized || !merchantNormalized.includes(rule.merchant_normalized)) continue;
-    if (!best || rule.merchant_normalized.length > best.merchant_normalized.length) {
-      best = rule;
-    }
-  }
-  return best;
-}
-
-function decodeJwtRole(authHeader: string | null): string | null {
-  if (!authHeader) return null;
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  const payload = token.split(".")[1];
-  if (!payload) return null;
-  try {
-    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return json.role ?? null;
-  } catch {
-    return null;
-  }
-}
 
 function splitAccessUrl(accessUrl: string): { requestBase: string; authHeader: string } {
   const url = new URL(accessUrl);
@@ -106,7 +70,7 @@ async function syncConnection(
   try {
     const { data: accessUrl, error: rpcError } = await serviceClient.rpc(
       "get_bank_connection_access_url",
-      { p_connection_id: connection.id },
+      { p_connection_id: connection.id, p_user_id: connection.user_id },
     );
     if (rpcError || !accessUrl) {
       throw new Error(rpcError?.message ?? "no access URL stored for this connection");
@@ -198,52 +162,16 @@ async function syncConnection(
     // own is_transfer filter — the dashboard's inflow/outflow totals.
     await serviceClient.rpc("match_transfer_pairs", { p_user_id: connection.user_id });
 
-    // Auto-categorize anything still uncategorized using this user's
-    // learned vendor rules (also retroactively covers older uncategorized
-    // rows if a rule was learned since the last sync). A rule's pattern
-    // only has to appear somewhere in the transaction's normalized
-    // description, not equal it outright (see findMatchingRule in
-    // lib/transactions/match-vendor-rule.ts — duplicated here rather than
-    // imported since this Deno function is otherwise self-contained, same
-    // as normalizeMerchant above), so a rule for "target" also fires on
-    // "tsx target checkout".
-    const { data: uncategorized } = await serviceClient
-      .from("transactions")
-      .select("id, merchant_normalized, source_id, is_income")
-      .eq("user_id", connection.user_id)
-      .is("category_id", null)
-      .eq("is_transfer", false)
-      .not("merchant_normalized", "is", null);
-
-    const { data: rules } = uncategorized && uncategorized.length > 0
-      ? await serviceClient
-        .from("vendor_category_rules")
-        .select("merchant_normalized, category_id, is_income, source_id")
-        .eq("user_id", connection.user_id)
-      : {
-        data: [] as {
-          merchant_normalized: string;
-          category_id: string | null;
-          is_income: boolean;
-          source_id: string | null;
-        }[],
-      };
-
-    for (const txn of uncategorized ?? []) {
-      // Already flagged Income by the insert above (see sync_bank_transactions)
-      // — leave it alone rather than let an unrelated category rule
-      // overwrite it, or a no-op Income rule re-touch it.
-      if (txn.is_income) continue;
-
-      const rule = findMatchingRule(rules ?? [], txn.merchant_normalized ?? "");
-      if (rule) {
-        const patch: { category_id?: string; category_source?: string; is_income?: boolean; source_id?: string } =
-          rule.is_income ? { is_income: true } : { category_id: rule.category_id!, category_source: "rule" };
-        if (!txn.source_id && rule.source_id) patch.source_id = rule.source_id;
-
-        await serviceClient.from("transactions").update(patch).eq("id", txn.id);
-      }
-    }
+    // Auto-categorize anything still uncategorized using this user's learned
+    // vendor rules (also retroactively covers older uncategorized rows if a
+    // rule was learned since the last sync). This was a fetch-then-loop
+    // issuing one UPDATE per transaction, with its own copy of the
+    // longest-pattern-wins matching logic; apply_vendor_rules does it as one
+    // set-based statement and is shared with the app's "Run rules now".
+    const { error: rulesError } = await serviceClient.rpc("apply_vendor_rules", {
+      p_user_id: connection.user_id,
+    });
+    if (rulesError) throw new Error(rulesError.message);
 
     await serviceClient
       .from("bank_connections")
@@ -271,11 +199,17 @@ async function syncConnection(
 
 Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get("Authorization");
-  const role = decodeJwtRole(authHeader);
   const body = await req.json().catch(() => ({}));
   const connectionId: string | undefined = body.connection_id;
   const startDate: string | undefined = body.start_date;
   const endDate: string | undefined = body.end_date;
+
+  if (!connectionId) {
+    return new Response(
+      JSON.stringify({ error: "connection_id is required" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   let importRange: { startDate: string; endDate: string } | undefined;
   if (startDate || endDate) {
@@ -301,36 +235,10 @@ Deno.serve(async (req: Request) => {
     importRange = { startDate, endDate };
   }
 
-  const serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-  if (!connectionId) {
-    if (role !== "service_role") {
-      return new Response(
-        JSON.stringify({ error: "connection_id is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    const { data: connections, error } = await serviceClient
-      .from("bank_connections")
-      .select("id, user_id, last_synced_at")
-      .eq("status", "active");
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    const results = [];
-    for (const connection of connections ?? []) {
-      results.push(await syncConnection(serviceClient, connection));
-    }
-    return new Response(JSON.stringify({ results }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Manual sync of one connection: verify ownership via an RLS-scoped
-  // client using the caller's own JWT before touching anything.
+  // Verify ownership through an RLS-scoped client using the caller's own
+  // JWT. Deliberately before the service-role client is created below, so
+  // nothing that bypasses RLS exists until the caller has been shown to own
+  // this connection.
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: authHeader ?? "" } },
   });
@@ -347,6 +255,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   const result = await syncConnection(serviceClient, connection, importRange);
   return new Response(JSON.stringify(result), {
     status: result.status === "error" ? 502 : 200,

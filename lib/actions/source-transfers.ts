@@ -1,14 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
 import { logChange } from "@/lib/actions/log";
+import { revalidateLedgerPages } from "@/lib/actions/revalidate";
+import { getSettings } from "@/lib/queries/settings";
 import { currentMonthISO } from "@/lib/dates";
+import { logMoney, parseMoney } from "@/lib/format";
 
-function money(amount: number): string {
-  return `$${amount.toFixed(2)}/mo`;
-}
+const money = (amount: number) => logMoney(amount, "/mo");
 
 export async function createSourceTransfer(
   _prevState: { error: string } | null,
@@ -16,34 +15,34 @@ export async function createSourceTransfer(
 ): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const sourceId = String(formData.get("source_id") ?? "");
-  const amount = Number(formData.get("amount") ?? 0);
+  // source_transfers_amount_check requires a positive amount; validating
+  // here turns a bare `Number("")` -> 0 (or "abc" -> NaN) into a message
+  // instead of a raw constraint error.
+  const parsed = parseMoney(formData.get("amount"), { positive: true });
   if (!name) return { error: "Enter a name for the source transfer." };
   if (!sourceId) return { error: "Choose a source." };
-  if (!amount) return { error: "Enter an amount." };
+  if ("error" in parsed) return parsed;
+  const amount = parsed.amount;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
+  const settings = await getSettings();
 
   const { error } = await supabase.from("source_transfers").insert({
     user_id: user.id,
     source_id: sourceId,
     name,
     amount,
-    // Marks this month as already applied so ensure_source_transfers_current
-    // doesn't credit it the instant the sources/budget page is next loaded
-    // — the first automatic transfer should wait for the actual start of
-    // next month, same as every other recurring monthly line item.
-    last_applied_month: currentMonthISO(),
+    // Marks this month as already applied so ensure_month_current doesn't
+    // credit it the instant the sources/budget page is next loaded — the
+    // first automatic transfer should wait for the actual start of next
+    // month, same as every other recurring monthly line item.
+    last_applied_month: currentMonthISO(settings.timezone),
   });
   if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Budgets", `Source Transfer: ${name}`, null, money(amount));
 
-  revalidatePath("/budget");
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -54,16 +53,16 @@ export async function updateSourceTransfer(
 ): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const sourceId = String(formData.get("source_id") ?? "");
-  const amount = Number(formData.get("amount") ?? 0);
+  // source_transfers_amount_check requires a positive amount; validating
+  // here turns a bare `Number("")` -> 0 (or "abc" -> NaN) into a message
+  // instead of a raw constraint error.
+  const parsed = parseMoney(formData.get("amount"), { positive: true });
   if (!name) return { error: "Enter a name for the source transfer." };
   if (!sourceId) return { error: "Choose a source." };
-  if (!amount) return { error: "Enter an amount." };
+  if ("error" in parsed) return parsed;
+  const amount = parsed.amount;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: existing, error: fetchError } = await supabase
     .from("source_transfers")
@@ -114,8 +113,7 @@ export async function updateSourceTransfer(
     );
   }
 
-  revalidatePath("/budget");
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -124,11 +122,7 @@ export async function deleteSourceTransfer(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: existing, error: fetchError } = await supabase
     .from("source_transfers")
@@ -151,7 +145,6 @@ export async function deleteSourceTransfer(
     );
   }
 
-  revalidatePath("/budget");
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }

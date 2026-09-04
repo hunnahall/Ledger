@@ -1,6 +1,6 @@
 import { nextMonthISO } from "@/lib/dates";
 
-export type ForecastEntryInput = {
+type ForecastEntryInput = {
   month: string; // YYYY-MM-01
   isExpense: boolean;
   amount: number; // positive magnitude

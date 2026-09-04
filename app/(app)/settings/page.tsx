@@ -1,4 +1,5 @@
 import { getSettings } from "@/lib/queries/settings";
+import { getOptionalUser } from "@/lib/supabase/auth";
 import { getVendorRules } from "@/lib/queries/vendor-rules";
 import { getFilterOptions } from "@/lib/queries/transactions";
 import { getBankConnections } from "@/lib/queries/accounts";
@@ -16,13 +17,16 @@ import { Badge } from "@/components/ui/badge";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { LocalTimestamp } from "@/components/ui/local-timestamp";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { TimezoneForm } from "@/components/settings/timezone-form";
+import { AccountCard } from "@/components/settings/account-card";
 
 export default async function SettingsPage() {
-  const [settings, vendorRules, { categories }, connections] = await Promise.all([
+  const [settings, vendorRules, { categories }, connections, { user }] = await Promise.all([
     getSettings(),
     getVendorRules(),
     getFilterOptions(),
     getBankConnections(),
+    getOptionalUser(),
   ]);
 
   return (
@@ -30,6 +34,8 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       </div>
+
+      {user?.email && <AccountCard email={user.email} />}
 
       <div className="flex flex-wrap gap-4">
         <Card className="min-w-56 flex-1 p-5">
@@ -43,6 +49,10 @@ export default async function SettingsPage() {
 
         <Card className="min-w-56 flex-1 p-5">
           <MonthAheadForm monthAhead={settings.month_ahead} />
+        </Card>
+
+        <Card className="min-w-56 flex-1 p-5">
+          <TimezoneForm timezone={settings.timezone} />
         </Card>
       </div>
 

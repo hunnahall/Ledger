@@ -1,16 +1,8 @@
 "use client";
 
-import { currentMonthISO } from "@/lib/dates";
+import { monthLabel } from "@/lib/dates";
 import { useSetSearchParams } from "@/components/transactions/column-filter";
 import { Select } from "@/components/ui/select";
-
-function monthLabel(monthISO: string) {
-  return new Date(`${monthISO}T00:00:00Z`).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 // The 4 months the Dashboard can be scoped to: the current (partial) month
 // plus the 3 full calendar months before it — deliberately the same window
@@ -18,7 +10,20 @@ function monthLabel(monthISO: string) {
 // purged. useSetSearchParams is shared with the Transactions page's column
 // filters (components/transactions/column-filter.tsx) — it's generic (just
 // merges one param into the URL), not actually transactions-specific.
-export function MonthPicker({ months, selected }: { months: string[]; selected: string }) {
+//
+// currentMonthISO is passed in rather than computed here: "this month"
+// depends on the user's settings.timezone, which only the server has.
+// Selecting it clears the param instead of pinning it, so the page keeps
+// following the calendar forward.
+export function MonthPicker({
+  months,
+  selected,
+  currentMonthISO,
+}: {
+  months: string[];
+  selected: string;
+  currentMonthISO: string;
+}) {
   const setParams = useSetSearchParams();
 
   return (
@@ -26,7 +31,7 @@ export function MonthPicker({ months, selected }: { months: string[]; selected: 
       uiSize="sm"
       className="w-44"
       value={selected}
-      onChange={(monthISO) => setParams({ month: monthISO === currentMonthISO() ? null : monthISO })}
+      onChange={(monthISO) => setParams({ month: monthISO === currentMonthISO ? null : monthISO })}
     >
       {months.map((monthISO) => (
         <option key={monthISO} value={monthISO}>

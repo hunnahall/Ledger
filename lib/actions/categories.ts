@@ -1,27 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import { revalidateLedgerPages } from "@/lib/actions/revalidate";
 import { logChange } from "@/lib/actions/log";
+import { logMoney, parseMoney } from "@/lib/format";
 
-function money(amount: number): string {
-  return `$${amount.toFixed(2)}/mo`;
-}
+const money = (amount: number) => logMoney(amount, "/mo");
 
 export async function createCategory(
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
-  const monthlyAmount = Number(formData.get("monthly_amount") ?? 0);
+  const parsedMonthly = parseMoney(formData.get("monthly_amount"), { fallback: 0 });
+  if ("error" in parsedMonthly) return parsedMonthly;
+  const monthlyAmount = parsedMonthly.amount;
   if (!name) return { error: "Enter a name for the category." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase.from("categories").insert({
     user_id: user.id,
@@ -32,9 +29,8 @@ export async function createCategory(
 
   await logChange(supabase, user.id, "Budgets", `Category: ${name}`, null, money(monthlyAmount));
 
-  revalidatePath("/budget");
+  revalidateLedgerPages();
   revalidatePath("/settings");
-  revalidatePath("/transactions");
   return null;
 }
 
@@ -44,14 +40,12 @@ export async function updateCategory(
   formData: FormData,
 ): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
-  const monthlyAmount = Number(formData.get("monthly_amount") ?? 0);
+  const parsedMonthly = parseMoney(formData.get("monthly_amount"), { fallback: 0 });
+  if ("error" in parsedMonthly) return parsedMonthly;
+  const monthlyAmount = parsedMonthly.amount;
   if (!name) return { error: "Enter a name for the category." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: existing, error: fetchError } = await supabase
     .from("categories")
@@ -88,9 +82,8 @@ export async function updateCategory(
     );
   }
 
-  revalidatePath("/budget");
+  revalidateLedgerPages();
   revalidatePath("/settings");
-  revalidatePath("/transactions");
   return null;
 }
 
@@ -99,11 +92,7 @@ export async function deleteCategory(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: existing, error: fetchError } = await supabase
     .from("categories")
@@ -128,9 +117,7 @@ export async function deleteCategory(
     );
   }
 
-  revalidatePath("/budget");
+  revalidateLedgerPages();
   revalidatePath("/settings");
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
   return null;
 }

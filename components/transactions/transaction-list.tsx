@@ -7,14 +7,11 @@ import {
   bulkUpdateTransactions,
   createSourceFromTransaction,
   deleteTransaction,
-  saveSplits,
-  ruleExistsForDescription,
 } from "@/lib/actions/transactions";
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
-import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
-import { stepAmountByDollar } from "@/lib/dollar-step";
+import { SplitEditor } from "@/components/transactions/split-editor";
+import { INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
@@ -53,7 +50,6 @@ type BucketOption = { value: string; label: string };
 // are currently loaded, since it isn't a real categories row. Picking it
 // sets is_income and clears category_id; picking a real category (or
 // Uncategorized) clears is_income back out.
-const INCOME = "__income__";
 // Same idea, in the Source select: picking it doesn't change source_id
 // directly — it reveals the inline "create a source from this amount"
 // form instead (see addingSource below).
@@ -474,23 +470,13 @@ const TransactionRow = memo(function TransactionRow({
     setRowError(result?.error ?? null);
   }
 
-  // Offers the "make this a rule?" prompt for the given target (a real
-  // category id, or the INCOME sentinel) when no rule already covers this
-  // merchant — reused by both a fresh category pick (Add Rule already on)
-  // and by turning Add Rule on after the fact (see handleToggleBuildRule).
-  // Returns the rule_action to send with the next save: "write"/"skip" for
-  // an explicit answer, or undefined when a rule already exists (nothing
-  // to decide — assignTransaction reinforces that by default).
-  async function offerToBuildRule(targetCategoryId: string): Promise<string | undefined> {
-    const exists = await ruleExistsForDescription(txn.description);
-    if (exists) return undefined;
-    const targetLabel =
-      targetCategoryId === INCOME
-        ? "Income"
-        : (categories.find((c) => c.id === targetCategoryId)?.name ?? "this category");
-    const saveRule = await confirm(`Make all "${txn.description}" transactions ${targetLabel}?`);
-    return saveRule ? "write" : "skip";
-  }
+  // "Add Rule": whether this category pick should also teach a vendor rule,
+  // and the prompt that asks. See use-rule-builder.ts.
+  const { resolveRuleAction, isFreshPick, overridesFor } = useRuleBuilder({
+    description: txn.description,
+    categories,
+    confirm,
+  });
 
   async function handleCategoryChange(newCategoryId: string) {
     const nowIncome = newCategoryId === INCOME;
@@ -506,10 +492,7 @@ const TransactionRow = memo(function TransactionRow({
       return;
     }
 
-    const overrides: Record<string, string> = {
-      category_id: nowIncome ? "" : newCategoryId,
-      is_income: nowIncome ? "on" : "",
-    };
+    const overrides = overridesFor(newCategoryId);
 
     if (!buildRule) {
       // Build Rule unchecked: assign the category and leave rules alone
@@ -517,20 +500,17 @@ const TransactionRow = memo(function TransactionRow({
       // whenever category_id is set, so this has to be explicit, not just
       // "don't show the prompt".
       overrides.rule_action = "skip";
-    } else if (!isTransfer) {
-      // Only a fresh pick (changed from what's saved) for a merchant with
-      // no existing rule needs the "make this a rule?" prompt — an
-      // unchanged pick (or one that already matches a learned rule) is
-      // just reinforcing what's already there. A rule can target Income
-      // just like it can a real category (see the vendor_category_rules
-      // is_income column).
-      const isFreshPick = nowIncome
-        ? !txn.isIncome
-        : Boolean(newCategoryId) && newCategoryId !== (txn.categoryId ?? "");
-      if (isFreshPick) {
-        const ruleAction = await offerToBuildRule(newCategoryId);
-        if (ruleAction) overrides.rule_action = ruleAction;
-      }
+    } else if (
+      !isTransfer &&
+      isFreshPick({
+        nowIncome,
+        newCategoryId,
+        savedIsIncome: txn.isIncome,
+        savedCategoryId: txn.categoryId,
+      })
+    ) {
+      const ruleAction = await resolveRuleAction(newCategoryId);
+      if (ruleAction) overrides.rule_action = ruleAction;
     }
 
     await saveRow(overrides);
@@ -546,22 +526,13 @@ const TransactionRow = memo(function TransactionRow({
     onToggleBuildRule(txn.id);
     if (!turningOn || isTransfer) return;
 
-    const nowIncome = categoryId === INCOME;
-    const hasTarget = nowIncome || Boolean(categoryId);
+    const hasTarget = categoryId === INCOME || Boolean(categoryId);
     if (!hasTarget) return;
 
-    const ruleAction = await offerToBuildRule(categoryId);
+    const ruleAction = await resolveRuleAction(categoryId);
     if (ruleAction === "skip") return;
 
-    // category_id's hidden input still holds the raw INCOME sentinel when
-    // nowIncome — same resolution handleCategoryChange's overrides do, and
-    // just as required here, since saveRow otherwise reads that literal
-    // "__income__" string straight off the DOM and sends it to a uuid
-    // column.
-    const overrides: Record<string, string> = {
-      category_id: nowIncome ? "" : categoryId,
-      is_income: nowIncome ? "on" : "",
-    };
+    const overrides = overridesFor(categoryId);
     if (ruleAction) overrides.rule_action = ruleAction;
     await saveRow(overrides);
   }
@@ -636,10 +607,6 @@ const TransactionRow = memo(function TransactionRow({
   const accountLast4Value = txn.accountLast4 ?? accountLast4(txn.accountName);
   const accountDisplay = accountLast4Value ?? txn.accountName ?? "—";
 
-  const [splitsState, splitsAction] = useActionState(
-    saveSplits.bind(null, txn.id, txn.amount),
-    null,
-  );
   const [createSourceState, createSourceAction] = useActionState(
     createSourceFromTransaction.bind(null, txn.id),
     null,
@@ -990,66 +957,14 @@ const TransactionRow = memo(function TransactionRow({
           )}
 
           {splitOpen && (
-            <form action={splitsAction} className="mt-3 flex flex-col gap-2">
-              {Array.from({ length: MAX_SPLIT_ROWS }, (_, i) => i + 1).map((i) => {
-                const existing = txn.splits[i - 1];
-                return (
-                  <div
-                    key={existing?.id ?? `new-${i}`}
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    <Select
-                      name={`split_category_${i}`}
-                      uiSize="sm"
-                      className="w-36 py-1 text-xs"
-                      defaultValue={existing?.categoryId ?? ""}
-                      placeholder="No category"
-                    >
-                      <option value="">No category</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </Select>
-                    <Select
-                      name={`split_source_${i}`}
-                      uiSize="sm"
-                      className="w-36 py-1 text-xs"
-                      defaultValue={existing?.sourceId ?? ""}
-                      placeholder="No source"
-                    >
-                      <option value="">No source</option>
-                      {sources.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </Select>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name={`split_amount_${i}`}
-                      onKeyDown={stepAmountByDollar}
-                      defaultValue={existing?.amount ?? ""}
-                      placeholder="Amount"
-                      className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs"
-                    />
-                  </div>
-                );
-              })}
-              <p className="text-xs text-muted">
-                Split amounts must sum to {formatMoney(txn.amount, decimalPlaces)}. Leave all
-                fields blank to remove the split.
-              </p>
-              <button
-                type="submit"
-                className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
-              >
-                Save split
-              </button>
-              {splitsState?.error && <p className="text-xs text-negative">{splitsState.error}</p>}
-            </form>
+            <SplitEditor
+              transactionId={txn.id}
+              transactionAmount={txn.amount}
+              splits={txn.splits}
+              categories={categories}
+              sources={sources}
+              decimalPlaces={decimalPlaces}
+            />
           )}
         </div>
       </div>

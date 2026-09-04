@@ -5,10 +5,8 @@ import { createCategory } from "@/lib/actions/categories";
 import { CategoryRow } from "@/components/budgets/category-row";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Button } from "@/components/ui/button";
-import { ChevronDownIcon } from "@/components/ui/icons";
+import { SortableHeader, useSortDirection } from "@/components/ui/sortable-header";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
-
-type SortDirection = "desc" | "asc" | null;
 
 type Category = {
   id: string;
@@ -28,43 +26,15 @@ export function CategoriesTable({
   decimalPlaces: number;
 }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [, createAction] = useActionState(createCategory, null);
-
-  // Cycle none -> high-to-low -> low-to-high -> none, same three-state
-  // pattern as a typical spreadsheet column header.
-  function cycleSortDirection() {
-    setSortDirection((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null));
-  }
-
-  const sortedCategories =
-    sortDirection === null
-      ? categories
-      : [...categories].sort((a, b) =>
-          sortDirection === "desc"
-            ? b.monthly_amount - a.monthly_amount
-            : a.monthly_amount - b.monthly_amount,
-        );
+  const {
+    sorted: sortedCategories,
+    direction: sortDirection,
+    cycle: cycleSortDirection,
+  } = useSortDirection(categories, (c) => c.monthly_amount);
 
   const sortHeader = (
-    <button
-      type="button"
-      onClick={cycleSortDirection}
-      className="flex items-center gap-1 hover:text-foreground"
-      aria-label={
-        sortDirection === "desc"
-          ? "Sorted high to low, click for low to high"
-          : sortDirection === "asc"
-            ? "Sorted low to high, click to clear sort"
-            : "Sort by monthly amount"
-      }
-    >
-      Monthly amount
-      <ChevronDownIcon
-        size={12}
-        className={sortDirection === "asc" ? "rotate-180" : sortDirection === null ? "opacity-30" : ""}
-      />
-    </button>
+    <SortableHeader label="Monthly amount" direction={sortDirection} onClick={cycleSortDirection} />
   );
 
   return (

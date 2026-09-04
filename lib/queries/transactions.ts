@@ -30,7 +30,12 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   if (filters.uncategorizedOnly) {
     query = query.is("category_id", null).eq("is_transfer", false);
   }
-  if (filters.search) query = query.ilike("description", `%${filters.search}%`);
+  if (filters.search) {
+    // % and _ are LIKE wildcards; a user searching for "50% off" means the
+    // literal characters, not "anything".
+    const escaped = filters.search.replace(/[\\%_]/g, (c) => `\\${c}`);
+    query = query.ilike("description", `%${escaped}%`);
+  }
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

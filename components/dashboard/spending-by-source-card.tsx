@@ -1,14 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useModal } from "@/components/ui/modal";
 import { Card } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
-import { ChevronDownIcon } from "@/components/ui/icons";
+import { SortableHeader, useSortDirection } from "@/components/ui/sortable-header";
 import { TransactionsPopupList } from "@/components/dashboard/transactions-popup-list";
-
-type SortDirection = "desc" | "asc" | null;
 
 // How much moved out of each Source this month (the old Source Balances +
 // Funds cards merged into one list, now showing spend instead of running
@@ -24,42 +21,23 @@ export function SpendingBySourceCard({
   decimalPlaces: number;
   monthISO: string;
 }) {
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const { open, modal } = useModal();
-
-  function cycleSortDirection() {
-    setSortDirection((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null));
-  }
-
-  const sortedSpending =
-    sortDirection === null
-      ? spending
-      : [...spending].sort((a, b) =>
-          sortDirection === "desc" ? b.spent - a.spent : a.spent - b.spent,
-        );
+  const {
+    sorted: sortedSpending,
+    direction: sortDirection,
+    cycle: cycleSortDirection,
+  } = useSortDirection(spending, (s) => s.spent);
 
   return (
     <Card className="p-5">
       <div className="mb-3 flex items-center justify-between">
         <p className="font-medium">Spending By Source</p>
-        <button
-          type="button"
+        <SortableHeader
+          label="Amount"
+          direction={sortDirection}
           onClick={cycleSortDirection}
-          className="flex items-center gap-1 text-xs text-muted hover:text-foreground"
-          aria-label={
-            sortDirection === "desc"
-              ? "Sorted high to low, click for low to high"
-              : sortDirection === "asc"
-                ? "Sorted low to high, click to clear sort"
-                : "Sort by amount"
-          }
-        >
-          Amount
-          <ChevronDownIcon
-            size={12}
-            className={sortDirection === "asc" ? "rotate-180" : sortDirection === null ? "opacity-30" : ""}
-          />
-        </button>
+          className="text-xs text-muted"
+        />
       </div>
       <div className="flex flex-col divide-y divide-border text-sm">
         {sortedSpending.map((s) => (

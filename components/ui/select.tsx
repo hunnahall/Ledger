@@ -36,7 +36,7 @@ function optionsFromChildren(children: ReactNode): SelectOption[] {
   return options;
 }
 
-export interface SelectProps {
+interface SelectProps {
   name?: string;
   /** Associates the hidden input (and thus this field's value) with a
    * <form id="..."> elsewhere in the document, same as the native form=

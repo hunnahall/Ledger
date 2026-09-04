@@ -3,7 +3,6 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { renameForecast, updateForecastSource, deleteForecast } from "@/lib/actions/forecasts";
-import { currentMonthISO } from "@/lib/dates";
 import { projectForecast } from "@/lib/forecast/project";
 import { formatMoney } from "@/lib/format";
 import { ForecastPicker } from "@/components/forecast/forecast-picker";
@@ -35,18 +34,25 @@ export function ForecastView({
   sourceOptions,
   forecast,
   decimalPlaces,
+  currentMonthISO,
 }: {
   forecasts: SavedForecast[];
   sourceOptions: SourceOption[];
   forecast: ForecastDetail | null;
   decimalPlaces: number;
+  currentMonthISO: string;
 }) {
   if (!forecast) {
     return <ForecastPicker forecasts={forecasts} sourceOptions={sourceOptions} />;
   }
 
   return (
-    <ForecastDetailView forecast={forecast} sourceOptions={sourceOptions} decimalPlaces={decimalPlaces} />
+    <ForecastDetailView
+      forecast={forecast}
+      sourceOptions={sourceOptions}
+      decimalPlaces={decimalPlaces}
+      currentMonthISO={currentMonthISO}
+    />
   );
 }
 
@@ -54,21 +60,27 @@ function ForecastDetailView({
   forecast,
   sourceOptions,
   decimalPlaces,
+  currentMonthISO,
 }: {
   forecast: ForecastDetail;
   sourceOptions: SourceOption[];
   decimalPlaces: number;
+  // Resolved server-side from settings.timezone -- the browser's own idea of
+  // "this month" can differ from the account's.
+  currentMonthISO: string;
 }) {
   const router = useRouter();
   const { confirm, dialog } = useConfirm();
-  const [, startSourceTransition] = useTransition();
-  const [, startDeleteTransition] = useTransition();
+  // The pending flags were previously discarded, so Delete had no disabled
+  // state and a double-click fired two deletes and two router.push calls.
+  const [sourceChangePending, startSourceTransition] = useTransition();
+  const [deletePending, startDeleteTransition] = useTransition();
 
   const points = projectForecast({
     startingBalance: forecast.sourceBalance,
     monthlyTransfer: forecast.effectiveMonthlyTransfer,
     entries: forecast.entries.map((e) => ({ month: e.month, isExpense: e.isExpense, amount: e.amount })),
-    startMonthISO: currentMonthISO(),
+    startMonthISO: currentMonthISO,
   });
 
   async function handleSourceChange(sourceId: string) {
@@ -102,8 +114,15 @@ function ForecastDetailView({
         <button type="button" onClick={() => router.push("/forecast")} className="text-sm text-muted hover:underline">
           ← All forecasts
         </button>
-        <Button type="button" variant="secondary" tone="negative" size="sm" onClick={handleDelete}>
-          Delete forecast
+        <Button
+          type="button"
+          variant="secondary"
+          tone="negative"
+          size="sm"
+          onClick={handleDelete}
+          disabled={deletePending}
+        >
+          {deletePending ? "Deleting…" : "Delete forecast"}
         </Button>
       </div>
 
@@ -114,6 +133,7 @@ function ForecastDetailView({
           className="w-40"
           value={forecast.sourceId}
           onChange={handleSourceChange}
+          disabled={sourceChangePending}
         >
           {sourceOptions.map((s) => (
             <option key={s.id} value={s.id}>

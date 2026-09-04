@@ -1,10 +1,15 @@
 import { AppNav } from "@/components/ui/app-nav";
 import { Sidebar } from "@/components/ui/sidebar";
 import { signOut } from "@/lib/actions/auth";
+import { getSettings } from "@/lib/queries/settings";
+import { TimezoneSync } from "@/components/settings/timezone-sync";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const settings = await getSettings();
+
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
+      <TimezoneSync storedTimezone={settings.timezone} />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* md+ uses the Sidebar for branding/nav/logout instead. */}

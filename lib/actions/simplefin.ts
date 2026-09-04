@@ -1,9 +1,27 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import { revalidateBankPages } from "@/lib/actions/revalidate";
 import { MAX_IMPORT_DAYS, daysBetween } from "@/lib/sources/import-range";
+
+// A setup token is base64 of a URL this server then POSTs to. Without an
+// allow-list that is a server-side request forgery primitive: any signed-in
+// user could aim it at a cloud metadata endpoint or an internal service and
+// have our server make the request. SimpleFin only ever issues claim URLs on
+// its own bridge, so nothing else is legitimate.
+const SIMPLEFIN_HOST = "simplefin.org";
+
+function isSimplefinUrl(candidate: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:") return false;
+  return url.hostname === SIMPLEFIN_HOST || url.hostname.endsWith(`.${SIMPLEFIN_HOST}`);
+}
 
 async function claimAccessUrl(setupToken: string): Promise<string> {
   let claimUrl: string;
@@ -12,11 +30,13 @@ async function claimAccessUrl(setupToken: string): Promise<string> {
   } catch {
     throw new Error("That doesn't look like a valid setup token.");
   }
-  if (!/^https?:\/\//.test(claimUrl)) {
-    throw new Error("That doesn't look like a valid setup token.");
+  if (!isSimplefinUrl(claimUrl)) {
+    throw new Error("That setup token doesn't point at SimpleFin — check you copied the right one.");
   }
 
-  const response = await fetch(claimUrl, { method: "POST" });
+  // `redirect: "manual"` so a 3xx can't bounce the request off the
+  // allow-listed host onto somewhere else.
+  const response = await fetch(claimUrl, { method: "POST", redirect: "manual" });
   if (response.status === 403) {
     throw new Error("This setup token was already used or has expired — generate a new one.");
   }
@@ -24,7 +44,9 @@ async function claimAccessUrl(setupToken: string): Promise<string> {
     throw new Error(`SimpleFin claim failed (HTTP ${response.status}).`);
   }
   const accessUrl = (await response.text()).trim();
-  if (!/^https?:\/\//.test(accessUrl)) {
+  // The returned access URL is fetched on every later sync, so it gets the
+  // same host check as the claim URL.
+  if (!isSimplefinUrl(accessUrl)) {
     throw new Error("SimpleFin returned an unexpected response.");
   }
   return accessUrl;
@@ -37,11 +59,7 @@ export async function connectBankConnection(
   const setupToken = String(formData.get("setup_token") ?? "").trim();
   if (!setupToken) return { error: "Paste a setup token." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireUser();
 
   let accessUrl: string;
   try {
@@ -74,8 +92,7 @@ export async function connectBankConnection(
     // the user can retry with "Sync now" on the Accounts page.
   });
 
-  revalidatePath("/accounts");
-  revalidatePath("/settings");
+  revalidateBankPages();
   return null;
 }
 
@@ -83,7 +100,7 @@ async function invokeSync(
   connectionId: string,
   extra?: Record<string, string>,
 ): Promise<{ transactionsFetched?: number }> {
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -118,10 +135,7 @@ export async function syncBankConnection(
     return { error: err instanceof Error ? err.message : "Sync failed." };
   }
 
-  revalidatePath("/accounts");
-  revalidatePath("/settings");
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
+  revalidateBankPages();
   return null;
 }
 
@@ -133,7 +147,7 @@ export async function syncAllBankConnections(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { data: connections, error: fetchError } = await supabase
     .from("bank_connections")
     .select("id");
@@ -145,10 +159,7 @@ export async function syncAllBankConnections(
   const results = await Promise.allSettled(connections.map((c) => invokeSync(c.id)));
   const failures = results.filter((r) => r.status === "rejected").length;
 
-  revalidatePath("/accounts");
-  revalidatePath("/settings");
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
+  revalidateBankPages();
 
   if (failures > 0) {
     return {
@@ -186,10 +197,7 @@ export async function importBankConnectionRange(
     return { error: err instanceof Error ? err.message : "Import failed." };
   }
 
-  revalidatePath("/accounts");
-  revalidatePath("/settings");
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
+  revalidateBankPages();
 
   return { count: result.transactionsFetched ?? 0 };
 }
@@ -199,13 +207,12 @@ export async function disconnectBankConnection(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { error } = await supabase.rpc("delete_bank_connection", {
     p_connection_id: connectionId,
   });
   if (error) return { error: error.message };
 
-  revalidatePath("/accounts");
-  revalidatePath("/settings");
+  revalidateBankPages();
   return null;
 }

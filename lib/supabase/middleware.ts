@@ -29,18 +29,34 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/signup");
+  const { pathname } = request.nextUrl;
 
-  if (!user && !isAuthRoute) {
+  // Reachable without a session.
+  const isPublicRoute =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    // Exchanges an emailed one-time code for a session; by definition the
+    // caller has no session yet.
+    pathname.startsWith("/auth/callback");
+
+  // Signed in but must not be bounced to the dashboard: /auth/callback has
+  // just established the session and is mid-redirect, and /reset-password
+  // is only ever reached *with* a (recovery) session.
+  const isSessionEstablishingRoute =
+    pathname.startsWith("/auth/callback") || pathname.startsWith("/reset-password");
+
+  if (!user && !isPublicRoute && !pathname.startsWith("/reset-password")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
+  if (user && isPublicRoute && !isSessionEstablishingRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

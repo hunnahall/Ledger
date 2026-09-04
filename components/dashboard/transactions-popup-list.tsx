@@ -27,10 +27,10 @@ export function TransactionsPopupList({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch once on mount: useModal (components/ui/modal.tsx) unmounts this
-    // component entirely on close and mounts a fresh instance on the next
-    // open, so `kind`/`monthISO` never change across the lifetime of one
-    // instance — no need to track them as dependencies.
+    // useModal (components/ui/modal.tsx) unmounts this component entirely
+    // on close and mounts a fresh instance on the next open, so kind and
+    // monthISO are fixed for the lifetime of one instance — listing them
+    // below is honest about what's read without causing a refetch.
     let cancelled = false;
     getDashboardTileTransactions(kind, monthISO)
       .then((rows) => {
@@ -42,7 +42,7 @@ export function TransactionsPopupList({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [kind, monthISO]);
 
   const total = transactions?.reduce((sum, t) => sum + t.amount, 0) ?? 0;
 

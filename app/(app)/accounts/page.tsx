@@ -5,13 +5,8 @@ import { CreateManualAccountForm } from "@/components/accounts/create-manual-acc
 import { Card } from "@/components/ui/card";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { Money } from "@/components/ui/money";
+import { ACCOUNT_TYPE_LABELS as TYPE_LABELS } from "@/lib/accounts/types";
 
-const TYPE_LABELS: Record<string, string> = {
-  checking: "Checking",
-  savings: "Savings",
-  credit_card: "Credit card",
-  manual: "Manual",
-};
 
 export default async function AccountsPage() {
   const [accounts, settings] = await Promise.all([getAccounts(), getSettings()]);

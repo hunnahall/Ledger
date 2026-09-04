@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import { revalidateLedgerPages } from "@/lib/actions/revalidate";
+import { logMoney, parseMoney } from "@/lib/format";
 import {
   validateSourceInput,
   isReservedSourceType,
@@ -11,9 +11,7 @@ import {
 } from "@/lib/sources/validate-source";
 import { logChange } from "@/lib/actions/log";
 
-function money(amount: number): string {
-  return `$${amount.toFixed(2)}`;
-}
+const money = logMoney;
 
 // Takes/returns the (prevState, formData) => nextState shape useActionState
 // expects, rather than throwing — a thrown error from a Server Action
@@ -29,9 +27,14 @@ export async function createSource(
 ): Promise<{ error: string } | null> {
   const name = String(formData.get("name") ?? "").trim();
   const type = String(formData.get("type") ?? "reimbursement");
-  const startingBalance = Number(formData.get("balance") ?? 0);
   const depositDateInput = String(formData.get("deposit_date") ?? "").trim();
   if (!name) return { error: "Enter a name for the source." };
+
+  // A blank starting balance is a legitimate "start at zero"; anything
+  // non-numeric used to reach the numeric column as NaN.
+  const parsedBalance = parseMoney(formData.get("balance"), { fallback: 0 });
+  if ("error" in parsedBalance) return parsedBalance;
+  const startingBalance = parsedBalance.amount;
 
   if (isReservedSourceType(type)) {
     return { error: RESERVED_SOURCE_TYPE_MESSAGES[type] };
@@ -42,11 +45,7 @@ export async function createSource(
   const validation = validateSourceInput({ type, depositDate });
   if (!validation.ok) return { error: validation.error };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase.from("sources").insert({
     user_id: user.id,
@@ -61,7 +60,7 @@ export async function createSource(
 
   await logChange(supabase, user.id, "Sources", `Source: ${name}`, null, money(startingBalance));
 
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -70,11 +69,7 @@ export async function archiveSource(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: source, error: fetchError } = await supabase
     .from("sources")
@@ -100,7 +95,7 @@ export async function archiveSource(
     );
   }
 
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -112,11 +107,7 @@ export async function renameSource(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Enter a name for the source." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: existing, error: fetchError } = await supabase
     .from("sources")
@@ -140,10 +131,7 @@ export async function renameSource(
     );
   }
 
-  revalidatePath("/sources");
-  revalidatePath("/dashboard");
-  revalidatePath("/budget");
-  revalidatePath("/transactions");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -152,11 +140,7 @@ export async function deleteSource(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: source, error: fetchError } = await supabase
     .from("sources")
@@ -194,10 +178,7 @@ export async function deleteSource(
 
   await logChange(supabase, user.id, "Sources", `Source: ${source.name}`, money(source.balance), null);
 
-  revalidatePath("/sources");
-  revalidatePath("/dashboard");
-  revalidatePath("/budget");
-  revalidatePath("/transactions");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -206,14 +187,14 @@ export async function setSourceBalance(
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
-  const amount = formData.get("amount");
-  if (amount === null || amount === "") return null;
+  const raw = formData.get("amount");
+  // A cleared field means "no change", not "set to zero".
+  if (raw === null || raw === "") return null;
+  const parsed = parseMoney(raw);
+  if ("error" in parsed) return parsed;
+  const amount = parsed.amount;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: source, error: fetchError } = await supabase
     .from("sources")
@@ -225,22 +206,22 @@ export async function setSourceBalance(
 
   const { error } = await supabase
     .from("sources")
-    .update({ balance: Number(amount) })
+    .update({ balance: amount })
     .eq("id", sourceId);
   if (error) return { error: error.message };
 
-  if (source.balance !== Number(amount)) {
+  if (source.balance !== amount) {
     await logChange(
       supabase,
       user.id,
       "Sources",
       `${source.name} — Balance`,
       money(source.balance),
-      money(Number(amount)),
+      money(amount),
     );
   }
 
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }
 

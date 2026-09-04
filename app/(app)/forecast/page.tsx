@@ -2,6 +2,7 @@ import { getForecasts, getForecast } from "@/lib/queries/forecasts";
 import { getSourceOptions } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
 import { ForecastView } from "@/components/forecast/forecast-view";
+import { currentMonthISO } from "@/lib/dates";
 
 export default async function ForecastPage({
   searchParams,
@@ -33,6 +34,7 @@ export default async function ForecastPage({
         sourceOptions={sourceOptions}
         forecast={forecast}
         decimalPlaces={settings.decimal_places}
+        currentMonthISO={currentMonthISO(settings.timezone)}
       />
     </div>
   );

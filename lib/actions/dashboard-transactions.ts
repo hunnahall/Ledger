@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { currentMonthISO, nextMonthISO } from "@/lib/dates";
+import { requireUser } from "@/lib/supabase/auth";
+import { nextMonthISO } from "@/lib/dates";
 
 export type DashboardTileKind =
   | { type: "category"; categoryId: string }
@@ -31,9 +32,14 @@ export type DashboardTileTransaction = {
 // replicating for a read-only summary popup).
 export async function getDashboardTileTransactions(
   kind: DashboardTileKind,
-  monthISO: string = currentMonthISO(),
+  // Required rather than defaulted: "this month" depends on the account's
+  // settings.timezone, which the page already resolved to render the tile
+  // this popup is explaining.
+  monthISO: string,
 ): Promise<DashboardTileTransaction[]> {
-  const supabase = await createClient();
+  // RLS scopes every query below, but without this an unauthenticated call
+  // returned an empty list as though the user simply had no transactions.
+  const { supabase } = await requireUser();
 
   const month = monthISO;
   const nextMonth = nextMonthISO(month);

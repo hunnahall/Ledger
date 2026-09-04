@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import { revalidateLedgerPages } from "@/lib/actions/revalidate";
 
 export async function updateDecimalPlaces(
   _prevState: { error: string } | null,
@@ -11,11 +11,7 @@ export async function updateDecimalPlaces(
   const decimalPlaces = Number(formData.get("decimal_places") ?? 2);
   if (![0, 1, 2].includes(decimalPlaces)) return { error: "Not a valid number of decimal places." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("settings")
@@ -23,11 +19,9 @@ export async function updateDecimalPlaces(
     .eq("user_id", user.id);
   if (error) return { error: error.message };
 
+  revalidateLedgerPages();
   revalidatePath("/settings");
-  revalidatePath("/transactions");
-  revalidatePath("/sources");
   revalidatePath("/accounts");
-  revalidatePath("/dashboard");
   return null;
 }
 
@@ -37,11 +31,7 @@ export async function updateMonthAhead(
 ): Promise<{ error: string } | null> {
   const monthAhead = formData.get("month_ahead") === "on";
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("settings")
@@ -55,15 +45,41 @@ export async function updateMonthAhead(
     // month from before the mode was on would otherwise just sit there
     // as a label instead of actually landing in the fund that's about to
     // be swept into the budget. One-time catch-up, current month only.
-    const { error: catchUpError } = await supabase.rpc("route_current_month_income_to_fund", {
-      p_user_id: user.id,
-    });
+    const { error: catchUpError } = await supabase.rpc("route_current_month_income_to_fund");
     if (catchUpError) return { error: catchUpError.message };
   }
 
+  revalidateLedgerPages();
   revalidatePath("/settings");
-  revalidatePath("/transactions");
-  revalidatePath("/sources");
-  revalidatePath("/dashboard");
+  return null;
+}
+
+// Set from the Settings picker, and once automatically on first sign-in
+// (see components/settings/timezone-sync.tsx). Everything that asks "what
+// month is it" — the budget reset, the income sweep, the sinking-fund
+// contribution, the dashboard's month scoping — resolves through this.
+export async function updateTimezone(timeZone: string): Promise<{ error: string } | null> {
+  if (!timeZone) return { error: "Choose a time zone." };
+
+  // settings_validate_timezone_trigger is the real gate (it checks
+  // pg_timezone_names), but rejecting here too keeps an obviously bad value
+  // from costing a round trip.
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone });
+  } catch {
+    return { error: "Not a valid time zone." };
+  }
+
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("settings")
+    .update({ timezone: timeZone })
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidateLedgerPages();
+  revalidatePath("/settings");
+  revalidatePath("/forecast");
   return null;
 }

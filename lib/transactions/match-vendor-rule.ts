@@ -1,4 +1,4 @@
-export type VendorRuleCandidate = { merchant_normalized: string };
+type VendorRuleCandidate = { merchant_normalized: string };
 
 // A rule's pattern only has to appear somewhere in the transaction's
 // normalized description, not equal it outright — so a rule for "target"

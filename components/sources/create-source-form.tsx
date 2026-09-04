@@ -6,11 +6,11 @@ import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import {
+  CREATABLE_SOURCE_TYPES,
+  SOURCE_TYPE_LABELS as TYPE_LABELS,
+} from "@/lib/sources/validate-source";
 
-const TYPE_LABELS: Record<string, string> = {
-  reimbursement: "Reimbursement",
-  fund: "Fund",
-};
 
 export function CreateSourceForm() {
   const [type, setType] = useState("reimbursement");
@@ -32,9 +32,11 @@ export function CreateSourceForm() {
         <label className="flex flex-col gap-1 text-sm">
           Type
           <Select name="type" value={type} onChange={setType} className="w-40">
-            {Object.entries(TYPE_LABELS).map(([value, label]) => (
+            {/* Only the two types a user can create — the rest are
+                auto-provisioned singletons (createSource rejects them). */}
+            {CREATABLE_SOURCE_TYPES.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {TYPE_LABELS[value]}
               </option>
             ))}
           </Select>

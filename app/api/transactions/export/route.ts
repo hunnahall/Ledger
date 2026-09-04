@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFilteredTransactions } from "@/lib/queries/transactions";
+import { requireUser } from "@/lib/supabase/auth";
 import {
   resolveCategoryFilter,
+  resolveSourceFilter,
   type TransactionFilters,
 } from "@/lib/transactions/filters";
 
@@ -35,6 +37,11 @@ function last30DaysStart(): string {
 }
 
 export async function GET(request: NextRequest) {
+  // The proxy matcher covers this route, so an unauthenticated request is
+  // already redirected — but the export is the one place that hands data
+  // out as a file, so it does not lean solely on that.
+  await requireUser();
+
   const params = request.nextUrl.searchParams;
   const range = params.get("range");
 
@@ -42,9 +49,13 @@ export async function GET(request: NextRequest) {
     dateFrom: range === "30d" ? last30DaysStart() : params.get("date_from") ?? undefined,
     dateTo: params.get("date_to") ?? undefined,
     accountId: params.get("account_id") ?? undefined,
-    sourceId: params.get("source_id") ?? undefined,
     search: params.get("search") ?? undefined,
     ...resolveCategoryFilter(params.get("category_id") ?? undefined),
+    // This used to pass source_id straight through, so exporting while the
+    // "No source" filter was active sent that filter's sentinel value
+    // (__no_source__) into .eq("source_id", ...) — not a UUID, so PostgREST
+    // rejected it and the export 500'd.
+    ...resolveSourceFilter(params.get("source_id") ?? undefined),
   };
 
   const transactions = await getFilteredTransactions(filters);

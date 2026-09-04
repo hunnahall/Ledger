@@ -12,15 +12,8 @@ import { Money } from "@/components/ui/money";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { BalanceEditControl } from "@/components/sources/balance-edit-control";
 import { NameEditControl } from "@/components/sources/name-edit-control";
+import { SOURCE_TYPE_LABELS as TYPE_LABELS } from "@/lib/sources/validate-source";
 
-const TYPE_LABELS: Record<string, string> = {
-  budget: "Budget",
-  float: "Float",
-  sinking_fund: "Sinking Fund",
-  income: "Income",
-  reimbursement: "Reimbursement",
-  fund: "Fund",
-};
 
 export function SourceCard({
   source,

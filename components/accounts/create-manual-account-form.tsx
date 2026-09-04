@@ -7,13 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { DollarInput } from "@/components/ui/dollar-input";
 import { AddIcon } from "@/components/ui/icons";
+import { ACCOUNT_TYPE_LABELS as TYPE_LABELS } from "@/lib/accounts/types";
 
-const TYPE_LABELS: Record<string, string> = {
-  checking: "Checking",
-  savings: "Savings",
-  credit_card: "Credit card",
-  manual: "Manual",
-};
 
 export function CreateManualAccountForm() {
   const [state, formAction] = useActionState(createManualAccount, null);

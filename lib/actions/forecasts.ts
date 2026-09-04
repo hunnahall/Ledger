@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import { revalidateForecastPages } from "@/lib/actions/revalidate";
 import { parseMonthYear } from "@/lib/forecast/month";
+import { parseMoney } from "@/lib/format";
 
 // Everything in this file only ever reads sources/source_transfers — it
 // never inserts/updates/deletes them, and never touches transactions.
@@ -20,11 +20,7 @@ export async function createForecast(
   if (!name) return { error: "Enter a name for the forecast." };
   if (!sourceId) return { error: "Choose a source." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data, error } = await supabase
     .from("forecasts")
@@ -33,7 +29,7 @@ export async function createForecast(
     .single();
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return { id: data.id };
 }
 
@@ -45,11 +41,11 @@ export async function renameForecast(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Enter a name for the forecast." };
 
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { error } = await supabase.from("forecasts").update({ name }).eq("id", forecastId);
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return null;
 }
 
@@ -61,14 +57,14 @@ export async function updateForecastSource(
   const sourceId = String(formData.get("source_id") ?? "");
   if (!sourceId) return { error: "Choose a source." };
 
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { error } = await supabase
     .from("forecasts")
     .update({ source_id: sourceId })
     .eq("id", forecastId);
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return null;
 }
 
@@ -77,18 +73,24 @@ export async function updateMonthlyTransferOverride(
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
+  // A cleared field means "fall back to the source's live transfer", which
+  // is a null override rather than zero.
   const raw = formData.get("monthly_transfer_override");
-  const amount = raw === null || raw === "" ? null : Number(raw);
-  if (amount !== null && Number.isNaN(amount)) return { error: "Enter a valid amount." };
+  let amount: number | null = null;
+  if (raw !== null && raw !== "") {
+    const parsed = parseMoney(raw);
+    if ("error" in parsed) return parsed;
+    amount = parsed.amount;
+  }
 
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { error } = await supabase
     .from("forecasts")
     .update({ monthly_transfer_override: amount })
     .eq("id", forecastId);
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return null;
 }
 
@@ -97,11 +99,11 @@ export async function deleteForecast(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { error } = await supabase.from("forecasts").delete().eq("id", forecastId);
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return null;
 }
 
@@ -113,17 +115,14 @@ export async function createForecastEntry(
   const monthISO = parseMonthYear(String(formData.get("month") ?? ""));
   const description = String(formData.get("description") ?? "").trim();
   const isExpense = String(formData.get("type_choice") ?? "expense") === "expense";
-  const amount = Number(formData.get("amount") ?? 0);
+  const parsed = parseMoney(formData.get("amount"), { positive: true });
 
   if (!monthISO) return { error: "Enter the month as mm/yy." };
   if (!description) return { error: "Enter a description." };
-  if (!amount || amount <= 0) return { error: "Enter an amount." };
+  if ("error" in parsed) return parsed;
+  const amount = parsed.amount;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase.from("forecast_entries").insert({
     user_id: user.id,
@@ -135,7 +134,7 @@ export async function createForecastEntry(
   });
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return null;
 }
 
@@ -147,20 +146,21 @@ export async function updateForecastEntry(
   const monthISO = parseMonthYear(String(formData.get("month") ?? ""));
   const description = String(formData.get("description") ?? "").trim();
   const isExpense = String(formData.get("type_choice") ?? "expense") === "expense";
-  const amount = Number(formData.get("amount") ?? 0);
+  const parsed = parseMoney(formData.get("amount"), { positive: true });
 
   if (!monthISO) return { error: "Enter the month as mm/yy." };
   if (!description) return { error: "Enter a description." };
-  if (!amount || amount <= 0) return { error: "Enter an amount." };
+  if ("error" in parsed) return parsed;
+  const amount = parsed.amount;
 
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { error } = await supabase
     .from("forecast_entries")
     .update({ month: monthISO, description, is_expense: isExpense, amount })
     .eq("id", entryId);
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return null;
 }
 
@@ -169,10 +169,10 @@ export async function deleteForecastEntry(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
+  const { supabase } = await requireUser();
   const { error } = await supabase.from("forecast_entries").delete().eq("id", entryId);
   if (error) return { error: error.message };
 
-  revalidatePath("/forecast");
+  revalidateForecastPages();
   return null;
 }

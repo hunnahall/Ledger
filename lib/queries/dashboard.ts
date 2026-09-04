@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { currentMonthISO } from "@/lib/dates";
 import { spentFromRawAmount } from "@/lib/progress";
 import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 import { ensureBudgetCurrent } from "@/lib/queries/budgets";
@@ -11,7 +10,7 @@ import { getSettings } from "@/lib/queries/settings";
 // they're left out here.
 const BALANCE_TILE_TYPES = ["budget", "sinking_fund", "reimbursement", "fund"];
 
-export async function getDashboardData(monthISO: string = currentMonthISO()) {
+export async function getDashboardData(monthISO: string) {
   const supabase = await createClient();
   const month = monthISO;
 

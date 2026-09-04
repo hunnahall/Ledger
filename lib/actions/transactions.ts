@@ -1,17 +1,14 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser, type SupabaseServerClient } from "@/lib/supabase/auth";
+import { revalidateLedgerPages, revalidateVendorRulePages } from "@/lib/actions/revalidate";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+import { parseMoney } from "@/lib/format";
 
 export async function learnVendorRule(
   supabase: SupabaseServerClient,
-  userId: string,
   merchantNormalized: string,
   // Exactly one of these is the rule's target (see the
   // vendor_category_rules_target_check constraint) — a real category, or a
@@ -22,63 +19,20 @@ export async function learnVendorRule(
 ) {
   if (!merchantNormalized) return;
 
-  const { data: existing } = await supabase
-    .from("vendor_category_rules")
-    .select("id, use_count")
-    .eq("user_id", userId)
-    .eq("merchant_normalized", merchantNormalized)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from("vendor_category_rules")
-      .update({
-        category_id: categoryId,
-        is_income: isIncome,
-        source_id: sourceId,
-        last_used_at: new Date().toISOString(),
-        use_count: existing.use_count + 1,
-      })
-      .eq("id", existing.id);
-    return;
-  }
-
-  const { error } = await supabase.from("vendor_category_rules").insert({
-    user_id: userId,
-    merchant_normalized: merchantNormalized,
-    category_id: categoryId,
-    is_income: isIncome,
-    source_id: sourceId,
+  // One atomic upsert. This used to be a select, then an insert, then a
+  // hand-written 23505 recovery path for the race between them — and it
+  // incremented use_count by reading it into JS and writing it back, so two
+  // concurrent categorizations of the same merchant lost an increment.
+  const { error } = await supabase.rpc("learn_vendor_rule", {
+    p_merchant_normalized: merchantNormalized,
+    p_category_id: categoryId,
+    p_is_income: isIncome,
+    p_source_id: sourceId,
   });
 
-  // Unique violation (see the vendor_category_rules_user_merchant_key
-  // constraint) means a concurrent call already created the rule between
-  // our select above and this insert — fall back to updating it instead of
-  // erroring out or leaving a duplicate row for the same merchant.
-  if (error?.code === "23505") {
-    const { data: race } = await supabase
-      .from("vendor_category_rules")
-      .select("id, use_count")
-      .eq("user_id", userId)
-      .eq("merchant_normalized", merchantNormalized)
-      .maybeSingle();
-    if (race) {
-      await supabase
-        .from("vendor_category_rules")
-        .update({
-          category_id: categoryId,
-          is_income: isIncome,
-          source_id: sourceId,
-          last_used_at: new Date().toISOString(),
-          use_count: race.use_count + 1,
-        })
-        .eq("id", race.id);
-    }
-  } else if (error) {
-    // A failed rule write shouldn't block or crash the categorization it
-    // was reinforcing — same reasoning as logChange's own error handling.
-    console.error("learnVendorRule failed:", error.message);
-  }
+  // A failed rule write shouldn't block or crash the categorization it was
+  // reinforcing — same reasoning as logChange's own error handling.
+  if (error) console.error("learnVendorRule failed:", error.message);
 }
 
 export async function createManualTransaction(
@@ -86,7 +40,7 @@ export async function createManualTransaction(
 ): Promise<{ error: string } | null> {
   const accountId = String(formData.get("account_id") ?? "");
   const postedDate = String(formData.get("posted_date") ?? "");
-  const rawAmount = Number(formData.get("amount") ?? NaN);
+  const parsedAmount = parseMoney(formData.get("amount"), { positive: true });
   const description = String(formData.get("description") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const categoryFieldSource = String(formData.get("category_source") ?? "");
@@ -109,15 +63,15 @@ export async function createManualTransaction(
   const newSourceName = String(formData.get("new_source_name") ?? "").trim();
   const newSourceType = String(formData.get("new_source_type") ?? "reimbursement");
 
-  if (!accountId || !postedDate || !description || Number.isNaN(rawAmount)) {
+  if (!accountId || !postedDate || !description) {
     return { error: "Fill in the account, date, description, and amount." };
   }
+  // `Number("")` is 0, so the old Number.isNaN guard let an empty amount
+  // through and inserted a $0 transaction.
+  if ("error" in parsedAmount) return parsedAmount;
+  const rawAmount = parsedAmount.amount;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const merchantNormalized = normalizeMerchant(description);
 
@@ -126,7 +80,10 @@ export async function createManualTransaction(
   // off transfer_from/to_*; also setting source_id would double-apply this
   // transaction's amount through the plain transactions_sync_balance trigger.
   let resolvedSourceId = isTransfer || isExcluded ? null : sourceId;
-  const amount = isTransfer ? rawAmount : isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
+  // Every branch derives the sign from the chosen type rather than trusting
+  // the submitted one — transfers used to pass rawAmount through unclamped,
+  // so a negative transfer amount reversed the direction of both legs.
+  const amount = isTransfer || isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
 
   if (isIncome && incomeAction === "include_in_budget") {
     // Tracked for inflow/filtering only (see v_inflow_outflow) — no source.
@@ -205,18 +162,14 @@ export async function createManualTransaction(
 
   let learnedRule = false;
   if (resolvedCategoryId && ruleAction !== "skip") {
-    await learnVendorRule(supabase, user.id, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
+    await learnVendorRule(supabase, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
     learnedRule = true;
   }
 
-  revalidatePath("/transactions");
-  revalidatePath("/sources");
-  revalidatePath("/dashboard");
-  // Only when a rule was actually written — Settings has its own cached
-  // route, unaffected by the revalidations above, so it needs an explicit
-  // nudge or a rule created here would sit invisible until something else
-  // happened to refetch that page.
-  if (learnedRule) revalidatePath("/settings");
+  // A rule written here also has to show up on Settings, which has its own
+  // cached route the ledger revalidation above doesn't touch.
+  if (learnedRule) revalidateVendorRulePages();
+  revalidateLedgerPages();
   return null;
 }
 
@@ -230,11 +183,7 @@ export async function suggestCategoryForDescription(
   const merchantNormalized = normalizeMerchant(description);
   if (!merchantNormalized) return null;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { supabase, user } = await requireUser();
 
   const { data: rules } = await supabase
     .from("vendor_category_rules")
@@ -260,11 +209,7 @@ export async function ruleExistsForDescription(description: string): Promise<boo
   const merchantNormalized = normalizeMerchant(description);
   if (!merchantNormalized) return false;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return false;
+  const { supabase, user } = await requireUser();
 
   const { data: rules } = await supabase
     .from("vendor_category_rules")
@@ -291,11 +236,7 @@ export async function assignTransaction(
   const transferFromSourceId = String(formData.get("transfer_from") ?? "") || null;
   const transferToSourceId = String(formData.get("transfer_to") ?? "") || null;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireUser();
 
   const { data: txn, error: fetchError } = await supabase
     .from("transactions")
@@ -329,18 +270,12 @@ export async function assignTransaction(
 
   let learnedRule = false;
   if (!isTransfer && (categoryId || isIncome) && txn.merchant_normalized && ruleAction !== "skip") {
-    await learnVendorRule(supabase, user.id, txn.merchant_normalized, categoryId, isIncome, sourceId);
+    await learnVendorRule(supabase, txn.merchant_normalized, categoryId, isIncome, sourceId);
     learnedRule = true;
   }
 
-  revalidatePath("/transactions");
-  revalidatePath("/sources");
-  revalidatePath("/dashboard");
-  // Settings has its own cached route, unaffected by the revalidations
-  // above — without this, a rule built from the Transactions table (via
-  // the Add Rule toggle) writes correctly but sits invisible on Settings
-  // until something else happens to refetch that page.
-  if (learnedRule) revalidatePath("/settings");
+  if (learnedRule) revalidateVendorRulePages();
+  revalidateLedgerPages();
   return null;
 }
 
@@ -365,11 +300,7 @@ export async function createSourceFromTransaction(
     return { error: "Not a valid source type." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: txn, error: fetchError } = await supabase
     .from("transactions")
@@ -403,9 +334,7 @@ export async function createSourceFromTransaction(
     .eq("id", transactionId);
   if (updateError) return { error: updateError.message };
 
-  revalidatePath("/transactions");
-  revalidatePath("/sources");
-  revalidatePath("/dashboard");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -427,11 +356,7 @@ export async function bulkUpdateTransactions(
   if (updates.sourceId !== undefined) patch.source_id = updates.sourceId;
   if (Object.keys(patch).length === 0) return null;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireUser();
 
   // Transfers keep category_id/source_id null (see createManualTransaction) —
   // bulk edits skip them rather than risk double-applying transfer balances.
@@ -456,24 +381,21 @@ export async function bulkUpdateTransactions(
       const merchant = txn.merchant_normalized;
       if (!merchant || seen.has(merchant)) continue;
       seen.add(merchant);
-      await learnVendorRule(supabase, user.id, merchant, patch.category_id, false, txn.source_id);
+      await learnVendorRule(supabase, merchant, patch.category_id, false, txn.source_id);
     }
   }
 
-  revalidatePath("/transactions");
-  revalidatePath("/sources");
-  revalidatePath("/dashboard");
-  // Settings has its own cached route, unaffected by the revalidations
-  // above — without this, a rule reinforced/created by a bulk edit sits
-  // invisible on Settings until something else refetches that page.
-  if (patch.category_id) revalidatePath("/settings");
+  if (patch.category_id) revalidateVendorRulePages();
+  revalidateLedgerPages();
   return null;
 }
 
 export async function deleteTransaction(
   transactionId: string,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
+  // RLS already scopes the delete, but without this an unauthenticated call
+  // deleted nothing and reported success.
+  const { supabase } = await requireUser();
   const { error } = await supabase
     .from("transactions")
     .delete()
@@ -481,75 +403,40 @@ export async function deleteTransaction(
     .is("provider_transaction_id", null);
   if (error) return { error: error.message };
 
-  revalidatePath("/transactions");
+  revalidateLedgerPages();
   return null;
 }
 
 export async function saveSplits(
   transactionId: string,
-  transactionAmount: number,
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireUser();
 
   const rows: { category_id: string | null; source_id: string | null; amount: number }[] = [];
   for (let i = 1; i <= MAX_SPLIT_ROWS; i++) {
-    const amount = Number(formData.get(`split_amount_${i}`) ?? 0);
-    if (!amount) continue;
+    const parsed = parseMoney(formData.get(`split_amount_${i}`), { fallback: 0 });
+    if ("error" in parsed) return { error: `Split ${i}: ${parsed.error}` };
+    if (parsed.amount === 0) continue;
     rows.push({
       category_id: String(formData.get(`split_category_${i}`) ?? "") || null,
       source_id: String(formData.get(`split_source_${i}`) ?? "") || null,
-      amount,
+      amount: parsed.amount,
     });
   }
 
-  if (rows.length > 0) {
-    const total = rows.reduce((sum, r) => sum + r.amount, 0);
-    if (Math.round(total * 100) !== Math.round(transactionAmount * 100)) {
-      return {
-        error: `Split amounts (${total.toFixed(2)}) must sum to the transaction amount (${transactionAmount.toFixed(2)}).`,
-      };
-    }
-  }
+  // One RPC rather than delete -> insert -> update is_split as three
+  // separate round trips, each firing balance triggers: a failure part-way
+  // through used to leave is_split wrong and the source balances drifted.
+  // It also reads the transaction's own amount to check the split sum
+  // against, instead of trusting a figure passed in from the client.
+  const { error } = await supabase.rpc("save_transaction_splits", {
+    p_transaction_id: transactionId,
+    p_rows: rows,
+  });
+  if (error) return { error: error.message };
 
-  const { error: deleteError } = await supabase
-    .from("transaction_splits")
-    .delete()
-    .eq("transaction_id", transactionId);
-  if (deleteError) return { error: deleteError.message };
-
-  if (rows.length === 0) {
-    const { error } = await supabase
-      .from("transactions")
-      .update({ is_split: false })
-      .eq("id", transactionId);
-    if (error) return { error: error.message };
-    revalidatePath("/transactions");
-    return null;
-  }
-
-  const { error: insertError } = await supabase.from("transaction_splits").insert(
-    rows.map((r) => ({
-      user_id: user.id,
-      transaction_id: transactionId,
-      category_id: r.category_id,
-      source_id: r.source_id,
-      amount: r.amount,
-    })),
-  );
-  if (insertError) return { error: insertError.message };
-
-  const { error: updateError } = await supabase
-    .from("transactions")
-    .update({ is_split: true })
-    .eq("id", transactionId);
-  if (updateError) return { error: updateError.message };
-
-  revalidatePath("/transactions");
+  revalidateLedgerPages();
   return null;
 }

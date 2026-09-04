@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import { revalidateLedgerPages } from "@/lib/actions/revalidate";
 import { logChange } from "@/lib/actions/log";
+import { logMoney } from "@/lib/format";
 import {
   SINKING_FREQUENCIES,
   type SinkingContributionType,
@@ -56,8 +56,8 @@ function summarizeConfig(row: {
   target_date: string | null;
 }): string {
   return row.contribution_type === "goal"
-    ? `Goal: $${(row.target_amount ?? 0).toFixed(2)} by ${row.target_date ?? "?"}`
-    : `$${row.amount.toFixed(2)} ${row.frequency ?? "annual"}`;
+    ? `Goal: ${logMoney(row.target_amount ?? 0)} by ${row.target_date ?? "?"}`
+    : `${logMoney(row.amount)} ${row.frequency ?? "annual"}`;
 }
 
 export async function createSinkingExpense(
@@ -67,11 +67,7 @@ export async function createSinkingExpense(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Enter a name for the sinking expense." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const fields = modeFields(formData);
   const { error } = await supabase.from("sinking_expenses").insert({
@@ -90,8 +86,7 @@ export async function createSinkingExpense(
     summarizeConfig(fields),
   );
 
-  revalidatePath("/budget");
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -103,11 +98,7 @@ export async function updateSinkingExpense(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Enter a name for the sinking expense." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: existing, error: fetchError } = await supabase
     .from("sinking_expenses")
@@ -140,8 +131,7 @@ export async function updateSinkingExpense(
     await logChange(supabase, user.id, "Budgets", `${name} — Contribution`, oldSummary, newSummary);
   }
 
-  revalidatePath("/budget");
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }
 
@@ -150,11 +140,7 @@ export async function deleteSinkingExpense(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: existing, error: fetchError } = await supabase
     .from("sinking_expenses")
@@ -182,7 +168,6 @@ export async function deleteSinkingExpense(
     );
   }
 
-  revalidatePath("/budget");
-  revalidatePath("/sources");
+  revalidateLedgerPages();
   return null;
 }

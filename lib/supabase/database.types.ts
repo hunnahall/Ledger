@@ -1,4 +1,4 @@
-export type Json =
+type Json =
   | string
   | number
   | boolean
@@ -253,13 +253,6 @@ export type Database = {
             foreignKeyName: "forecasts_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "forecasts_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
             referencedRelation: "v_source_balances"
             referencedColumns: ["id"]
           },
@@ -270,6 +263,7 @@ export type Database = {
           created_at: string
           decimal_places: number
           month_ahead: boolean
+          timezone: string
           updated_at: string
           user_id: string
         }
@@ -277,6 +271,7 @@ export type Database = {
           created_at?: string
           decimal_places?: number
           month_ahead?: boolean
+          timezone?: string
           updated_at?: string
           user_id: string
         }
@@ -284,6 +279,7 @@ export type Database = {
           created_at?: string
           decimal_places?: number
           month_ahead?: boolean
+          timezone?: string
           updated_at?: string
           user_id?: string
         }
@@ -371,13 +367,6 @@ export type Database = {
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "sources"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "source_transfers_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
             referencedColumns: ["id"]
           },
           {
@@ -484,13 +473,6 @@ export type Database = {
             foreignKeyName: "transaction_splits_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transaction_splits_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
             referencedRelation: "v_source_balances"
             referencedColumns: ["id"]
           },
@@ -582,13 +564,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "v_account_balances"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transactions_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
@@ -606,13 +581,6 @@ export type Database = {
             foreignKeyName: "transactions_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
             referencedRelation: "v_source_balances"
             referencedColumns: ["id"]
           },
@@ -627,13 +595,6 @@ export type Database = {
             foreignKeyName: "transactions_transfer_from_source_id_fkey"
             columns: ["transfer_from_source_id"]
             isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_transfer_from_source_id_fkey"
-            columns: ["transfer_from_source_id"]
-            isOneToOne: false
             referencedRelation: "v_source_balances"
             referencedColumns: ["id"]
           },
@@ -642,13 +603,6 @@ export type Database = {
             columns: ["transfer_to_source_id"]
             isOneToOne: false
             referencedRelation: "sources"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_transfer_to_source_id_fkey"
-            columns: ["transfer_to_source_id"]
-            isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
             referencedColumns: ["id"]
           },
           {
@@ -716,13 +670,6 @@ export type Database = {
             foreignKeyName: "vendor_category_rules_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
-            referencedRelation: "v_reimbursements_pending"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vendor_category_rules_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
             referencedRelation: "v_source_balances"
             referencedColumns: ["id"]
           },
@@ -730,43 +677,6 @@ export type Database = {
       }
     }
     Views: {
-      v_account_balances: {
-        Row: {
-          account_name: string | null
-          account_type: string | null
-          available_balance: number | null
-          current_balance: number | null
-          id: string | null
-          status: string | null
-          user_id: string | null
-        }
-        Insert: {
-          account_name?: string | null
-          account_type?: string | null
-          available_balance?: number | null
-          current_balance?: number | null
-          id?: string | null
-          status?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          account_name?: string | null
-          account_type?: string | null
-          available_balance?: number | null
-          current_balance?: number | null
-          id?: string | null
-          status?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      v_float_outstanding: {
-        Row: {
-          float_outstanding: number | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
       v_inflow_outflow: {
         Row: {
           income: number | null
@@ -782,30 +692,6 @@ export type Database = {
           bucket: string | null
           month: string | null
           user_id: string | null
-        }
-        Relationships: []
-      }
-      v_reimbursements_pending: {
-        Row: {
-          balance: number | null
-          deposit_date: string | null
-          id: string | null
-          name: string | null
-          user_id: string | null
-        }
-        Insert: {
-          balance?: number | null
-          deposit_date?: string | null
-          id?: string | null
-          name?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          balance?: number | null
-          deposit_date?: string | null
-          id?: string | null
-          name?: string | null
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -856,34 +742,34 @@ export type Database = {
       }
     }
     Functions: {
+      apply_vendor_rules: {
+        Args: { p_user_id?: string }
+        Returns: number
+      }
       delete_bank_connection: {
         Args: { p_connection_id: string }
         Returns: undefined
       }
-      ensure_budget_source_current: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
-      ensure_income_fund_current: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
-      ensure_sinking_fund_current: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
-      ensure_source_transfers_current: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
+      delete_own_account: { Args: never; Returns: undefined }
+      ensure_month_current: { Args: never; Returns: undefined }
       get_bank_connection_access_url: {
-        Args: { p_connection_id: string }
+        Args: { p_connection_id: string; p_user_id: string }
         Returns: string
+      }
+      learn_vendor_rule: {
+        Args: {
+          p_category_id: string | null
+          p_is_income: boolean
+          p_merchant_normalized: string
+          p_source_id: string | null
+        }
+        Returns: undefined
       }
       match_transfer_pairs: { Args: { p_user_id: string }; Returns: number }
       purge_expired_data: { Args: never; Returns: undefined }
-      route_current_month_income_to_fund: {
-        Args: { p_user_id: string }
+      route_current_month_income_to_fund: { Args: never; Returns: undefined }
+      save_transaction_splits: {
+        Args: { p_rows: Json; p_transaction_id: string }
         Returns: undefined
       }
       store_bank_connection_secret: {
@@ -891,10 +777,7 @@ export type Database = {
         Returns: string
       }
       sync_bank_transactions: { Args: { p_rows: Json }; Returns: undefined }
-      sync_source_or_fund_balance: {
-        Args: { p_delta: number; p_source_id: string }
-        Returns: undefined
-      }
+      user_month_start: { Args: { p_user_id: string }; Returns: string }
     }
     Enums: {
       source_type:
@@ -911,134 +794,9 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      source_type: [
-        "budget",
-        "reimbursement",
-        "fund",
-        "float",
-        "sinking_fund",
-        "income",
-      ],
-    },
-  },
-} as const
+// The generated Tables/TablesInsert/TablesUpdate/Enums/CompositeTypes
+// helper generics and the Constants export were removed: nothing in the app
+// used them, and they were the only thing keeping DefaultSchema alive. Types
+// are read straight off `Database` through the typed Supabase client
+// instead. Re-add them from a fresh `supabase gen types` if a caller ever
+// needs them.

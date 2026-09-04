@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
 import { logChange } from "@/lib/actions/log";
+import { logMoney, parseMoney } from "@/lib/format";
 
 const ACCOUNT_TYPES = ["checking", "savings", "credit_card", "manual"] as const;
 
@@ -19,17 +19,15 @@ export async function createManualAccount(
 ): Promise<{ error: string } | null> {
   const accountName = String(formData.get("account_name") ?? "").trim();
   const accountType = String(formData.get("account_type") ?? "manual");
-  const currentBalance = Number(formData.get("current_balance") ?? 0);
+  const parsedBalance = parseMoney(formData.get("current_balance"), { fallback: 0 });
+  if ("error" in parsedBalance) return parsedBalance;
+  const currentBalance = parsedBalance.amount;
   if (!accountName) return { error: "Enter an account name." };
   if (!ACCOUNT_TYPES.includes(accountType as (typeof ACCOUNT_TYPES)[number])) {
     return { error: "Not a valid account type." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase.from("accounts").insert({
     user_id: user.id,
@@ -47,7 +45,7 @@ export async function createManualAccount(
     "Accounts",
     `Account: ${accountName}`,
     null,
-    `$${currentBalance.toFixed(2)}`,
+    logMoney(currentBalance),
   );
 
   revalidatePath("/accounts");
@@ -59,16 +57,16 @@ export async function deleteManualAccount(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("transactions")
     .select("id", { count: "exact", head: true })
     .eq("account_id", accountId);
+  // Previously unchecked: a failed count came back null, which read as
+  // "zero transactions" and let the delete proceed — taking the account's
+  // transactions with it.
+  if (countError) return { error: countError.message };
   if (count && count > 0) {
     return {
       error: `This account has ${count} transaction${count === 1 ? "" : "s"}. Delete those first — deleting the account would delete them too.`,
@@ -95,7 +93,7 @@ export async function deleteManualAccount(
       user.id,
       "Accounts",
       `Account: ${account.account_name}`,
-      `$${account.current_balance.toFixed(2)}`,
+      logMoney(account.current_balance),
       null,
     );
   }

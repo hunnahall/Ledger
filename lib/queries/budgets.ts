@@ -1,5 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
-import { currentMonthISO, monthsRemaining, nextMonthISO, daysInMonthISO } from "@/lib/dates";
+import { getOptionalUser } from "@/lib/supabase/auth";
+import { getSettings } from "@/lib/queries/settings";
+import {
+  currentMonthISO,
+  currentDayOfMonth,
+  monthsRemaining,
+  nextMonthISO,
+  daysInMonthISO,
+} from "@/lib/dates";
 import { computeProgress, spentFromRawAmount } from "@/lib/progress";
 import {
   goalMonthlyAmount,
@@ -9,50 +17,34 @@ import {
 
 // Every user has exactly one budget bucket — the reserved `budget`-type
 // Source, always named "Budget", auto-provisioned at signup (see
-// handle_new_user). Resets its balance to this month's total budgeted
-// amount (skipped entirely when Month Ahead is on), credits any due Source
-// Transfers, pools due sinking-expense contributions into the shared
+// handle_new_user). ensure_month_current() rolls the whole month forward in
+// one atomic step: it resets that source's balance to this month's total
+// budgeted amount (skipped entirely when Month Ahead is on), credits any due
+// Source Transfers, pools due sinking-expense contributions into the shared
 // Sinking Fund source, and sweeps the shared Income Fund into the budget
-// source — all the first time each is touched that month (no-op once
-// already applied). Every page that displays those balances calls this
-// first. Returns the user id (for callers that need it) or null if
-// unauthenticated.
+// source — each a no-op once already applied this month.
+//
+// This was four separate RPCs with an ordering comment explaining why the
+// income sweep couldn't join the Promise.all. They are now one function
+// holding a per-user advisory lock, which also closes a real double-credit
+// race: two pages loading at once (Dashboard and Budget both call this)
+// could each pass the "already applied?" guard before either committed.
+//
+// Returns the user id (for callers that need it) or null if unauthenticated.
 export async function ensureBudgetCurrent(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getOptionalUser();
   if (!user) return null;
 
-  const { error: budgetSourceError } = await supabase.rpc("ensure_budget_source_current", {
-    p_user_id: user.id,
-  });
-  if (budgetSourceError) throw new Error(budgetSourceError.message);
-
-  // Independent of each other (source transfers vs. sinking-fund pooling
-  // touch unrelated sources), so run them concurrently rather than one
-  // full round trip after another.
-  const [{ error: transfersError }, { error: sinkingFundError }] = await Promise.all([
-    supabase.rpc("ensure_source_transfers_current", { p_user_id: user.id }),
-    supabase.rpc("ensure_sinking_fund_current", { p_user_id: user.id }),
-  ]);
-  if (transfersError) throw new Error(transfersError.message);
-  if (sinkingFundError) throw new Error(sinkingFundError.message);
-
-  // Sweeps into the source ensure_budget_source_current just reset above —
-  // must stay after it, not folded into the Promise.all. No-ops unless
-  // Month Ahead is on — see ensure_income_fund_current.
-  const { error: incomeFundError } = await supabase.rpc("ensure_income_fund_current", {
-    p_user_id: user.id,
-  });
-  if (incomeFundError) throw new Error(incomeFundError.message);
+  const { error } = await supabase.rpc("ensure_month_current");
+  if (error) throw new Error(error.message);
 
   return user.id;
 }
 
 export async function getBudgetData() {
   const supabase = await createClient();
-  const month = currentMonthISO();
+  const settings = await getSettings();
+  const month = currentMonthISO(settings.timezone);
 
   // Awaited first, not folded into the Promise.all below: it resets
   // balances for the month if due, and the selects below must see that
@@ -133,11 +125,8 @@ export async function getBudgetData() {
 // getBudgetData/ensureBudgetCurrent above — this only reads, no resets to
 // apply, so it can run concurrently with the rest of the page's data
 // fetching without racing ensure_budget_source_current's write.
-export async function getBudgetRateData(monthISO: string = currentMonthISO()) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export async function getBudgetRateData(monthISO: string, timeZone: string) {
+  const { supabase, user } = await getOptionalUser();
   if (!user) return null;
 
   const month = monthISO;
@@ -145,8 +134,10 @@ export async function getBudgetRateData(monthISO: string = currentMonthISO()) {
   // A past month is already fully elapsed, so the actual-spend line should
   // run through its last day rather than today's day-of-month (which, for
   // a month that isn't the current one, has no relationship to it at all).
-  const today = new Date();
-  const currentDay = month === currentMonthISO() ? Math.min(daysInMonth, today.getUTCDate()) : daysInMonth;
+  const currentDay =
+    month === currentMonthISO(timeZone)
+      ? Math.min(daysInMonth, currentDayOfMonth(timeZone))
+      : daysInMonth;
 
   // Total budget allocation is categories + sinking expenses + source
   // transfers together (same three components getBudgetData's totalMonthly
@@ -217,11 +208,14 @@ export async function getBudgetRateData(monthISO: string = currentMonthISO()) {
     actualByDay.push(cumulative);
   }
 
-  const { data: inflowOutflow } = await supabase
+  const { data: inflowOutflow, error: inflowOutflowError } = await supabase
     .from("v_inflow_outflow")
     .select("income")
     .eq("month", month)
     .maybeSingle();
+  // Previously unchecked, which silently reported $0 income on the Budget
+  // Fill stat whenever this query failed.
+  if (inflowOutflowError) throw new Error(inflowOutflowError.message);
 
   return {
     income: inflowOutflow?.income ?? 0,

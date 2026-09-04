@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import { revalidateVendorRulePages } from "@/lib/actions/revalidate";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
-import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
 import { resolveRuleTarget } from "@/lib/transactions/vendor-rule-target";
 import { learnVendorRule } from "@/lib/actions/transactions";
 
@@ -21,13 +20,9 @@ export async function createVendorRule(
   const merchantNormalized = normalizeMerchant(description);
   if (!merchantNormalized) return { error: "Enter a merchant name." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireUser();
 
-  await learnVendorRule(supabase, user.id, merchantNormalized, target.categoryId, target.isIncome, null);
+  await learnVendorRule(supabase, merchantNormalized, target.categoryId, target.isIncome, null);
 
   revalidatePath("/settings");
   return null;
@@ -47,11 +42,7 @@ export async function updateVendorRule(
   const merchantNormalized = normalizeMerchant(description);
   if (!merchantNormalized) return { error: "Enter a merchant pattern." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("vendor_category_rules")
@@ -84,51 +75,20 @@ export async function runVendorRulesNow(
   _prevState: { error: string; count: number } | null,
   _formData: FormData,
 ): Promise<{ error: string; count: number } | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireUser();
 
-  const { data: uncategorized, error: fetchError } = await supabase
-    .from("transactions")
-    .select("id, merchant_normalized, source_id, is_income")
-    .eq("user_id", user.id)
-    .eq("is_transfer", false)
-    .is("category_id", null)
-    .not("merchant_normalized", "is", null);
-  if (fetchError) return { error: fetchError.message, count: 0 };
-  if (!uncategorized || uncategorized.length === 0) return { error: "", count: 0 };
+  // One set-based UPDATE in the database rather than a fetch-then-loop that
+  // issued an UPDATE per transaction — and that aborted the whole batch on
+  // the first failing row, reporting a partial count with no indication of
+  // which rows had been done. The matching rules (longest pattern wins,
+  // substring match, already-Income rows left alone) live in
+  // apply_vendor_rules and are shared with the simplefin-sync edge function,
+  // which used to carry its own copy of the same loop.
+  const { data, error } = await supabase.rpc("apply_vendor_rules");
+  if (error) return { error: error.message, count: 0 };
 
-  const { data: rules, error: rulesError } = await supabase
-    .from("vendor_category_rules")
-    .select("merchant_normalized, category_id, is_income, source_id")
-    .eq("user_id", user.id);
-  if (rulesError) return { error: rulesError.message, count: 0 };
-
-  let count = 0;
-  for (const txn of uncategorized) {
-    if (txn.is_income) continue;
-
-    const rule = findMatchingRule(rules ?? [], txn.merchant_normalized ?? "");
-    if (!rule) continue;
-
-    const patch: {
-      category_id?: string;
-      category_source?: string;
-      is_income?: boolean;
-      source_id?: string;
-    } = rule.is_income ? { is_income: true } : { category_id: rule.category_id!, category_source: "rule" };
-    if (!txn.source_id && rule.source_id) patch.source_id = rule.source_id;
-
-    const { error: updateError } = await supabase.from("transactions").update(patch).eq("id", txn.id);
-    if (updateError) return { error: updateError.message, count };
-    count += 1;
-  }
-
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
-  return { error: "", count };
+  revalidateVendorRulePages();
+  return { error: "", count: data ?? 0 };
 }
 
 export async function deleteVendorRule(
@@ -136,7 +96,9 @@ export async function deleteVendorRule(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const supabase = await createClient();
+  // Without this an unauthenticated call deleted nothing under RLS and
+  // reported success.
+  const { supabase } = await requireUser();
   const { error } = await supabase.from("vendor_category_rules").delete().eq("id", ruleId);
   if (error) return { error: error.message };
 
