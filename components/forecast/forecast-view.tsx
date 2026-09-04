@@ -177,7 +177,7 @@ function ForecastDetailView({
       </div>
 
       <Card className="p-5">
-        <div className="h-96">
+        <div className="mx-auto h-72 w-3/4">
           <ForecastChart points={points} />
         </div>
       </Card>

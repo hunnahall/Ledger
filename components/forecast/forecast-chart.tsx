@@ -8,7 +8,15 @@ const Y_TICKS = 4;
 // as components/budgets/budget-rate-chart.tsx, but a single series (there's
 // only one balance to project) and, unlike that chart, the y-scale must
 // account for a negative balance (a forecast can legitimately dip below
-// zero when expenses outpace the monthly transfer).
+// zero when expenses outpace the monthly transfer). Unlike that chart, this
+// one keeps preserveAspectRatio at its default (xMidYMid meet) rather than
+// "none" — a non-uniform stretch scales x and y by different factors,
+// which warps stroke widths and, worse, every glyph in the axis labels
+// (they end up looking blurry and off-font even though it's the same
+// Inter the rest of the site uses). meet scales both axes by the same
+// factor and centers the result, at the cost of some letterboxing when the
+// container's aspect ratio doesn't match this viewBox's — a fair trade for
+// text that actually renders as text.
 export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const width = 800;
   const height = 240;
@@ -35,8 +43,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      className="h-full w-full"
+      className="h-full w-full font-sans"
       role="img"
       aria-label={`Projected balance over the next ${points.length} months, ending around ${Math.round(endValue)}`}
     >
@@ -55,7 +62,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
             y={y(value)}
             dy={4}
             textAnchor="end"
-            className="fill-muted text-[10px]"
+            className="fill-muted text-[10px] tabular-nums"
           >
             {formatMoney(value, 0)}
           </text>
@@ -84,7 +91,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
           x={x(i)}
           y={height - padding + 16}
           textAnchor="middle"
-          className="fill-muted text-[10px]"
+          className="fill-muted text-[10px] tabular-nums"
         >
           {formatMonthYear(p.monthISO)}
         </text>
