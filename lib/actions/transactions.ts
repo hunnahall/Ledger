@@ -356,7 +356,7 @@ export async function bulkUpdateTransactions(
   if (updates.sourceId !== undefined) patch.source_id = updates.sourceId;
   if (Object.keys(patch).length === 0) return null;
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   // Transfers keep category_id/source_id null (see createManualTransaction) —
   // bulk edits skip them rather than risk double-applying transfer balances.
@@ -367,20 +367,28 @@ export async function bulkUpdateTransactions(
     .eq("is_transfer", false);
   if (error) return { error: error.message };
 
-  // Reinforce learned rules the same way manual entry/assignment do, so a
-  // bulk categorization isn't a dead end for future auto-categorization.
+  // Reinforce rules that already cover a merchant here, the same way manual
+  // entry/assignment do — but never create a brand-new one, since a bulk
+  // pick has no per-merchant "make this a rule?" prompt (there's no single
+  // description to show, and the selection can span many merchants at
+  // once). Without the existing-rule check below this silently turned every
+  // one-off bulk categorization into a new rule.
   if (patch.category_id) {
-    const { data: affected } = await supabase
-      .from("transactions")
-      .select("merchant_normalized, source_id")
-      .in("id", transactionIds)
-      .eq("is_transfer", false)
-      .not("merchant_normalized", "is", null);
+    const [{ data: affected }, { data: rules }] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("merchant_normalized, source_id")
+        .in("id", transactionIds)
+        .eq("is_transfer", false)
+        .not("merchant_normalized", "is", null),
+      supabase.from("vendor_category_rules").select("merchant_normalized").eq("user_id", user.id),
+    ]);
     const seen = new Set<string>();
     for (const txn of affected ?? []) {
       const merchant = txn.merchant_normalized;
       if (!merchant || seen.has(merchant)) continue;
       seen.add(merchant);
+      if (!findMatchingRule(rules ?? [], merchant)) continue;
       await learnVendorRule(supabase, merchant, patch.category_id, false, txn.source_id);
     }
   }
