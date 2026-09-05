@@ -2,7 +2,7 @@ import { formatMonthYear } from "@/lib/forecast/month";
 import { formatMoney } from "@/lib/format";
 import type { ForecastPoint } from "@/lib/forecast/project";
 
-const Y_TICKS = 4;
+const Y_TICK_STEP = 500;
 
 // Pure inline SVG, no charting dependency — same viewBox/polyline approach
 // as components/budgets/budget-rate-chart.tsx, but a single series (there's
@@ -24,9 +24,14 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const leftPadding = 56;
 
   const values = points.map((p) => p.value);
-  const maxY = Math.max(...values, 0);
-  const minY = Math.min(...values, 0);
-  const range = maxY - minY || 1;
+  const rawMaxY = Math.max(...values, 0);
+  const rawMinY = Math.min(...values, 0);
+  // Round the domain out to the nearest tick step so gridlines land on
+  // clean multiples (500, 1000, ...) instead of whatever the data happens
+  // to produce.
+  const maxY = Math.ceil(rawMaxY / Y_TICK_STEP) * Y_TICK_STEP;
+  const minY = Math.floor(rawMinY / Y_TICK_STEP) * Y_TICK_STEP;
+  const range = maxY - minY || Y_TICK_STEP;
 
   const x = (i: number) =>
     leftPadding +
@@ -38,7 +43,8 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const endValue = points[points.length - 1]?.value ?? 0;
   const startValue = points[0]?.value ?? 0;
 
-  const yTickValues = Array.from({ length: Y_TICKS + 1 }, (_, i) => minY + (range * i) / Y_TICKS);
+  const yTickValues: number[] = [];
+  for (let v = minY; v <= maxY; v += Y_TICK_STEP) yTickValues.push(v);
 
   return (
     <svg

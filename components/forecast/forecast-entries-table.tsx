@@ -48,7 +48,7 @@ export function ForecastEntriesTable({
   const [, createAction] = useActionState(createForecastEntry.bind(null, forecastId), null);
 
   return (
-    <TableShell columns={["Month", "Description", "Amount", "Amount remaining", ""]}>
+    <TableShell columns={["Month", "Description", "Amount", "Amount Remaining", ""]}>
       {entries.map((entry) => (
         <ForecastEntryRow
           key={entry.id}

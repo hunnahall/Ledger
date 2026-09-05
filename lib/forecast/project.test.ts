@@ -102,4 +102,23 @@ describe("projectEntryBalances", () => {
     });
     expect(balances.has("a")).toBe(false);
   });
+
+  it("nets a later month's transfer against that month's expense (1000 start, 200/mo transfer)", () => {
+    const balances = projectEntryBalances({
+      startingBalance: 1000,
+      monthlyTransfer: 200,
+      entries: [
+        { id: "sep", month: "2026-09-01", isExpense: true, amount: 300 },
+        { id: "oct", month: "2026-10-01", isExpense: true, amount: 200 },
+        { id: "nov", month: "2026-11-01", isExpense: true, amount: 300 },
+      ],
+      startMonthISO: "2026-09-01",
+    });
+    // Sep (current month, no transfer): 1000 - 300 = 700
+    // Oct: 700 + 200 transfer - 200 expense = 700 (transfer cancels the expense)
+    // Nov: 700 + 200 transfer - 300 expense = 600
+    expect(balances.get("sep")).toBe(700);
+    expect(balances.get("oct")).toBe(700);
+    expect(balances.get("nov")).toBe(600);
+  });
 });
