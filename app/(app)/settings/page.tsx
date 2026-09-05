@@ -35,8 +35,6 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       </div>
 
-      {user?.email && <AccountCard email={user.email} />}
-
       <div className="flex flex-wrap gap-4">
         <Card className="min-w-56 flex-1 p-5">
           <DecimalPlacesForm decimalPlaces={settings.decimal_places} />
@@ -171,6 +169,8 @@ export default async function SettingsPage() {
           . It can only be claimed once.
         </p>
       </Card>
+
+      {user?.email && <AccountCard email={user.email} />}
     </div>
   );
 }

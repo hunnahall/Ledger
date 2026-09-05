@@ -26,7 +26,6 @@ export default async function SourcesPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Sources</h1>
-        <p className="mt-1 text-sm text-muted">Your buckets that pay for transactions.</p>
       </div>
 
       <CreateSourceForm />

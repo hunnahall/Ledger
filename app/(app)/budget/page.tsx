@@ -27,14 +27,11 @@ export default async function BudgetsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Budget</h1>
 
-        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-          <p className="text-sm text-muted">Your transactions&apos; categories.</p>
-          <p className="text-sm text-muted">
-            {categories.length} categories &middot; {sinkingExpenses.length} sinking expenses
-            &middot; {sourceTransfers.length} source transfers &middot; $
-            {totalMonthly.toFixed(2)}/month allocated
-          </p>
-        </div>
+        <p className="mt-1 text-sm text-muted">
+          {categories.length} categories &middot; {sinkingExpenses.length} sinking expenses
+          &middot; {sourceTransfers.length} source transfers &middot; $
+          {totalMonthly.toFixed(2)}/month allocated
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

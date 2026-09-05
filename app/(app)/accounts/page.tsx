@@ -16,7 +16,6 @@ export default async function AccountsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Accounts</h1>
-        <p className="mt-1 text-sm text-muted">Your bank accounts and manual balances.</p>
       </div>
 
       <Card className="p-0">

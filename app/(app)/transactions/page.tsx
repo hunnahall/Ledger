@@ -91,7 +91,6 @@ export default async function TransactionsPage({
       <div className="flex items-baseline justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-          <p className="mt-1 text-sm text-muted">Your income and expenses.</p>
         </div>
         <div className="flex items-center gap-2">
           <SyncButton />

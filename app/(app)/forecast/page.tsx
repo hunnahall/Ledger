@@ -22,10 +22,6 @@ export default async function ForecastPage({
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Forecast</h1>
-        <p className="mt-1 text-sm text-muted">
-          Create Forecasts that project a Source&apos;s balance forward, given transfers and
-          transactions.
-        </p>
       </div>
 
       <ForecastView
