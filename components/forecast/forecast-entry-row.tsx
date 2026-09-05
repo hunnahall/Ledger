@@ -10,7 +10,6 @@ import { Money } from "@/components/ui/money";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
-import { AddIcon } from "@/components/ui/icons";
 
 type ForecastEntry = {
   id: string;
@@ -32,15 +31,15 @@ type TypeChoice = "expense" | "deposit";
 // fire a premature partial save.
 export function ForecastEntryRow({
   entry,
+  amountRemaining,
   decimalPlaces,
-  isLast,
-  onAddClick,
   monthOptions,
 }: {
   entry: ForecastEntry;
+  // Source balance right after this entry, or null if it predates the
+  // forecast's start month and was never walked (see projectEntryBalances).
+  amountRemaining: number | null;
   decimalPlaces: number;
-  isLast: boolean;
-  onAddClick: () => void;
   monthOptions: MonthOption[];
 }) {
   const { editing, setEditing, isPending, error, commit, cancel } = useInlineEdit(
@@ -143,6 +142,9 @@ export function ForecastEntryRow({
             />
           </div>
         </td>
+        <td className="px-4 py-2 text-muted">
+          {amountRemaining === null ? "—" : <Money amount={amountRemaining} decimalPlaces={decimalPlaces} />}
+        </td>
         <td className="px-4 py-2">
           <div className="flex items-center justify-end gap-1">
             <Button
@@ -207,6 +209,9 @@ export function ForecastEntryRow({
           <Money amount={entry.amount} decimalPlaces={decimalPlaces} />
         </span>
       </td>
+      <td className="px-4 py-3 text-muted">
+        {amountRemaining === null ? "—" : <Money amount={amountRemaining} decimalPlaces={decimalPlaces} />}
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
           <ActionButtonForm
@@ -218,17 +223,6 @@ export function ForecastEntryRow({
           >
             Delete
           </ActionButtonForm>
-          {isLast && (
-            <Button
-              type="button"
-              variant="accent"
-              size="icon"
-              aria-label="Add entry"
-              onClick={onAddClick}
-            >
-              <AddIcon />
-            </Button>
-          )}
         </div>
       </td>
     </tr>

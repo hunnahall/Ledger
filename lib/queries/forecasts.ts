@@ -46,7 +46,8 @@ export async function getForecast(id: string) {
         .from("forecast_entries")
         .select("id, month, description, is_expense, amount, updated_at")
         .eq("forecast_id", id)
-        .order("month", { ascending: true }),
+        .order("month", { ascending: true })
+        .order("created_at", { ascending: true }),
       supabase.from("sources").select("name, balance").eq("id", forecast.source_id).maybeSingle(),
       getSourceTransferAmount(forecast.source_id),
     ]);

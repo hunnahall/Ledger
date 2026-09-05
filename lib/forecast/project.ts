@@ -51,3 +51,39 @@ export function projectForecast({
   }
   return points;
 }
+
+// Per-entry running balance — same starting point and monthly-transfer
+// timing as projectForecast, but applied one entry at a time instead of
+// bucketed by month, so each entry can show the Source's balance right
+// after it happens. Entries must already be sorted ascending by month
+// (ties broken by a stable secondary order, e.g. created_at) for the
+// per-entry order within a month to be well-defined.
+export function projectEntryBalances({
+  startingBalance,
+  monthlyTransfer,
+  entries,
+  startMonthISO,
+}: {
+  startingBalance: number;
+  monthlyTransfer: number;
+  entries: (ForecastEntryInput & { id: string })[];
+  startMonthISO: string;
+}): Map<string, number> {
+  const balances = new Map<string, number>();
+  let running = startingBalance;
+  let monthISO = startMonthISO;
+  for (const entry of entries) {
+    // A past-dated entry (older than the forecast's start month) is never
+    // reached by the walk below and is already baked into the live
+    // balance, if it matters at all — same "ignored" treatment
+    // projectForecast gives it via byMonth lookups that never match.
+    if (entry.month < startMonthISO) continue;
+    while (monthISO !== entry.month) {
+      running += monthlyTransfer;
+      monthISO = nextMonthISO(monthISO);
+    }
+    running += entry.isExpense ? -entry.amount : entry.amount;
+    balances.set(entry.id, running);
+  }
+  return balances;
+}

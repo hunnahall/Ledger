@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { renameForecast, updateForecastSource, deleteForecast } from "@/lib/actions/forecasts";
-import { projectForecast } from "@/lib/forecast/project";
+import { projectForecast, projectEntryBalances } from "@/lib/forecast/project";
 import { formatMonthYear, monthLabel } from "@/lib/forecast/month";
 import { formatMoney } from "@/lib/format";
 import { ForecastPicker } from "@/components/forecast/forecast-picker";
@@ -91,6 +91,13 @@ function ForecastDetailView({
   // same order, rather than free-typing mm/yy — same months.length as
   // projectForecast's default 12.
   const monthOptions = points.map((p) => ({ value: formatMonthYear(p.monthISO), label: monthLabel(p.monthISO) }));
+
+  const entryBalances = projectEntryBalances({
+    startingBalance: forecast.effectiveStartingBalance,
+    monthlyTransfer: forecast.effectiveMonthlyTransfer,
+    entries: forecast.entries.map((e) => ({ id: e.id, month: e.month, isExpense: e.isExpense, amount: e.amount })),
+    startMonthISO: currentMonthISO,
+  });
 
   async function handleSourceChange(sourceId: string) {
     if (sourceId === forecast.sourceId) return;
@@ -185,6 +192,7 @@ function ForecastDetailView({
       <ForecastEntriesTable
         forecastId={forecast.id}
         entries={forecast.entries}
+        entryBalances={entryBalances}
         decimalPlaces={decimalPlaces}
         monthOptions={monthOptions}
       />

@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
 import { Input } from "@/components/ui/input";
+import { AddIcon } from "@/components/ui/icons";
 
 type ForecastEntry = {
   id: string;
@@ -28,11 +29,16 @@ type MonthOption = { value: string; label: string };
 export function ForecastEntriesTable({
   forecastId,
   entries,
+  entryBalances,
   decimalPlaces,
   monthOptions,
 }: {
   forecastId: string;
   entries: ForecastEntry[];
+  // Source balance right after each entry, keyed by entry id — undefined
+  // for an entry dated before the forecast's start month (see
+  // projectEntryBalances).
+  entryBalances: Map<string, number>;
   decimalPlaces: number;
   // The exact months the graph plots, in graph order — a dropdown instead
   // of free-typed mm/yy, so an entry can never land outside the chart.
@@ -42,25 +48,41 @@ export function ForecastEntriesTable({
   const [, createAction] = useActionState(createForecastEntry.bind(null, forecastId), null);
 
   return (
-    <TableShell columns={["Month", "Description", "Amount", ""]}>
-      {entries.map((entry, index) => (
+    <TableShell columns={["Month", "Description", "Amount", "Amount remaining", ""]}>
+      {entries.map((entry) => (
         <ForecastEntryRow
           key={entry.id}
           entry={entry}
+          amountRemaining={entryBalances.get(entry.id) ?? null}
           decimalPlaces={decimalPlaces}
-          isLast={!showAdd && index === entries.length - 1}
-          onAddClick={() => setShowAdd(true)}
           monthOptions={monthOptions}
         />
       ))}
 
-      {entries.length === 0 && !showAdd && (
-        <TableEmptyRow colSpan={4} label="Add entry" onClick={() => setShowAdd(true)} />
+      {entries.length === 0 && !showAdd ? (
+        <TableEmptyRow colSpan={5} label="Add entry" onClick={() => setShowAdd(true)} />
+      ) : (
+        !showAdd && (
+          <tr>
+            <td className="px-4 py-3">
+              <Button
+                type="button"
+                variant="accent"
+                size="icon"
+                aria-label="Add entry"
+                onClick={() => setShowAdd(true)}
+              >
+                <AddIcon />
+              </Button>
+            </td>
+            <td colSpan={4} />
+          </tr>
+        )
       )}
 
       {showAdd && (
         <tr className="border-b border-border bg-surface-subtle last:border-0">
-          <td colSpan={4} className="px-4 py-3">
+          <td colSpan={5} className="px-4 py-3">
             <form
               action={createAction}
               onSubmit={() => setShowAdd(false)}
