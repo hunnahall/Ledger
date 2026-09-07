@@ -1,8 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { spentFromRawAmount } from "@/lib/progress";
 import { computeDashboardTotals } from "@/lib/dashboard-metrics";
-import { ensureBudgetCurrent } from "@/lib/queries/budgets";
+import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
+
+// The category Transfers tags Sinking Fund contributions and Source
+// Transfers (see the Transactions page) — its own monthly_amount is a
+// placeholder $0 (categories aren't specific to Sinking/Source Transfer
+// money), so its Dashboard denominator is swapped for the actual combined
+// monthly commitment from the Budget page instead. Matched by name since
+// categories have no "this one is special" marker (see sources.is_system
+// for the analogous thing sources do have).
+const TRANSFERS_CATEGORY_NAME = "Transfers";
 
 // The Spending By Source tile mirrors every Source's monthly spend
 // (everything under the Sources page's "Budget" heading, plus
@@ -27,6 +36,7 @@ export async function getDashboardData(monthISO: string) {
     { data: spendingBySource, error: spendingBySourceError },
     settings,
     { data: categories, error: categoriesError },
+    transfersMonthlyTotal,
   ] = await Promise.all([
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
@@ -45,6 +55,7 @@ export async function getDashboardData(monthISO: string) {
           data: [] as { id: string; name: string; monthly_amount: number }[],
           error: null,
         }),
+    userId ? getSinkingAndTransferMonthlyTotal(userId, month) : Promise.resolve(0),
   ]);
 
   for (const error of [
@@ -64,6 +75,7 @@ export async function getDashboardData(monthISO: string) {
 
   const categorySpending = (categories ?? []).map((c) => ({
     ...c,
+    monthly_amount: c.name === TRANSFERS_CATEGORY_NAME ? transfersMonthlyTotal : c.monthly_amount,
     spent: spendingByCategory.get(c.id) ?? 0,
   }));
 
