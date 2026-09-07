@@ -226,6 +226,29 @@ export function RefreshIcon({ size = 16, className }: { size?: number; className
   );
 }
 
+export function SplitIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 -960 960 960"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="64"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M160-480h220" />
+      <path d="M380-480 740-720" />
+      <path d="M380-480 740-240" />
+      <path d="M660-760 740-720 700-660" />
+      <path d="M660-200 740-240 700-300" />
+    </svg>
+  );
+}
+
 export function ForecastIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
     <svg

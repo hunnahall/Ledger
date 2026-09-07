@@ -10,8 +10,10 @@ import { AddIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 type Option = { id: string; name: string };
-type BucketOption = { value: string; label: string };
-type TypeChoice = "expense" | "income" | "transfer" | "exclude";
+// No "transfer" choice here — Source Transfers on the Budgets page cover
+// moving money between a user's own sources now; recording one as a manual
+// transaction would just double it.
+type TypeChoice = "expense" | "income" | "exclude";
 type IncomeAction = "include_in_budget" | "add_to_source" | "create_source";
 
 const fieldLabel = "flex flex-col gap-1 text-xs text-muted";
@@ -20,14 +22,12 @@ export function ManualTransactionForm({
   accounts,
   categories,
   sources,
-  bucketOptions,
   defaultSourceId,
   monthAhead,
 }: {
   accounts: Option[];
   categories: Option[];
   sources: Option[];
-  bucketOptions: BucketOption[];
   defaultSourceId: string | null;
   monthAhead: boolean;
 }) {
@@ -149,7 +149,6 @@ export function ManualTransactionForm({
           >
             <option value="expense">Expense</option>
             <option value="income">Income</option>
-            <option value="transfer">Transfer</option>
             <option value="exclude">Exclude</option>
           </Select>
         </label>
@@ -275,33 +274,6 @@ export function ManualTransactionForm({
                 </label>
               </>
             )}
-          </>
-        )}
-
-        {typeChoice === "transfer" && (
-          <>
-            <label className={fieldLabel}>
-              Transfer from (optional)
-              <Select name="transfer_from" uiSize="sm" className="w-40" defaultValue="" placeholder="None">
-                <option value="">None</option>
-                {bucketOptions.map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className={fieldLabel}>
-              Transfer to (optional)
-              <Select name="transfer_to" uiSize="sm" className="w-40" defaultValue="" placeholder="None">
-                <option value="">None</option>
-                {bucketOptions.map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}
-                  </option>
-                ))}
-              </Select>
-            </label>
           </>
         )}
 

@@ -48,9 +48,6 @@ export default async function TransactionsPage({
   ]);
   const decimalPlaces = settings.decimal_places;
 
-  const bucketOptions = filterOptions.sources.map((s) => ({ value: s.id, label: s.name }));
-  const bucketNameByValue = Object.fromEntries(bucketOptions.map((b) => [b.value, b.label]));
-
   const splits = await getTransactionSplits(transactions.map((t) => t.id));
   const splitsByTransaction = new Map<string, typeof splits>();
   for (const split of splits) {
@@ -72,8 +69,6 @@ export default async function TransactionsPage({
     sourceId: txn.source_id,
     isTransfer: txn.is_transfer,
     isIncome: txn.is_income,
-    transferFromSourceId: txn.transfer_from_source_id,
-    transferToSourceId: txn.transfer_to_source_id,
     excludeFromBudget: txn.exclude_from_budget,
     notes: txn.notes,
     isSplit: txn.is_split,
@@ -106,7 +101,6 @@ export default async function TransactionsPage({
           accounts={accounts.map((a) => ({ id: a.id, name: a.account_name }))}
           categories={filterOptions.categories}
           sources={filterOptions.sources}
-          bucketOptions={bucketOptions}
           defaultSourceId={filterOptions.defaultSourceId}
           monthAhead={settings.month_ahead}
         />
@@ -118,8 +112,6 @@ export default async function TransactionsPage({
           transactions={transactionRows}
           categories={filterOptions.categories}
           sources={filterOptions.sources}
-          bucketOptions={bucketOptions}
-          bucketNameByValue={bucketNameByValue}
           decimalPlaces={decimalPlaces}
           budgetSourceId={filterOptions.defaultSourceId}
         />

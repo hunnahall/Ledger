@@ -51,12 +51,11 @@ export async function createManualTransaction(
   // one-off-merchant noise the prompt exists to avoid.
   const ruleAction = String(formData.get("rule_action") ?? "");
   const sourceId = String(formData.get("source_id") ?? "") || null;
-  const transferFromSourceId = String(formData.get("transfer_from") ?? "") || null;
-  const transferToSourceId = String(formData.get("transfer_to") ?? "") || null;
   // One dropdown picks the sign and the routing all at once. "exclude"
   // disregards category/source/budget entirely, not just the budget total.
+  // No "transfer" choice — see ManualTransactionForm: Source Transfers on
+  // the Budgets page own moving money between a user's own sources now.
   const typeChoice = String(formData.get("type_choice") ?? "expense");
-  const isTransfer = typeChoice === "transfer";
   const isIncome = typeChoice === "income";
   const isExcluded = typeChoice === "exclude";
   const incomeAction = String(formData.get("income_action") ?? "include_in_budget");
@@ -75,15 +74,11 @@ export async function createManualTransaction(
 
   const merchantNormalized = normalizeMerchant(description);
 
-  let resolvedCategoryId = isTransfer || isExcluded ? null : categoryId;
-  // A transfer's two buckets are synced by transactions_sync_transfer_balance
-  // off transfer_from/to_*; also setting source_id would double-apply this
-  // transaction's amount through the plain transactions_sync_balance trigger.
-  let resolvedSourceId = isTransfer || isExcluded ? null : sourceId;
+  let resolvedCategoryId = isExcluded ? null : categoryId;
+  let resolvedSourceId = isExcluded ? null : sourceId;
   // Every branch derives the sign from the chosen type rather than trusting
-  // the submitted one — transfers used to pass rawAmount through unclamped,
-  // so a negative transfer amount reversed the direction of both legs.
-  const amount = isTransfer || isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
+  // the submitted one.
+  const amount = isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
 
   if (isIncome && incomeAction === "include_in_budget") {
     // Tracked for inflow/filtering only (see v_inflow_outflow) — no source.
@@ -126,7 +121,7 @@ export async function createManualTransaction(
       : "manual"
     : null;
 
-  if (!isTransfer && !isExcluded && !resolvedCategoryId && merchantNormalized) {
+  if (!isExcluded && !resolvedCategoryId && merchantNormalized) {
     const { data: rules } = await supabase
       .from("vendor_category_rules")
       .select("merchant_normalized, category_id, source_id")
@@ -152,11 +147,8 @@ export async function createManualTransaction(
     category_id: resolvedCategoryId,
     source_id: resolvedSourceId,
     category_source: categorySource,
-    is_transfer: isTransfer,
     is_income: isIncome,
     exclude_from_budget: isExcluded,
-    transfer_from_source_id: transferFromSourceId,
-    transfer_to_source_id: transferToSourceId,
   });
   if (error) return { error: error.message };
 
@@ -233,8 +225,11 @@ export async function assignTransaction(
   const isIncome = formData.get("is_income") === "on";
   const excludeFromBudget = formData.get("exclude_from_budget") === "on";
   const notes = String(formData.get("notes") ?? "") || null;
-  const transferFromSourceId = String(formData.get("transfer_from") ?? "") || null;
-  const transferToSourceId = String(formData.get("transfer_to") ?? "") || null;
+  // Only present when the Description cell's own edit form submitted —
+  // every other field's autosave reads the row's persistent (hidden) form,
+  // which never includes this one, so it's a no-op update for them (see the
+  // description-cell click-to-edit in TransactionList).
+  const description = String(formData.get("description") ?? "").trim() || null;
 
   const { supabase } = await requireUser();
 
@@ -245,6 +240,11 @@ export async function assignTransaction(
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
   if (!txn) return { error: "Transaction not found." };
+
+  // Editing the description changes what future syncs/vendor rules match
+  // against, so re-derive merchant_normalized from it the same way a new
+  // manual transaction does — otherwise it would keep matching the old text.
+  const merchantNormalized = description ? normalizeMerchant(description) : txn.merchant_normalized;
 
   const { error } = await supabase
     .from("transactions")
@@ -258,19 +258,27 @@ export async function assignTransaction(
       // applying this transaction's amount through the plain sync trigger.
       source_id: isTransfer ? null : sourceId,
       ...(postedDate ? { posted_date: postedDate } : {}),
+      ...(description ? { description, merchant_normalized: merchantNormalized } : {}),
+      // is_transfer itself is read back unchanged here — there's no row UI
+      // that can flip it (Source Transfers on the Budgets page replaced
+      // that; a transaction only becomes one via match_transfer_pairs
+      // during sync, or the manual-entry form's own Transfer type). Not
+      // writing transfer_from_source_id/transfer_to_source_id at all is
+      // deliberate for the same reason: this form has no fields for them
+      // anymore, so touching those columns here would null out whatever
+      // match_transfer_pairs set the moment any other field on the row
+      // autosaves.
       is_transfer: isTransfer,
       is_income: !isTransfer && isIncome,
       exclude_from_budget: excludeFromBudget,
       notes,
-      transfer_from_source_id: isTransfer ? transferFromSourceId : null,
-      transfer_to_source_id: isTransfer ? transferToSourceId : null,
     })
     .eq("id", transactionId);
   if (error) return { error: error.message };
 
   let learnedRule = false;
-  if (!isTransfer && (categoryId || isIncome) && txn.merchant_normalized && ruleAction !== "skip") {
-    await learnVendorRule(supabase, txn.merchant_normalized, categoryId, isIncome, sourceId);
+  if (!isTransfer && (categoryId || isIncome) && merchantNormalized && ruleAction !== "skip") {
+    await learnVendorRule(supabase, merchantNormalized, categoryId, isIncome, sourceId);
     learnedRule = true;
   }
 

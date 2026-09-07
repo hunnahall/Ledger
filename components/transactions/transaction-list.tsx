@@ -13,10 +13,11 @@ import { SplitEditor } from "@/components/transactions/split-editor";
 import { INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
-import { AddIcon, ChevronDownIcon, SpinnerIcon } from "@/components/ui/icons";
+import { AddIcon, SplitIcon, SpinnerIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ClearFiltersButton, DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 import { SearchToggle } from "./search-toggle";
@@ -33,10 +34,11 @@ export type TransactionRowData = {
   categoryId: string | null;
   categorySource: string | null;
   sourceId: string | null;
+  // Still read-only here (the "Transfer" badge) — set by match_transfer_pairs
+  // during sync, not by anything in this row anymore. No transfer_from/to
+  // bucket fields: Source Transfers on the Budgets page own that now.
   isTransfer: boolean;
   isIncome: boolean;
-  transferFromSourceId: string | null;
-  transferToSourceId: string | null;
   excludeFromBudget: boolean;
   notes: string | null;
   isSplit: boolean;
@@ -45,7 +47,6 @@ export type TransactionRowData = {
 };
 
 type Option = { id: string; name: string };
-type BucketOption = { value: string; label: string };
 
 // A sentinel option in the Category select rather than a separate
 // checkbox — always available regardless of which budget's categories
@@ -56,6 +57,13 @@ type BucketOption = { value: string; label: string };
 // directly — it reveals the inline "create a source from this amount"
 // form instead (see addingSource below).
 const ADD_SOURCE = "__add_source__";
+
+// Another sentinel option in the same Source select, replacing the Exclude
+// checkbox that used to live in the row's (now-removed) expandable detail
+// panel. Clears source_id/category_id the same way leaving Budget already
+// did; see handleSourceChange. There's no Transfer equivalent — Source
+// Transfers on the Budgets page cover that now.
+const EXCLUDE_SOURCE = "__exclude__";
 
 // accounts.last4 isn't populated by anything in this app yet (no bank-sync
 // pipeline writes it), so the Account column would otherwise show nothing
@@ -71,16 +79,12 @@ export function TransactionList({
   transactions,
   categories,
   sources,
-  bucketOptions,
-  bucketNameByValue,
   decimalPlaces,
   budgetSourceId,
 }: {
   transactions: TransactionRowData[];
   categories: Option[];
   sources: Option[];
-  bucketOptions: BucketOption[];
-  bucketNameByValue: Record<string, string>;
   decimalPlaces: number;
   // The reserved Budget-type Source's id — Category only applies to
   // spending tracked against the Budget (see v_spending_by_category, which
@@ -270,7 +274,7 @@ export function TransactionList({
               />
             </span>
             <DateRangeColumnFilter label="Date" className="w-28 shrink-0 font-medium" />
-            <span className="md:max-w-[260px] md:flex-1 text-center font-medium">Description</span>
+            <span className="md:max-w-[260px] md:flex-1 text-left font-medium">Description</span>
             <span className="md:ml-4 w-24 shrink-0 text-center font-medium">Amount</span>
             <SelectColumnFilter
               label="Source"
@@ -317,8 +321,6 @@ export function TransactionList({
                     txn={txn}
                     categories={categories}
                     sources={sources}
-                    bucketOptions={bucketOptions}
-                    bucketNameByValue={bucketNameByValue}
                     decimalPlaces={decimalPlaces}
                     budgetSourceId={budgetSourceId}
                     index={virtualRow.index}
@@ -349,8 +351,6 @@ const TransactionRow = memo(function TransactionRow({
   txn,
   categories,
   sources,
-  bucketOptions,
-  bucketNameByValue,
   decimalPlaces,
   budgetSourceId,
   index,
@@ -366,8 +366,6 @@ const TransactionRow = memo(function TransactionRow({
   txn: TransactionRowData;
   categories: Option[];
   sources: Option[];
-  bucketOptions: BucketOption[];
-  bucketNameByValue: Record<string, string>;
   decimalPlaces: number;
   budgetSourceId: string | null;
   // This row's position in the (already-filtered/sorted) transactions
@@ -400,7 +398,11 @@ const TransactionRow = memo(function TransactionRow({
   const [isIncome, setIsIncome] = useState(txn.isIncome);
   const [postedDate, setPostedDate] = useState(txn.postedDate);
   const [excludeFromBudget, setExcludeFromBudget] = useState(txn.excludeFromBudget);
-  const [expanded, setExpanded] = useState(false);
+  const [description, setDescription] = useState(txn.description);
+  const [notes, setNotes] = useState(txn.notes ?? "");
+  const [editingDate, setEditingDate] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descError, setDescError] = useState<string | null>(null);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
   const [categoryId, setCategoryId] = useState(txn.isIncome ? INCOME : txn.categoryId ?? "");
   const [sourceId, setSourceId] = useState(txn.sourceId ?? "");
@@ -408,6 +410,8 @@ const TransactionRow = memo(function TransactionRow({
   const [rowError, setRowError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const formRef = useRef<HTMLFormElement>(null);
+  const descriptionEditRef = useRef<HTMLInputElement>(null);
+  const notesEditRef = useRef<HTMLInputElement>(null);
 
   // Real categories only apply to Budget-sourced spending — see the Category
   // select below (and its className/options) for what this gates.
@@ -430,7 +434,9 @@ const TransactionRow = memo(function TransactionRow({
     txn.sourceId !== prevTxn.sourceId ||
     txn.postedDate !== prevTxn.postedDate ||
     txn.isSplit !== prevTxn.isSplit ||
-    txn.excludeFromBudget !== prevTxn.excludeFromBudget
+    txn.excludeFromBudget !== prevTxn.excludeFromBudget ||
+    txn.description !== prevTxn.description ||
+    txn.notes !== prevTxn.notes
   ) {
     setPrevTxn(txn);
     setIsTransfer(txn.isTransfer);
@@ -438,6 +444,8 @@ const TransactionRow = memo(function TransactionRow({
     setCategoryId(txn.isIncome ? INCOME : txn.categoryId ?? "");
     setSourceId(txn.sourceId ?? "");
     setPostedDate(txn.postedDate);
+    setDescription(txn.description);
+    setNotes(txn.notes ?? "");
     setAddingSource(false);
     setSplitOpen(txn.isSplit);
     // Assigning an Excluded Category (see Settings) forces this true via
@@ -445,22 +453,23 @@ const TransactionRow = memo(function TransactionRow({
     // reconcile it the same way as the other server-driven fields above,
     // not just at mount, so a since-changed value doesn't sit stale in an
     // uncontrolled checkbox and then get silently overwritten back by the
-    // next unrelated autosave (Notes, Source, ...) reading its DOM state.
+    // next unrelated autosave (Source, ...) reading its DOM state.
     setExcludeFromBudget(txn.excludeFromBudget);
   }
 
   // Every field in this row autosaves as soon as it changes — there's no
-  // longer an explicit Save button. Reads the rest of the row's current
-  // state straight off the DOM via the form's own FormData (this works even
-  // for fields like Category/Source that live outside the <form> tag, since
-  // they're associated with it through the form= attribute) and overrides
-  // just the field that triggered this save. The override is required for
-  // any field backed by a React-controlled hidden input (the Selects, and
-  // the Transfer checkbox's hidden mirror) — its onChange fires before
-  // React has re-rendered that hidden input with the new value, so reading
-  // the DOM alone would still see the stale one. Plain native inputs
-  // (Exclude checkbox, Notes) don't need an override: the browser updates
-  // their DOM value before the change/blur handler runs.
+  // longer an explicit Save button (except the Description+Notes editor,
+  // which commits both fields together). Reads the rest of the row's
+  // current state straight off a small always-mounted <form> (see the
+  // hidden-input carrier near the end of this component) via its own
+  // FormData — this works even for fields like Category/Source that live
+  // outside that <form> tag, since they're associated with it through the
+  // form= attribute — and overrides just the field(s) that triggered this
+  // save. The override is required for any field backed by a
+  // React-controlled hidden input (the Selects, and the is_transfer/
+  // exclude_from_budget/notes mirrors) — its onChange fires before React
+  // has re-rendered that hidden input with the new value, so reading the
+  // DOM alone would still see the stale one.
   async function saveRow(overrides: Record<string, string> = {}) {
     const form = formRef.current;
     if (!form) return;
@@ -544,6 +553,43 @@ const TransactionRow = memo(function TransactionRow({
       setAddingSource(true);
       return;
     }
+
+    // Exclude lives as a sentinel option in this same Source select (see
+    // EXCLUDE_SOURCE) rather than a separate checkbox — there's no longer a
+    // detail panel to put one in. It clears source_id/category_id the same
+    // way leaving Budget already did, and doesn't participate in the
+    // multi-select bulk-apply below (that stays scoped to picking a real
+    // source, same as Income already is for Category).
+    //
+    // There's no equivalent Transfer option here — Source Transfers on the
+    // Budgets page now cover recurring/manual movement between a user's own
+    // sources, so marking an individual bank transaction as a transfer is
+    // handled entirely by match_transfer_pairs during sync (or by picking
+    // "Transfer" on the manual-entry form), never from this row. Whenever
+    // isTransfer is true the Source select below is disabled, so this
+    // function can never actually be reached with it true.
+    if (newSourceId === EXCLUDE_SOURCE) {
+      setIsTransfer(false);
+      setExcludeFromBudget(true);
+      setSourceId("");
+      // Income is exempt from Source-driven category clearing everywhere
+      // else in this row (see handleSourceChange's real-source branch
+      // below) — keep that exemption here too, since the Category select
+      // still shows "Income" (just disabled) rather than blank.
+      const clearCategory = !isIncome && Boolean(categoryId);
+      if (clearCategory) setCategoryId("");
+      await saveRow({
+        exclude_from_budget: "on",
+        is_transfer: "",
+        source_id: "",
+        ...(clearCategory ? { category_id: "" } : {}),
+        rule_action: "skip",
+      });
+      return;
+    }
+
+    const wasExcluded = excludeFromBudget;
+    setExcludeFromBudget(false);
     setSourceId(newSourceId);
 
     // A real category only applies while Source is Budget (see the
@@ -570,7 +616,11 @@ const TransactionRow = memo(function TransactionRow({
     // default whenever category_id is present on the save, and it always
     // is here (this row's current one, unrelated to what's actually
     // changing), so this has to opt out explicitly.
-    const overrides: Record<string, string> = { source_id: newSourceId, rule_action: "skip" };
+    const overrides: Record<string, string> = {
+      source_id: newSourceId,
+      rule_action: "skip",
+    };
+    if (wasExcluded) overrides.exclude_from_budget = "";
     if (clearCategory) overrides.category_id = "";
     if (clearIncome) overrides.is_income = "";
     await saveRow(overrides);
@@ -579,22 +629,35 @@ const TransactionRow = memo(function TransactionRow({
   async function handleDateChange(newDate: string) {
     if (!newDate) return;
     setPostedDate(newDate);
+    setEditingDate(false);
     // Not a category pick — see handleSourceChange.
     await saveRow({ posted_date: newDate, rule_action: "skip" });
   }
 
-  async function handleTransferToggle(checked: boolean) {
-    setIsTransfer(checked);
-    await saveRow({ is_transfer: checked ? "on" : "", rule_action: "skip" });
+  // Description and Notes commit together via an explicit Save, unlike the
+  // rest of the row's autosave-on-change fields — editing free text needs a
+  // moment to finish typing before it's worth a round trip, and pairing
+  // them means one edit affordance covers both instead of two separate
+  // click targets.
+  async function handleDescriptionSave() {
+    const newDescription = descriptionEditRef.current?.value.trim() ?? "";
+    if (!newDescription) {
+      setDescError("Description can't be empty.");
+      return;
+    }
+    const newNotes = notesEditRef.current?.value ?? "";
+    setDescription(newDescription);
+    setNotes(newNotes);
+    setDescError(null);
+    // Not a category pick — see handleSourceChange.
+    await saveRow({ description: newDescription, notes: newNotes, rule_action: "skip" });
+    setEditingDescription(false);
   }
 
   async function handleDelete() {
     const result = await deleteTransaction(txn.id);
     setRowError(result?.error ?? null);
   }
-
-  const currentTransferFrom = txn.transferFromSourceId ?? "";
-  const currentTransferTo = txn.transferToSourceId ?? "";
 
   const typeLabel = isTransfer
     ? "Transfer"
@@ -604,10 +667,14 @@ const TransactionRow = memo(function TransactionRow({
         ? "Income"
         : null;
 
-  // Moved out of the compact row (see handleDateChange above it) into the
-  // expanded details panel to leave more room for Date/Description.
   const accountLast4Value = txn.accountLast4 ?? accountLast4(txn.accountName);
   const accountDisplay = accountLast4Value ?? txn.accountName ?? "—";
+
+  // What the Source select currently shows — a real source id, or the
+  // Exclude sentinel that replaces the old Exclude checkbox (see
+  // handleSourceChange). A transaction the sync auto-flagged as a transfer
+  // has no notion here at all: the select is disabled below and shows "—".
+  const sourceSelectValue = excludeFromBudget ? EXCLUDE_SOURCE : sourceId;
 
   const [createSourceState, createSourceAction] = useActionState(
     createSourceFromTransaction.bind(null, txn.id),
@@ -646,22 +713,112 @@ const TransactionRow = memo(function TransactionRow({
               />
             </span>
             <span className="shrink-0 px-0.5 text-xs text-muted md:w-28 md:text-sm">
-              {formatShortDate(postedDate)}
+              {editingDate ? (
+                <Input
+                  uiSize="sm"
+                  type="date"
+                  autoFocus
+                  value={postedDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  onBlur={() => setEditingDate(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setEditingDate(false);
+                  }}
+                  className="w-full"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditingDate(true)}
+                  title={`Account: ${accountDisplay}`}
+                  className="w-full rounded-sm px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                >
+                  {formatShortDate(postedDate)}
+                </button>
+              )}
             </span>
           </div>
 
           <div className="flex items-center justify-between gap-2 md:contents">
-            <span
-              className="min-w-0 truncate font-medium md:max-w-[260px] md:flex-1 md:text-center"
-              title={txn.description}
-            >
-              {txn.description}
-              {typeLabel && (
-                <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
-                  {typeLabel}
-                </span>
-              )}
-            </span>
+            {editingDescription ? (
+              <div className="flex min-w-0 flex-col gap-1 md:max-w-[280px] md:flex-1">
+                <Input
+                  ref={descriptionEditRef}
+                  type="text"
+                  defaultValue={description}
+                  autoFocus
+                  onFocus={(e) => e.currentTarget.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleDescriptionSave();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setEditingDescription(false);
+                      setDescError(null);
+                    }
+                  }}
+                  uiSize="sm"
+                  className="w-full"
+                />
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    ref={notesEditRef}
+                    type="text"
+                    defaultValue={notes}
+                    placeholder="Notes"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleDescriptionSave();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditingDescription(false);
+                        setDescError(null);
+                      }
+                    }}
+                    uiSize="sm"
+                    className="w-full"
+                  />
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0 px-2 py-1 text-xs"
+                    onClick={handleDescriptionSave}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="shrink-0 px-2 py-1 text-xs"
+                    onClick={() => {
+                      setEditingDescription(false);
+                      setDescError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                {descError && <p className="text-xs text-negative">{descError}</p>}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingDescription(true)}
+                title={notes ? `${description} — ${notes}` : description}
+                className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 md:max-w-[260px] md:flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+              >
+                {description}
+                {typeLabel && (
+                  <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
+                    {typeLabel}
+                  </span>
+                )}
+              </button>
+            )}
             <span
               className={`shrink-0 whitespace-nowrap font-medium md:ml-4 md:w-24 md:text-center ${
                 txn.amount < 0 ? "text-negative" : "text-positive"
@@ -672,12 +829,19 @@ const TransactionRow = memo(function TransactionRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:contents">
+            {/* Disabled while isTransfer — a transfer's source_id stays
+                null (transactions_sync_transfer_balance applies its amount
+                via transfer_from/to_source_id instead), and there's no
+                Transfer option here to switch into or out of: Source
+                Transfers on the Budgets page own that now, so a bank
+                transaction only ever becomes one via match_transfer_pairs
+                during sync or the manual-entry form's own Transfer type. */}
             <Select
               form={`txn-${txn.id}`}
               name="source_id"
               uiSize="sm"
               className="min-w-0 flex-1 md:w-40 md:flex-none"
-              value={sourceId}
+              value={sourceSelectValue}
               onChange={handleSourceChange}
               placeholder={isTransfer ? "—" : "No source"}
               disabled={isTransfer}
@@ -688,7 +852,10 @@ const TransactionRow = memo(function TransactionRow({
                   {s.name}
                 </option>
               ))}
-              {!isTransfer && txn.amount > 0 && <option value={ADD_SOURCE}>+ Add source</option>}
+              <option value={EXCLUDE_SOURCE}>Exclude</option>
+              {!isTransfer && !excludeFromBudget && txn.amount > 0 && (
+                <option value={ADD_SOURCE}>+ Add source</option>
+              )}
             </Select>
             <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-48 md:flex-none">
               <Select
@@ -703,12 +870,15 @@ const TransactionRow = memo(function TransactionRow({
                 // is Income, which is its own flag with its own
                 // Source-routing (see handleCategoryChange/
                 // route_income_to_fund) and stays available — and normal-
-                // looking — no matter what this row's Source is.
+                // looking — no matter what this row's Source is. Transfer
+                // and Excluded (see EXCLUDE_SOURCE) both disable it outright,
+                // per the same "grayed out" treatment a non-budget source
+                // already gets.
                 className={`min-w-0 flex-1 md:w-full ${!isBudgetSource && !isIncome ? "bg-surface-subtle" : ""}`}
                 value={categoryId}
                 onChange={handleCategoryChange}
                 placeholder={isTransfer ? "—" : isBudgetSource ? "Uncategorized" : "—"}
-                disabled={isTransfer}
+                disabled={isTransfer || excludeFromBudget}
               >
                 {(isBudgetSource || isIncome) && <option value="">Uncategorized</option>}
                 {!isTransfer && txn.amount > 0 && <option value={INCOME}>Income</option>}
@@ -757,12 +927,15 @@ const TransactionRow = memo(function TransactionRow({
           <div className="flex items-center justify-end gap-1 md:contents">
             <button
               type="button"
-              onClick={() => setExpanded((e) => !e)}
-              aria-label={expanded ? "Collapse details" : "Expand details"}
-              aria-expanded={expanded}
-              className="rounded-sm p-1 text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground md:order-2 md:flex md:w-10 md:items-center md:justify-center"
+              onClick={() => setSplitOpen((s) => !s)}
+              aria-pressed={splitOpen}
+              aria-label={splitOpen ? "Hide split" : "Split this transaction"}
+              title="Split into multiple categories/sources"
+              className={`rounded-sm p-1 transition-colors duration-[120ms] ease-standard md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
+                splitOpen ? "text-accent" : "text-muted hover:bg-paper-a2 hover:text-foreground"
+              }`}
             >
-              <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
+              <SplitIcon size={14} />
             </button>
             <div className="flex items-center gap-1 md:order-1 md:w-8 md:flex-none md:justify-end">
               {!txn.hasProviderTransactionId && (
@@ -830,140 +1003,11 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         )}
 
-        {/* Always rendered (never unmounted) so the form= references from the
-            main row's Category/Source selects keep resolving to this form
-            regardless of expand state — only the visibility is toggled.
-            Nothing submits this form (every field autosaves individually via
-            its own onChange/onBlur); it exists purely so saveRow's
-            `new FormData(form)` can read the rest of the row's current
-            values, including the remotely-associated Category/Source
-            fields. */}
-        <div className={`border-t border-border bg-surface-subtle px-4 py-3 ${expanded ? "" : "hidden"}`}>
-          <form ref={formRef} id={`txn-${txn.id}`} className="flex flex-wrap items-center gap-4">
-            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-              <input
-                type="checkbox"
-                checked={isTransfer}
-                onChange={(e) => handleTransferToggle(e.target.checked)}
-              />
-              <input type="hidden" name="is_transfer" value={isTransfer ? "on" : ""} />
-              Transfer
-            </label>
-
-            {/* No visible control — Income is picked from the Category
-                select instead (see the INCOME sentinel above). This just
-                keeps is_income in the persistent form's FormData so other
-                autosaves (Notes, Source, Split, ...) don't clear it. */}
-            <input type="hidden" name="is_income" value={isIncome ? "on" : ""} />
-
-            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-              <input
-                type="checkbox"
-                name="exclude_from_budget"
-                checked={excludeFromBudget}
-                onChange={(e) => {
-                  setExcludeFromBudget(e.target.checked);
-                  // Not a category pick — see handleSourceChange.
-                  saveRow({
-                    exclude_from_budget: e.target.checked ? "on" : "",
-                    rule_action: "skip",
-                  });
-                }}
-              />
-              Exclude
-            </label>
-
-            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-              <input
-                type="checkbox"
-                checked={splitOpen}
-                onChange={(e) => setSplitOpen(e.target.checked)}
-              />
-              Split{txn.isSplit ? ` (${txn.splits.length})` : ""}
-            </label>
-
-            <label className="flex min-w-32 flex-1 items-center gap-1.5 text-xs text-muted">
-              <span className="sr-only">Notes</span>
-              <Input
-                type="text"
-                name="notes"
-                defaultValue={txn.notes ?? ""}
-                placeholder="Notes"
-                // Not a category pick — see handleSourceChange.
-                onBlur={() => saveRow({ rule_action: "skip" })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
-                }}
-                className="w-full"
-              />
-            </label>
-
-            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-              Date
-              <Input
-                uiSize="sm"
-                type="date"
-                name="posted_date"
-                value={postedDate}
-                onChange={(e) => handleDateChange(e.target.value)}
-              />
-            </label>
-
-            <span className="shrink-0 text-xs text-muted">Account: {accountDisplay}</span>
-          </form>
-
-          {isTransfer && (
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                Transfer from
-                <Select
-                  form={`txn-${txn.id}`}
-                  name="transfer_from"
-                  uiSize="sm"
-                  className="w-36"
-                  defaultValue={currentTransferFrom}
-                  onChange={(value) => saveRow({ transfer_from: value, rule_action: "skip" })}
-                  placeholder="None"
-                >
-                  <option value="">None</option>
-                  {bucketOptions.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                Transfer to
-                <Select
-                  form={`txn-${txn.id}`}
-                  name="transfer_to"
-                  uiSize="sm"
-                  className="w-36"
-                  defaultValue={currentTransferTo}
-                  onChange={(value) => saveRow({ transfer_to: value, rule_action: "skip" })}
-                  placeholder="None"
-                >
-                  <option value="">None</option>
-                  {bucketOptions.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            </div>
-          )}
-
-          {txn.isTransfer && (currentTransferFrom || currentTransferTo) && (
-            <p className="mt-2 text-xs text-muted">
-              Transfer: {formatMoney(Math.abs(txn.amount), decimalPlaces)}{" "}
-              {bucketNameByValue[currentTransferFrom] ?? "outside"} &rarr;{" "}
-              {bucketNameByValue[currentTransferTo] ?? "outside"}
-            </p>
-          )}
-
-          {splitOpen && (
+        {/* The Split button above toggles this — no more caret/detail row,
+            so this is the transaction's own split-editing surface, not a
+            generic "show more" panel. */}
+        {splitOpen && (
+          <div className="border-t border-border bg-surface-subtle px-4 py-3">
             <SplitEditor
               transactionId={txn.id}
               transactionAmount={txn.amount}
@@ -972,8 +1016,23 @@ const TransactionRow = memo(function TransactionRow({
               sources={sources}
               decimalPlaces={decimalPlaces}
             />
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Pure FormData carrier for saveRow — never shown, never submitted
+            directly. Holds exactly the fields assignTransaction always
+            writes unconditionally (is_transfer, is_income,
+            exclude_from_budget, notes), so an autosave triggered by some
+            other field (Date, Source, Rule, ...) always resubmits their
+            current values instead of a stale/blank one. Every other field
+            (Category, Source) associates with this same form via its own
+            form= attribute regardless of where it sits in the tree. */}
+        <form ref={formRef} id={`txn-${txn.id}`}>
+          <input type="hidden" name="is_transfer" value={isTransfer ? "on" : ""} />
+          <input type="hidden" name="is_income" value={isIncome ? "on" : ""} />
+          <input type="hidden" name="exclude_from_budget" value={excludeFromBudget ? "on" : ""} />
+          <input type="hidden" name="notes" value={notes} />
+        </form>
       </div>
     </>
   );
