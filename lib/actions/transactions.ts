@@ -12,10 +12,11 @@ export async function learnVendorRule(
   merchantNormalized: string,
   // Exactly one of these is the rule's target (see the
   // vendor_category_rules_target_check constraint) — a real category, or a
-  // flag that marks matching transactions as Income instead.
+  // flag that marks matching transactions as Income or Excluded instead.
   categoryId: string | null,
   isIncome: boolean,
   sourceId: string | null,
+  isExclude: boolean = false,
 ) {
   if (!merchantNormalized) return;
 
@@ -28,6 +29,7 @@ export async function learnVendorRule(
     p_category_id: categoryId,
     p_is_income: isIncome,
     p_source_id: sourceId,
+    p_is_exclude: isExclude,
   });
 
   // A failed rule write shouldn't block or crash the categorization it was
@@ -276,9 +278,22 @@ export async function assignTransaction(
     .eq("id", transactionId);
   if (error) return { error: error.message };
 
+  // A row with no category and no Income flag, sitting Excluded, is a rule
+  // candidate too — the "+" toggle can teach "always exclude this merchant"
+  // the same way it teaches a category or Income (see handleToggleBuildRule
+  // in transaction-list.tsx). Plain autosaves (e.g. picking Exclude in the
+  // Source select) explicitly send rule_action="skip", so this never fires
+  // on its own — only when the row's own rule-builder asked for it.
+  const isExcludeTarget = excludeFromBudget && !categoryId && !isIncome;
+
   let learnedRule = false;
-  if (!isTransfer && (categoryId || isIncome) && merchantNormalized && ruleAction !== "skip") {
-    await learnVendorRule(supabase, merchantNormalized, categoryId, isIncome, sourceId);
+  if (
+    !isTransfer &&
+    (categoryId || isIncome || isExcludeTarget) &&
+    merchantNormalized &&
+    ruleAction !== "skip"
+  ) {
+    await learnVendorRule(supabase, merchantNormalized, categoryId, isIncome, sourceId, isExcludeTarget);
     learnedRule = true;
   }
 

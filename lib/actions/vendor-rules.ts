@@ -22,7 +22,14 @@ export async function createVendorRule(
 
   const { supabase } = await requireUser();
 
-  await learnVendorRule(supabase, merchantNormalized, target.categoryId, target.isIncome, null);
+  await learnVendorRule(
+    supabase,
+    merchantNormalized,
+    target.categoryId,
+    target.isIncome,
+    null,
+    target.isExclude,
+  );
 
   revalidatePath("/settings");
   return null;
@@ -50,6 +57,7 @@ export async function updateVendorRule(
       merchant_normalized: merchantNormalized,
       category_id: target.categoryId,
       is_income: target.isIncome,
+      is_exclude: target.isExclude,
     })
     .eq("id", ruleId)
     .eq("user_id", user.id);

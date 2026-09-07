@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions/transactions";
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { SplitEditor } from "@/components/transactions/split-editor";
-import { INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
+import { EXCLUDE, INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
@@ -537,13 +537,21 @@ const TransactionRow = memo(function TransactionRow({
     onToggleBuildRule(txn.id);
     if (!turningOn || isTransfer) return;
 
-    const hasTarget = categoryId === INCOME || Boolean(categoryId);
+    // An already-Excluded row (no category, no Income) is a rule target
+    // too — see the isExcludeTarget check in assignTransaction, which is
+    // what actually persists the rule once rule_action isn't "skip".
+    const isExcludeRow = excludeFromBudget && !categoryId;
+    const hasTarget = categoryId === INCOME || Boolean(categoryId) || isExcludeRow;
     if (!hasTarget) return;
 
-    const ruleAction = await resolveRuleAction(categoryId);
+    const target = isExcludeRow ? EXCLUDE : categoryId;
+    const ruleAction = await resolveRuleAction(target);
     if (ruleAction === "skip") return;
 
-    const overrides = overridesFor(categoryId);
+    // Excluded has nothing to write into category_id/is_income — the row's
+    // own hidden mirrors already carry exclude_from_budget=true, so just
+    // the rule_action override is enough to make assignTransaction learn it.
+    const overrides: Record<string, string> = isExcludeRow ? {} : overridesFor(categoryId);
     if (ruleAction) overrides.rule_action = ruleAction;
     await saveRow(overrides);
   }

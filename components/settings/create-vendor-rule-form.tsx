@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { createVendorRule } from "@/lib/actions/vendor-rules";
-import { INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
+import { EXCLUDE_RULE_TARGET, INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,7 @@ export function CreateVendorRuleForm({
         <Select name="category_id" required uiSize="sm" className="w-40" placeholder="Choose a category">
           <option value="">Choose a category</option>
           <option value={INCOME_RULE_TARGET}>Income</option>
+          <option value={EXCLUDE_RULE_TARGET}>Excluded</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}

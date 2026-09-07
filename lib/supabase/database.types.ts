@@ -622,6 +622,7 @@ export type Database = {
           category_id: string | null
           created_at: string
           id: string
+          is_exclude: boolean
           is_income: boolean
           last_used_at: string
           merchant_normalized: string
@@ -634,6 +635,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id?: string
+          is_exclude?: boolean
           is_income?: boolean
           last_used_at?: string
           merchant_normalized: string
@@ -646,6 +648,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id?: string
+          is_exclude?: boolean
           is_income?: boolean
           last_used_at?: string
           merchant_normalized?: string
@@ -762,6 +765,7 @@ export type Database = {
       learn_vendor_rule: {
         Args: {
           p_category_id: string | null
+          p_is_exclude?: boolean
           p_is_income: boolean
           p_merchant_normalized: string
           p_source_id: string | null

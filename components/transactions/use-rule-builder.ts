@@ -4,6 +4,13 @@ import { useCallback } from "react";
 import { ruleExistsForDescription } from "@/lib/actions/transactions";
 
 export const INCOME = "__income__";
+// Local to this row's rule-builder flow, same idea as INCOME above — the
+// "+"/buildRule toggle uses this to represent an already-Excluded row (see
+// handleToggleBuildRule in transaction-list.tsx) when there's no category
+// pick to key off of. Not imported from vendor-rule-target.ts: that file's
+// EXCLUDE_RULE_TARGET drives the Settings rule forms' own <select>, a
+// separate surface that happens to use the same string.
+export const EXCLUDE = "__exclude__";
 
 type Option = { id: string; name: string };
 
@@ -33,7 +40,9 @@ export function useRuleBuilder({
       const targetLabel =
         targetCategoryId === INCOME
           ? "Income"
-          : (categories.find((c) => c.id === targetCategoryId)?.name ?? "this category");
+          : targetCategoryId === EXCLUDE
+            ? "Excluded"
+            : (categories.find((c) => c.id === targetCategoryId)?.name ?? "this category");
       const saveRule = await confirm(`Make all "${description}" transactions ${targetLabel}?`);
       return saveRule ? "write" : "skip";
     },
