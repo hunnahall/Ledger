@@ -184,7 +184,10 @@ function ForecastDetailView({
       </div>
 
       <Card className="p-5">
-        <div className="mx-auto h-72 w-3/4">
+        {/* aspectRatio locked to the chart's own viewBox (1100/380) so the
+            SVG scales uniformly with no letterboxing -- a mismatched
+            container ratio is what made the old fixed h-72 box blurry. */}
+        <div className="w-full" style={{ aspectRatio: "1100 / 380" }}>
           <ForecastChart points={points} />
         </div>
       </Card>
