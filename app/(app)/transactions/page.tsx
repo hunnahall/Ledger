@@ -48,7 +48,9 @@ export default async function TransactionsPage({
   ]);
   const decimalPlaces = settings.decimal_places;
 
-  const splits = await getTransactionSplits(transactions.map((t) => t.id));
+  const splits = await getTransactionSplits(
+    transactions.filter((t) => t.is_split).map((t) => t.id),
+  );
   const splitsByTransaction = new Map<string, typeof splits>();
   for (const split of splits) {
     const list = splitsByTransaction.get(split.transaction_id) ?? [];
