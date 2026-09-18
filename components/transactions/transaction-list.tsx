@@ -580,17 +580,21 @@ const TransactionRow = memo(function TransactionRow({
       setIsTransfer(false);
       setExcludeFromBudget(true);
       setSourceId("");
-      // Income is exempt from Source-driven category clearing everywhere
-      // else in this row (see handleSourceChange's real-source branch
-      // below) — keep that exemption here too, since the Category select
-      // still shows "Income" (just disabled) rather than blank.
-      const clearCategory = !isIncome && Boolean(categoryId);
+      // Excluded means never tracked/budgeted (see context.md) — unlike
+      // leaving Budget for another real source, Income isn't exempt here:
+      // there's no "Income" bucket once a row is Excluded, so a prior
+      // category (or Income) pick falls away instead of persisting
+      // alongside a flag that no longer applies to it.
+      const clearCategory = Boolean(categoryId);
+      const clearIncome = isIncome;
       if (clearCategory) setCategoryId("");
+      if (clearIncome) setIsIncome(false);
       await saveRow({
         exclude_from_budget: "on",
         is_transfer: "",
         source_id: "",
         ...(clearCategory ? { category_id: "" } : {}),
+        ...(clearIncome ? { is_income: "" } : {}),
         rule_action: "skip",
       });
       return;

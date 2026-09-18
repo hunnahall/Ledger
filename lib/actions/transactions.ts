@@ -5,6 +5,7 @@ import { revalidateLedgerPages, revalidateVendorRulePages } from "@/lib/actions/
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
+import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
 import { parseMoney } from "@/lib/format";
 
 export async function learnVendorRule(
@@ -217,7 +218,19 @@ export async function assignTransaction(
   transactionId: string,
   formData: FormData,
 ): Promise<{ error: string } | null> {
-  const categoryId = String(formData.get("category_id") ?? "") || null;
+  const rawCategoryId = String(formData.get("category_id") ?? "");
+  // The Category select's own hidden input carries the raw Income/Exclude
+  // sentinel (see use-rule-builder.ts's INCOME) any time this row is
+  // flagged Income, since it's the same <select name="category_id">
+  // showing "Income" as its picked option — not every autosave path that
+  // leaves Income in place remembers to override category_id back to ""
+  // (is_income has its own separate field for that). A uuid column must
+  // never see the sentinel regardless, so strip it here rather than trust
+  // every call site to have done so already.
+  const categoryId =
+    rawCategoryId && rawCategoryId !== INCOME_RULE_TARGET && rawCategoryId !== EXCLUDE_RULE_TARGET
+      ? rawCategoryId
+      : null;
   // See createManualTransaction — "skip" means the user was prompted to
   // save a new vendor rule for this merchant and declined.
   const ruleAction = String(formData.get("rule_action") ?? "");
@@ -248,10 +261,14 @@ export async function assignTransaction(
   const { data: updated, error } = await supabase
     .from("transactions")
     .update({
-      category_id: isTransfer ? null : categoryId,
+      // Excluded is "never tracked/budgeted" (see context.md) same as a
+      // transfer's buckets are synced elsewhere — a category (or Income,
+      // below) from before this row was Excluded doesn't carry over even
+      // if the client somehow still sent one.
+      category_id: isTransfer || excludeFromBudget ? null : categoryId,
       // Explicit choice via this form, as opposed to a rule's silent
       // auto-fill on manual entry — see createManualTransaction.
-      category_source: !isTransfer && categoryId ? "manual" : null,
+      category_source: !isTransfer && !excludeFromBudget && categoryId ? "manual" : null,
       // See createManualTransaction: a transfer's buckets are synced via
       // transfer_from/to_*, so source_id must stay null to avoid double-
       // applying this transaction's amount through the plain sync trigger.
@@ -270,7 +287,7 @@ export async function assignTransaction(
       // match_transfer_pairs set the moment any other field on the row
       // autosaves.
       is_transfer: isTransfer,
-      is_income: !isTransfer && isIncome,
+      is_income: !isTransfer && !excludeFromBudget && isIncome,
       exclude_from_budget: excludeFromBudget,
       notes,
     })
@@ -331,7 +348,7 @@ export async function createSourceFromTransaction(
 
   const { data: txn, error: fetchError } = await supabase
     .from("transactions")
-    .select("posted_date, is_transfer")
+    .select("posted_date, is_transfer, category_id")
     .eq("id", transactionId)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
@@ -357,7 +374,14 @@ export async function createSourceFromTransaction(
 
   const { error: updateError } = await supabase
     .from("transactions")
-    .update({ source_id: newSource.id })
+    .update({
+      source_id: newSource.id,
+      // This new source is always reimbursement/fund, never Budget, so a
+      // category picked while on a Budget source (the only type categories
+      // apply to — see handleSourceChange in transaction-list.tsx) is now
+      // stale rather than valid.
+      ...(txn.category_id ? { category_id: null, category_source: null } : {}),
+    })
     .eq("id", transactionId);
   if (updateError) return { error: updateError.message };
 
