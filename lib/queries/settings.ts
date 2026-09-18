@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TIME_ZONE } from "@/lib/dates";
 
@@ -11,7 +12,12 @@ export type Settings = {
 // settings row, so no explicit user id/auth.getUser() call is needed here —
 // that would just be a second, redundant Auth-server round trip on top of
 // the one the SSR middleware already made for this same request.
-export async function getSettings(): Promise<Settings> {
+//
+// Memoized per request: this is the most-called query in the app — the app
+// layout needs `timezone`, every page needs `decimal_places`, and
+// getBudgetData/getDashboardData each need the timezone again to decide what
+// "this month" is. That was three identical round trips per page load.
+export const getSettings = cache(async function getSettings(): Promise<Settings> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("settings")
@@ -35,4 +41,4 @@ export async function getSettings(): Promise<Settings> {
     month_ahead: data.month_ahead,
     timezone: data.timezone ?? DEFAULT_TIME_ZONE,
   };
-}
+});

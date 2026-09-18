@@ -5,7 +5,17 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   const supabase = await createClient();
   let query = supabase
     .from("transactions")
-    .select("*, accounts(account_name, last4), categories(name), sources!source_id(name)")
+    // Splits come back embedded rather than as a follow-up `.in(ids)` query.
+    // That round trip couldn't start until this one had returned (it needed
+    // the ids), and building one filter out of every split transaction's id
+    // is what pushed the request URL past Supabase's gateway limit and 400'd
+    // the whole page — narrowing the id list to just is_split rows only moved
+    // the ceiling. An embed has no URL to outgrow. The CSV export shares this
+    // query and ignores the extra key; on a split-less account it costs an
+    // empty array per row.
+    .select(
+      "*, accounts(account_name, last4), categories(name), sources!source_id(name), transaction_splits(id, category_id, source_id, amount)",
+    )
     .order("posted_date", { ascending: false })
     .order("created_at", { ascending: false })
     // posted_date/created_at alone don't fully determine an order — rows
@@ -42,23 +52,20 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   return data;
 }
 
-export async function getTransactionSplits(transactionIds: string[]) {
-  if (transactionIds.length === 0) return [];
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("transaction_splits")
-    .select("*")
-    .in("transaction_id", transactionIds);
-  if (error) throw new Error(error.message);
-  return data;
-}
-
 export async function getFilterOptions() {
   const supabase = await createClient();
+  // One `sources` read covering both uses. The reserved Budget-type Source —
+  // every user has exactly one — used to be a separate `.eq("type","budget")`
+  // round trip whose only output was an id, and because the list query needed
+  // that id for its ordering it was written *after* the Promise.all, so the
+  // two ran in series. Selecting `type` and `archived_at` alongside the rest
+  // answers both questions from one response: the Budget source is matched
+  // regardless of archived_at (as the dedicated query was), while the
+  // selectable list still excludes archived rows.
   const [
     { data: accounts, error: accountsError },
     { data: categoryData, error: categoryDataError },
-    { data: budgetSource, error: budgetSourceError },
+    { data: sourceData, error: sourcesError },
   ] = await Promise.all([
     supabase.from("accounts").select("id, account_name").order("account_name"),
     supabase
@@ -66,22 +73,17 @@ export async function getFilterOptions() {
       .select("id, name")
       .is("archived_at", null)
       .order("sort_order"),
-    // The reserved Budget-type Source — every user has exactly one.
-    supabase.from("sources").select("id").eq("type", "budget").maybeSingle(),
+    supabase.from("sources").select("id, name, type, archived_at").order("name"),
   ]);
-  for (const error of [accountsError, categoryDataError, budgetSourceError]) {
+  for (const error of [accountsError, categoryDataError, sourcesError]) {
     if (error) throw new Error(error.message);
   }
 
   const categories = categoryData ?? [];
-  const defaultSourceId = budgetSource?.id ?? null;
-
-  const { data: sources, error: sourcesError } = await supabase
-    .from("sources")
-    .select("id, name")
-    .is("archived_at", null)
-    .order("name");
-  if (sourcesError) throw new Error(sourcesError.message);
+  const defaultSourceId = (sourceData ?? []).find((s) => s.type === "budget")?.id ?? null;
+  const sources = (sourceData ?? [])
+    .filter((s) => s.archived_at === null)
+    .map((s) => ({ id: s.id, name: s.name }));
 
   // The current budget's own Source (e.g. "Budget") is what most
   // transactions actually get assigned to, so it leads the list instead of
@@ -89,10 +91,10 @@ export async function getFilterOptions() {
   // alphabetical behind it.
   const orderedSources = defaultSourceId
     ? [
-        ...(sources ?? []).filter((s) => s.id === defaultSourceId),
-        ...(sources ?? []).filter((s) => s.id !== defaultSourceId),
+        ...sources.filter((s) => s.id === defaultSourceId),
+        ...sources.filter((s) => s.id !== defaultSourceId),
       ]
-    : (sources ?? []);
+    : sources;
 
   return {
     accounts: accounts ?? [],

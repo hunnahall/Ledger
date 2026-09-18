@@ -1,14 +1,9 @@
-import {
-  getFilteredTransactions,
-  getFilterOptions,
-  getTransactionSplits,
-} from "@/lib/queries/transactions";
+import { getFilteredTransactions, getFilterOptions } from "@/lib/queries/transactions";
 import {
   resolveCategoryFilter,
   resolveSourceFilter,
   type TransactionFilters,
 } from "@/lib/transactions/filters";
-import { getAccounts } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
@@ -40,23 +35,17 @@ export default async function TransactionsPage({
     ...resolveSourceFilter(params.source_id),
   };
 
-  const [transactions, filterOptions, accounts, settings] = await Promise.all([
+  // No separate getAccounts() here: getFilterOptions already reads the
+  // accounts table for the Account column filter, in exactly the shape the
+  // manual-entry form needs (id + name). It was a second read of the same
+  // table on every load. The form's account list is now ordered by name
+  // rather than creation date as a result.
+  const [transactions, filterOptions, settings] = await Promise.all([
     getFilteredTransactions(filters),
     getFilterOptions(),
-    getAccounts(),
     getSettings(),
   ]);
   const decimalPlaces = settings.decimal_places;
-
-  const splits = await getTransactionSplits(
-    transactions.filter((t) => t.is_split).map((t) => t.id),
-  );
-  const splitsByTransaction = new Map<string, typeof splits>();
-  for (const split of splits) {
-    const list = splitsByTransaction.get(split.transaction_id) ?? [];
-    list.push(split);
-    splitsByTransaction.set(split.transaction_id, list);
-  }
 
   const transactionRows: TransactionRowData[] = transactions.map((txn) => ({
     id: txn.id,
@@ -75,7 +64,7 @@ export default async function TransactionsPage({
     notes: txn.notes,
     isSplit: txn.is_split,
     hasProviderTransactionId: Boolean(txn.provider_transaction_id),
-    splits: (splitsByTransaction.get(txn.id) ?? []).map((s) => ({
+    splits: txn.transaction_splits.map((s) => ({
       id: s.id,
       categoryId: s.category_id,
       sourceId: s.source_id,
@@ -100,7 +89,7 @@ export default async function TransactionsPage({
           Manual transactions
         </p>
         <ManualTransactionForm
-          accounts={accounts.map((a) => ({ id: a.id, name: a.account_name }))}
+          accounts={filterOptions.accounts.map((a) => ({ id: a.id, name: a.account_name }))}
           categories={filterOptions.categories}
           sources={filterOptions.sources}
           defaultSourceId={filterOptions.defaultSourceId}

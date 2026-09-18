@@ -4,7 +4,6 @@ import {
   Children,
   isValidElement,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -65,7 +64,11 @@ export function Select({
   placeholder,
   children,
 }: SelectProps) {
-  const options = useMemo(() => optionsFromChildren(children), [children]);
+  // Not memoized on `children`: JSX children are rebuilt on every render, so
+  // the dependency never compares equal and a useMemo here only ever added
+  // its own bookkeeping on top of a walk that ran regardless. The walk itself
+  // is cheap — it reads props off an already-built element list.
+  const options = optionsFromChildren(children);
   const [open, setOpen] = useState(false);
   const [internalValue, setInternalValue] = useState(
     defaultValue != null ? String(defaultValue) : "",

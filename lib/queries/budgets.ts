@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getOptionalUser } from "@/lib/supabase/auth";
 import { getSettings } from "@/lib/queries/settings";
@@ -125,35 +126,47 @@ export async function getBudgetData() {
 // category spending" — shared by getBudgetRateData's total allocation below
 // and the Dashboard's Transfers category tile (see getDashboardData), which
 // both need the exact same figure.
-export async function getSinkingAndTransferMonthlyTotal(
-  userId: string,
-  month: string,
-): Promise<number> {
-  const supabase = await createClient();
-  const [
-    { data: sinkingExpenses, error: sinkingError },
-    { data: sourceTransfers, error: sourceTransfersError },
-  ] = await Promise.all([
-    supabase.from("sinking_expenses").select("*").eq("user_id", userId).is("archived_at", null),
-    supabase.from("source_transfers").select("amount").eq("user_id", userId),
-  ]);
-  if (sinkingError) throw new Error(sinkingError.message);
-  if (sourceTransfersError) throw new Error(sourceTransfersError.message);
+//
+// Memoized per request (keyed on userId+month): the Dashboard calls this from
+// getDashboardData and, concurrently, from getBudgetRateData with identical
+// arguments — two pairs of identical queries for one number.
+export const getSinkingAndTransferMonthlyTotal = cache(
+  async function getSinkingAndTransferMonthlyTotal(
+    userId: string,
+    month: string,
+  ): Promise<number> {
+    const supabase = await createClient();
+    const [
+      { data: sinkingExpenses, error: sinkingError },
+      { data: sourceTransfers, error: sourceTransfersError },
+    ] = await Promise.all([
+      // Named columns rather than "*": this only ever computes a monthly
+      // figure, and `select("*")` pulled every column of every row for it.
+      supabase
+        .from("sinking_expenses")
+        .select("contribution_type, amount, frequency, target_amount, target_date, contributed_to_date")
+        .eq("user_id", userId)
+        .is("archived_at", null),
+      supabase.from("source_transfers").select("amount").eq("user_id", userId),
+    ]);
+    if (sinkingError) throw new Error(sinkingError.message);
+    if (sourceTransfersError) throw new Error(sourceTransfersError.message);
 
-  const sinkingTotal = (sinkingExpenses ?? []).reduce((sum, expense) => {
-    const monthlyAmount =
-      expense.contribution_type === "goal"
-        ? goalMonthlyAmount(
-            expense.target_amount ?? 0,
-            expense.contributed_to_date,
-            monthsRemaining(expense.target_date ?? month, month),
-          )
-        : monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency);
-    return sum + monthlyAmount;
-  }, 0);
-  const sourceTransfersTotal = (sourceTransfers ?? []).reduce((sum, t) => sum + t.amount, 0);
-  return sinkingTotal + sourceTransfersTotal;
-}
+    const sinkingTotal = (sinkingExpenses ?? []).reduce((sum, expense) => {
+      const monthlyAmount =
+        expense.contribution_type === "goal"
+          ? goalMonthlyAmount(
+              expense.target_amount ?? 0,
+              expense.contributed_to_date,
+              monthsRemaining(expense.target_date ?? month, month),
+            )
+          : monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency);
+      return sum + monthlyAmount;
+    }, 0);
+    const sourceTransfersTotal = (sourceTransfers ?? []).reduce((sum, t) => sum + t.amount, 0);
+    return sinkingTotal + sourceTransfersTotal;
+  },
+);
 
 // Backs the Budget page's "Budget Fill" stat (income this month / total
 // budget allocation) and "Budget Rate" chart (cumulative Budget-sourced
@@ -179,33 +192,45 @@ export async function getBudgetRateData(monthISO: string, timeZone: string) {
   // transfers together (same three components getBudgetData's totalMonthly
   // sums on the Budget page), not just categories — a sinking expense or
   // source transfer allocation is still money the budget has committed.
-  const [{ data: categories, error: categoriesError }, sinkingAndTransferTotal] = await Promise.all([
+  // All four reads are independent, so they go out together. The spending
+  // query and the income read below used to be awaited one after the other,
+  // after this Promise.all had already resolved — three sequential round
+  // trips for data with no dependency between any of them.
+  const [
+    { data: categories, error: categoriesError },
+    sinkingAndTransferTotal,
+    // Same "did this transaction pay out of the Budget source" filter as
+    // v_spending_by_category (supabase/migrations/20260829010000_...) — kept
+    // as a plain query here instead of a view since this is a one-off
+    // day-bucketed shape nothing else needs. Splits aren't broken out (same
+    // simplification as the dashboard tile popups): a single user's monthly
+    // transaction volume is small enough that this stays a reasonable read
+    // for a pace chart, not a ledger of record.
+    { data: spending, error },
+    { data: inflowOutflow, error: inflowOutflowError },
+  ] = await Promise.all([
     supabase.from("categories").select("monthly_amount").eq("user_id", user.id).is("archived_at", null),
     getSinkingAndTransferMonthlyTotal(user.id, month),
+    supabase
+      .from("transactions")
+      .select("posted_date, amount, sources!source_id(type)")
+      .eq("user_id", user.id)
+      .gte("posted_date", month)
+      .lt("posted_date", nextMonthISO(month))
+      .eq("is_transfer", false)
+      .eq("exclude_from_budget", false)
+      .eq("is_split", false)
+      .lt("amount", 0),
+    supabase.from("v_inflow_outflow").select("income").eq("month", month).maybeSingle(),
   ]);
   if (categoriesError) throw new Error(categoriesError.message);
+  if (error) throw new Error(error.message);
+  // Previously unchecked, which silently reported $0 income on the Budget
+  // Fill stat whenever this query failed.
+  if (inflowOutflowError) throw new Error(inflowOutflowError.message);
 
   const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
   const totalAllocation = categoriesTotal + sinkingAndTransferTotal;
-
-  // Same "did this transaction pay out of the Budget source" filter as
-  // v_spending_by_category (supabase/migrations/20260829010000_...) — kept
-  // as a plain query here instead of a view since this is a one-off
-  // day-bucketed shape nothing else needs. Splits aren't broken out (same
-  // simplification as the dashboard tile popups): a single user's monthly
-  // transaction volume is small enough that this stays a reasonable read
-  // for a pace chart, not a ledger of record.
-  const { data: spending, error } = await supabase
-    .from("transactions")
-    .select("posted_date, amount, sources!source_id(type)")
-    .eq("user_id", user.id)
-    .gte("posted_date", month)
-    .lt("posted_date", nextMonthISO(month))
-    .eq("is_transfer", false)
-    .eq("exclude_from_budget", false)
-    .eq("is_split", false)
-    .lt("amount", 0);
-  if (error) throw new Error(error.message);
 
   const spendByDay = new Map<number, number>();
   for (const row of spending ?? []) {
@@ -220,15 +245,6 @@ export async function getBudgetRateData(monthISO: string, timeZone: string) {
     cumulative += spendByDay.get(day) ?? 0;
     actualByDay.push(cumulative);
   }
-
-  const { data: inflowOutflow, error: inflowOutflowError } = await supabase
-    .from("v_inflow_outflow")
-    .select("income")
-    .eq("month", month)
-    .maybeSingle();
-  // Previously unchecked, which silently reported $0 income on the Budget
-  // Fill stat whenever this query failed.
-  if (inflowOutflowError) throw new Error(inflowOutflowError.message);
 
   return {
     income: inflowOutflow?.income ?? 0,

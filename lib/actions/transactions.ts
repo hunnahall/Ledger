@@ -235,20 +235,17 @@ export async function assignTransaction(
 
   const { supabase } = await requireUser();
 
-  const { data: txn, error: fetchError } = await supabase
-    .from("transactions")
-    .select("merchant_normalized")
-    .eq("id", transactionId)
-    .maybeSingle();
-  if (fetchError) return { error: fetchError.message };
-  if (!txn) return { error: "Transaction not found." };
-
   // Editing the description changes what future syncs/vendor rules match
   // against, so re-derive merchant_normalized from it the same way a new
   // manual transaction does — otherwise it would keep matching the old text.
-  const merchantNormalized = description ? normalizeMerchant(description) : txn.merchant_normalized;
-
-  const { error } = await supabase
+  // When the description isn't being edited the row's existing value is what
+  // a rule would be learned against; that used to be fetched in a SELECT of
+  // its own before this UPDATE. Returning the column from the UPDATE instead
+  // gives the same value (nothing else writes it) and the same
+  // "Transaction not found" check (RLS plus the id filter make it zero rows
+  // either way), on one round trip rather than two — and this action runs on
+  // every single autosave in the transactions list.
+  const { data: updated, error } = await supabase
     .from("transactions")
     .update({
       category_id: isTransfer ? null : categoryId,
@@ -260,7 +257,9 @@ export async function assignTransaction(
       // applying this transaction's amount through the plain sync trigger.
       source_id: isTransfer ? null : sourceId,
       ...(postedDate ? { posted_date: postedDate } : {}),
-      ...(description ? { description, merchant_normalized: merchantNormalized } : {}),
+      ...(description
+        ? { description, merchant_normalized: normalizeMerchant(description) }
+        : {}),
       // is_transfer itself is read back unchanged here — there's no row UI
       // that can flip it (Source Transfers on the Budgets page replaced
       // that; a transaction only becomes one via match_transfer_pairs
@@ -275,8 +274,13 @@ export async function assignTransaction(
       exclude_from_budget: excludeFromBudget,
       notes,
     })
-    .eq("id", transactionId);
+    .eq("id", transactionId)
+    .select("merchant_normalized")
+    .maybeSingle();
   if (error) return { error: error.message };
+  if (!updated) return { error: "Transaction not found." };
+
+  const merchantNormalized = updated.merchant_normalized;
 
   // A row with no category and no Income flag, sitting Excluded, is a rule
   // candidate too — the "+" toggle can teach "always exclude this merchant"
