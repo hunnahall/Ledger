@@ -85,7 +85,7 @@ export async function getDashboardTileTransactions(
 
   let query = supabase
     .from("transactions")
-    .select("id, posted_date, description, amount, is_income, sources!source_id(type)")
+    .select("id, posted_date, description, amount, is_income, category_id, sources!source_id(type)")
     .gte("posted_date", month)
     .lt("posted_date", nextMonth)
     .eq("is_transfer", false)
@@ -134,11 +134,16 @@ export async function getDashboardTileTransactions(
       return isBudget === wantBudget;
     });
   } else if (kind.type === "budget_net") {
-    // Same two components computeDashboardTotals sums for budgetNet —
-    // income transactions plus budget-sourced expenses, nothing else.
+    // Same three components computeDashboardTotals sums for budgetNet —
+    // income transactions, budget-sourced expenses, and budget-sourced
+    // transactions carrying a category despite a positive amount (income
+    // filed under a category instead of flagged Income; see
+    // v_budget_category_income).
     rows = rows.filter((r) => {
       if (r.is_income) return r.amount > 0;
-      return r.amount < 0 && (r.sources as { type: string } | null)?.type === "budget";
+      const isBudget = (r.sources as { type: string } | null)?.type === "budget";
+      if (r.amount < 0) return isBudget;
+      return isBudget && r.category_id !== null;
     });
   } else if (kind.type === "total_net") {
     // totalNet = income + otherInflow - budgetedOutflow - otherOutflow, and

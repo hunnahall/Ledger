@@ -683,6 +683,14 @@ export type Database = {
       }
     }
     Views: {
+      v_budget_category_income: {
+        Row: {
+          amount: number | null
+          month: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       v_inflow_outflow: {
         Row: {
           income: number | null

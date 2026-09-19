@@ -34,6 +34,7 @@ export async function getDashboardData(monthISO: string) {
     { data: outflowByBucket, error: outflowByBucketError },
     { data: sourceBalances, error: sourceBalancesError },
     { data: spendingBySource, error: spendingBySourceError },
+    { data: budgetCategoryIncome, error: budgetCategoryIncomeError },
     settings,
     { data: categories, error: categoriesError },
     transfersMonthlyTotal,
@@ -43,6 +44,7 @@ export async function getDashboardData(monthISO: string) {
     supabase.from("v_outflow_by_bucket").select("*").eq("month", month),
     supabase.from("v_source_balances").select("*"),
     supabase.from("v_spending_by_source").select("*").eq("month", month),
+    supabase.from("v_budget_category_income").select("*").eq("month", month).maybeSingle(),
     getSettings(),
     userId
       ? supabase
@@ -64,6 +66,7 @@ export async function getDashboardData(monthISO: string) {
     outflowByBucketError,
     sourceBalancesError,
     spendingBySourceError,
+    budgetCategoryIncomeError,
     categoriesError,
   ]) {
     if (error) throw new Error(error.message);
@@ -102,6 +105,7 @@ export async function getDashboardData(monthISO: string) {
       otherInflow: inflowOutflow?.other_inflow ?? 0,
       budgetedOutflowRaw,
       otherOutflowRaw,
+      categorizedIncome: budgetCategoryIncome?.amount ?? 0,
     }),
     spendingBySource: visibleSourceBalances
       .filter(
