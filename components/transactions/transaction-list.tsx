@@ -207,20 +207,20 @@ export function TransactionList({
   const applyBulkSource = useCallback(
     (sourceId: string | null) => {
       const ids = Array.from(selectedIds);
-      // Same rule as a single row's handleSourceChange: a real category only
-      // applies while Source is Budget, so moving a batch off it clears
-      // whatever categories they were carrying too (Income-marked rows are
-      // already category-less, so this is a no-op for them either way).
-      const leavingBudget = sourceId !== budgetSourceId;
+      // Same rule as a single row's handleSourceChange: a category picked
+      // under the old Source doesn't necessarily apply under the new one,
+      // so changing Source on a batch always clears whatever categories
+      // they were carrying too (Income-marked rows are already
+      // category-less, so this is a no-op for them either way).
       startTransition(async () => {
         const result = await bulkUpdateTransactions(ids, {
           sourceId,
-          ...(leavingBudget ? { categoryId: null } : {}),
+          categoryId: null,
         });
         setBulkError(result?.error ?? null);
       });
     },
-    [selectedIds, budgetSourceId],
+    [selectedIds],
   );
 
   // Same idea as applyBulkCategory/applyBulkSource, for the Source select's
@@ -623,18 +623,18 @@ const TransactionRow = memo(function TransactionRow({
     setExcludeFromBudget(false);
     setSourceId(newSourceId);
 
-    // A real category only applies while Source is Budget (see the
-    // Category select below) — clear a stale pick when moving off it so
-    // the now-hidden dropdown and the saved data agree. Income is
-    // normally exempt (its own flag, not gated by Source) — except when
-    // Source resets to "No source": that's this row's one way out of
-    // Income once picked, since the Category select otherwise only ever
-    // offers "Income" (already selected) on any non-Budget Source, with
-    // nothing else there to switch to instead.
-    const leavingBudget = newSourceId !== budgetSourceId;
+    // Any source change clears a picked category — a category picked under
+    // the old Source no longer necessarily applies under the new one (and a
+    // real category only applies while Source is Budget in the first place;
+    // see the Category select below), so there's nothing worth carrying
+    // over either way. Income is exempt (its own flag, not gated by Source)
+    // — except when Source resets to "No source": that's this row's one way
+    // out of Income once picked, since the Category select otherwise only
+    // ever offers "Income" (already selected) on any non-Budget Source,
+    // with nothing else there to switch to instead.
     const resettingToNoSource = newSourceId === "";
     const clearIncome = resettingToNoSource && isIncome;
-    const clearCategory = (leavingBudget && !isIncome && Boolean(categoryId)) || clearIncome;
+    const clearCategory = (!isIncome && Boolean(categoryId)) || clearIncome;
     if (clearCategory) setCategoryId("");
     if (clearIncome) setIsIncome(false);
 
