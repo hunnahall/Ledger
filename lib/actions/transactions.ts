@@ -391,7 +391,7 @@ export async function createSourceFromTransaction(
 
 export async function bulkUpdateTransactions(
   transactionIds: string[],
-  updates: { categoryId?: string | null; sourceId?: string | null },
+  updates: { categoryId?: string | null; sourceId?: string | null; excludeFromBudget?: boolean },
 ): Promise<{ error: string } | null> {
   if (transactionIds.length === 0) return null;
 
@@ -399,12 +399,31 @@ export async function bulkUpdateTransactions(
     category_id?: string | null;
     category_source?: "manual" | null;
     source_id?: string | null;
+    exclude_from_budget?: boolean;
+    is_income?: boolean;
   } = {};
-  if (updates.categoryId !== undefined) {
-    patch.category_id = updates.categoryId;
-    patch.category_source = updates.categoryId ? "manual" : null;
+  // Excluded is "never tracked/budgeted" (see context.md), same as the
+  // single-row EXCLUDE_SOURCE path in handleSourceChange — mutually
+  // exclusive with a category/Income/source pick, so it short-circuits those.
+  if (updates.excludeFromBudget) {
+    patch.exclude_from_budget = true;
+    patch.source_id = null;
+    patch.category_id = null;
+    patch.category_source = null;
+    patch.is_income = false;
+  } else {
+    if (updates.categoryId !== undefined) {
+      patch.category_id = updates.categoryId;
+      patch.category_source = updates.categoryId ? "manual" : null;
+    }
+    // Picking a real source is this row's only way out of Excluded (see
+    // handleSourceChange's wasExcluded handling) — mirror that here so a
+    // bulk source pick doesn't leave exclude_from_budget stuck true.
+    if (updates.sourceId !== undefined) {
+      patch.source_id = updates.sourceId;
+      patch.exclude_from_budget = false;
+    }
   }
-  if (updates.sourceId !== undefined) patch.source_id = updates.sourceId;
   if (Object.keys(patch).length === 0) return null;
 
   const { supabase, user } = await requireUser();

@@ -223,6 +223,17 @@ export function TransactionList({
     [selectedIds, budgetSourceId],
   );
 
+  // Same idea as applyBulkCategory/applyBulkSource, for the Source select's
+  // Exclude sentinel (see EXCLUDE_SOURCE/handleSourceChange) — picking it on
+  // one selected row marks every selected row Excluded too.
+  const applyBulkExclude = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    startTransition(async () => {
+      const result = await bulkUpdateTransactions(ids, { excludeFromBudget: true });
+      setBulkError(result?.error ?? null);
+    });
+  }, [selectedIds]);
+
   return (
     <div className="flex flex-col gap-3">
       {selectedIds.size > 0 && (
@@ -329,6 +340,7 @@ export function TransactionList({
                     selectedCount={selectedIds.size}
                     onBulkApplyCategory={applyBulkCategory}
                     onBulkApplySource={applyBulkSource}
+                    onBulkApplyExclude={applyBulkExclude}
                     buildRule={buildRuleIds.has(txn.id)}
                     onToggleBuildRule={toggleBuildRule}
                     isLastRow={virtualRow.index === transactions.length - 1}
@@ -359,6 +371,7 @@ const TransactionRow = memo(function TransactionRow({
   selectedCount,
   onBulkApplyCategory,
   onBulkApplySource,
+  onBulkApplyExclude,
   buildRule,
   onToggleBuildRule,
   isLastRow,
@@ -380,6 +393,7 @@ const TransactionRow = memo(function TransactionRow({
   selectedCount: number;
   onBulkApplyCategory: (categoryId: string | null) => void;
   onBulkApplySource: (sourceId: string | null) => void;
+  onBulkApplyExclude: () => void;
   // Whether picking a category on this row should go through the
   // learn-a-rule flow (existing-rule lookup, then the "make this a rule?"
   // prompt) — lifted to the parent (see buildRuleIds) rather than kept as
@@ -565,9 +579,8 @@ const TransactionRow = memo(function TransactionRow({
     // Exclude lives as a sentinel option in this same Source select (see
     // EXCLUDE_SOURCE) rather than a separate checkbox — there's no longer a
     // detail panel to put one in. It clears source_id/category_id the same
-    // way leaving Budget already did, and doesn't participate in the
-    // multi-select bulk-apply below (that stays scoped to picking a real
-    // source, same as Income already is for Category).
+    // way leaving Budget already did, and — like a real source pick — it
+    // participates in the multi-select bulk-apply below.
     //
     // There's no equivalent Transfer option here — Source Transfers on the
     // Budgets page now cover recurring/manual movement between a user's own
@@ -589,6 +602,12 @@ const TransactionRow = memo(function TransactionRow({
       const clearIncome = isIncome;
       if (clearCategory) setCategoryId("");
       if (clearIncome) setIsIncome(false);
+
+      if (selected && selectedCount > 1) {
+        onBulkApplyExclude();
+        return;
+      }
+
       await saveRow({
         exclude_from_budget: "on",
         is_transfer: "",
