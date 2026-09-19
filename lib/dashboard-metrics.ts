@@ -6,6 +6,7 @@ export function computeDashboardTotals({
   budgetedOutflowRaw,
   otherOutflowRaw,
   categorizedIncome,
+  totalAllocation,
 }: {
   income: number;
   otherInflow: number;
@@ -16,13 +17,16 @@ export function computeDashboardTotals({
   // or reimbursement filed under a category rather than marked Income.
   // Already raw-positive (unlike budgetedOutflowRaw/otherOutflowRaw), so
   // it's added directly rather than run through spentFromRawAmount.
-  // Already counted once in totalNet via otherInflow (which has no
-  // source/category restriction), so it's added to budgetNet only.
   categorizedIncome: number;
+  // The month's total budget commitment (categories + sinking expenses +
+  // source transfers — see getBudgetRateData's identical calc) — what
+  // Budget Net measures spending against isn't what actually came in as
+  // income this month, it's what the budget itself allocated.
+  totalAllocation: number;
 }) {
   const budgetedOutflow = spentFromRawAmount(budgetedOutflowRaw);
   const otherOutflow = spentFromRawAmount(otherOutflowRaw);
-  const budgetNet = income - budgetedOutflow + categorizedIncome;
+  const budgetNet = totalAllocation - budgetedOutflow + categorizedIncome;
   const totalNet = income + otherInflow - budgetedOutflow - otherOutflow;
   return {
     income,
@@ -30,6 +34,7 @@ export function computeDashboardTotals({
     budgetedOutflow,
     otherOutflow,
     categorizedIncome,
+    totalAllocation,
     budgetNet,
     totalNet,
   };

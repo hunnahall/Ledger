@@ -134,16 +134,18 @@ export async function getDashboardTileTransactions(
       return isBudget === wantBudget;
     });
   } else if (kind.type === "budget_net") {
-    // Same three components computeDashboardTotals sums for budgetNet —
-    // income transactions, budget-sourced expenses, and budget-sourced
-    // transactions carrying a category despite a positive amount (income
+    // budgetNet = totalAllocation - budgetedOutflow + categorizedIncome (see
+    // computeDashboardTotals) — totalAllocation is the budget's category
+    // targets, not money that moved, so it has no transactions to list here.
+    // The two components that are transactions are budget-sourced expenses
+    // and budget-sourced positive transactions carrying a category (income
     // filed under a category instead of flagged Income; see
-    // v_budget_category_income).
+    // v_budget_category_income) — true Income transactions no longer factor
+    // into budgetNet at all, so they're left out of this popup too.
     rows = rows.filter((r) => {
-      if (r.is_income) return r.amount > 0;
       const isBudget = (r.sources as { type: string } | null)?.type === "budget";
-      if (r.amount < 0) return isBudget;
-      return isBudget && r.category_id !== null;
+      if (!isBudget) return false;
+      return r.amount < 0 || r.category_id !== null;
     });
   } else if (kind.type === "total_net") {
     // totalNet = income + otherInflow - budgetedOutflow - otherOutflow, and

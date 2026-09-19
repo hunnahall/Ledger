@@ -82,6 +82,14 @@ export async function getDashboardData(monthISO: string) {
     spent: spendingByCategory.get(c.id) ?? 0,
   }));
 
+  // Same calc as getBudgetRateData's totalAllocation (lib/queries/budgets.ts)
+  // — categories here already carries every category's raw monthly_amount,
+  // Transfers' own $0 placeholder included, so adding transfersMonthlyTotal
+  // (the same getSinkingAndTransferMonthlyTotal call that function makes)
+  // reaches the identical figure without a second query for it.
+  const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
+  const totalAllocation = categoriesTotal + transfersMonthlyTotal;
+
   const budgetedOutflowRaw = outflowByBucket?.find((b) => b.bucket === "budget")?.amount ?? null;
   const otherOutflowRaw = outflowByBucket?.find((b) => b.bucket === "other")?.amount ?? null;
 
@@ -106,6 +114,7 @@ export async function getDashboardData(monthISO: string) {
       budgetedOutflowRaw,
       otherOutflowRaw,
       categorizedIncome: budgetCategoryIncome?.amount ?? 0,
+      totalAllocation,
     }),
     spendingBySource: visibleSourceBalances
       .filter(
