@@ -67,7 +67,7 @@ export async function getFilterOptions() {
     { data: categoryData, error: categoryDataError },
     { data: sourceData, error: sourcesError },
   ] = await Promise.all([
-    supabase.from("accounts").select("id, account_name").order("account_name"),
+    supabase.from("accounts").select("id, account_name, is_manual").order("account_name"),
     supabase
       .from("categories")
       .select("id, name")
@@ -80,6 +80,14 @@ export async function getFilterOptions() {
   }
 
   const categories = categoryData ?? [];
+  // The manual-entry form no longer shows an Account picker — it silently
+  // files under whichever account was created for that purpose (is_manual;
+  // see the Accounts page). Falling back to the first account by name keeps
+  // a brand-new user (no manual account yet) submitting something valid
+  // instead of failing account_id's NOT NULL constraint, same as the old
+  // select's implicit "first option" default when the field went untouched.
+  const defaultAccountId =
+    (accounts ?? []).find((a) => a.is_manual)?.id ?? (accounts ?? [])[0]?.id ?? null;
   const defaultSourceId = (sourceData ?? []).find((s) => s.type === "budget")?.id ?? null;
   const sources = (sourceData ?? [])
     .filter((s) => s.archived_at === null)
@@ -97,9 +105,9 @@ export async function getFilterOptions() {
     : sources;
 
   return {
-    accounts: accounts ?? [],
     categories,
     sources: orderedSources,
     defaultSourceId,
+    defaultAccountId,
   };
 }

@@ -81,7 +81,7 @@ export function DashboardStatTiles({
         >
           <Money amount={otherOutflow} decimalPlaces={decimalPlaces} className="text-negative" />
         </StatTile>
-        <StatTile label="Total Net" onClick={() => openTile("Total Net", { type: "total_net" })}>
+        <StatTile label="Net Cash Flow" onClick={() => openTile("Net Cash Flow", { type: "total_net" })}>
           <Money
             amount={totalNet}
             decimalPlaces={decimalPlaces}

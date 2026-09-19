@@ -3,11 +3,11 @@
 import { useRef, useState, type FormEvent } from "react";
 import { createManualTransaction, suggestCategoryForDescription } from "@/lib/actions/transactions";
 import { stepAmountByDollar } from "@/lib/dollar-step";
+import { formatShortDate } from "@/lib/format";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AddIcon } from "@/components/ui/icons";
-import { useConfirm } from "@/components/ui/confirm-dialog";
+import { AddIcon, CalendarIcon } from "@/components/ui/icons";
 
 type Option = { id: string; name: string };
 // No "transfer" choice here — Source Transfers on the Budgets page cover
@@ -19,16 +19,21 @@ type IncomeAction = "include_in_budget" | "add_to_source" | "create_source";
 const fieldLabel = "flex flex-col gap-1 text-xs text-muted";
 
 export function ManualTransactionForm({
-  accounts,
   categories,
   sources,
   defaultSourceId,
+  defaultAccountId,
   monthAhead,
 }: {
-  accounts: Option[];
   categories: Option[];
   sources: Option[];
   defaultSourceId: string | null;
+  // No Account field in this form (see the hidden input below) — every
+  // manual entry files under whichever account getFilterOptions resolved
+  // as the account meant for this (the is_manual one; see the Accounts
+  // page), same as the row-level Account tooltip in TransactionList reads
+  // off txn.accounts, just decided once here instead of picked per row.
+  defaultAccountId: string | null;
   monthAhead: boolean;
 }) {
   const [typeChoice, setTypeChoice] = useState<TypeChoice>("expense");
@@ -41,8 +46,13 @@ export function ManualTransactionForm({
   // suggestion lookup's await).
   const [categorySource, setCategorySource] = useState<"manual" | "auto" | null>(null);
   const categorySourceRef = useRef<"manual" | "auto" | null>(null);
+  // Controlled (unlike the rest of this form's plain/uncontrolled inputs)
+  // because the picker trigger below needs the current value to render its
+  // tooltip — reset explicitly in handleSubmit alongside categoryId/etc.
+  // rather than trusting form.reset() to reach a controlled field.
+  const [postedDate, setPostedDate] = useState("");
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const { confirm, dialog } = useConfirm();
 
   function setCategory(value: string, source: "manual" | "auto" | null) {
     setCategoryId(value);
@@ -68,19 +78,13 @@ export function ManualTransactionForm({
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const description = String(formData.get("description") ?? "").trim();
-
-    // The category select was auto-filled from a learned rule (categorySource
-    // "auto") or is empty — nothing new to confirm. Only a fresh manual pick
-    // for a merchant with no existing rule needs the prompt.
-    if (categorySource === "manual" && categoryId && description) {
-      const existingRule = await suggestCategoryForDescription(description);
-      if (!existingRule) {
-        const categoryName = categories.find((c) => c.id === categoryId)?.name ?? "this category";
-        const saveRule = await confirm(`Make all "${description}" transactions ${categoryName}?`);
-        formData.set("rule_action", saveRule ? "write" : "skip");
-      }
-    }
+    // The gold "+" adds the transaction outright — it no longer pauses to
+    // confirm saving a vendor rule the way a fresh manual category pick
+    // used to (that confirm() prompt broke the "click + and you're done"
+    // flow this form is for). Vendor rules still get managed their own
+    // way: Settings, or the rule-builder toggle on an already-posted row
+    // in the table below.
+    formData.set("rule_action", "skip");
 
     const result = await createManualTransaction(formData);
     if (result?.error) {
@@ -92,202 +96,218 @@ export function ManualTransactionForm({
     setTypeChoice("expense");
     setIncomeAction("include_in_budget");
     setCategory("", null);
+    setPostedDate("");
   }
 
   return (
-    <>
-      {dialog}
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
-      >
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-nowrap items-end gap-3 overflow-x-auto rounded-lg border border-border bg-surface p-4"
+    >
+      <label className={fieldLabel}>
+        Date
+        <span className="relative inline-flex">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={() => dateInputRef.current?.showPicker?.()}
+            title={postedDate ? formatShortDate(postedDate) : "Pick a date"}
+            aria-label={postedDate ? `Date: ${formatShortDate(postedDate)}` : "Pick a date"}
+            className={postedDate ? "text-foreground" : "text-muted"}
+          >
+            <CalendarIcon size={16} />
+          </Button>
+          {/* Real input, just visually hidden (not display:none) — it stays
+              focusable/connected so showPicker() above can open it, and it's
+              still what actually carries posted_date into the form submit. */}
+          <input
+            ref={dateInputRef}
+            type="date"
+            name="posted_date"
+            required
+            value={postedDate}
+            onChange={(e) => setPostedDate(e.target.value)}
+            className="sr-only"
+          />
+        </span>
+      </label>
+      {/* No visible Account field — see defaultAccountId above. */}
+      <input type="hidden" name="account_id" value={defaultAccountId ?? ""} />
+      <label className={`flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted`}>
+        Description
+        <Input
+          type="text"
+          name="description"
+          required
+          placeholder="e.g. Trader Joe's"
+          onBlur={(e) => handleDescriptionBlur(e.target.value)}
+        />
+      </label>
+      <label className={fieldLabel}>
+        Amount
+        <Input
+          type="number"
+          name="amount"
+          step="0.01"
+          min="0"
+          required
+          onKeyDown={stepAmountByDollar}
+          className="w-28"
+        />
+      </label>
+
+      <label className={fieldLabel}>
+        Type
+        <Select
+          name="type_choice"
+          uiSize="sm"
+          className="w-32"
+          value={typeChoice}
+          onChange={(value) => setTypeChoice(value as TypeChoice)}
+        >
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+          <option value="exclude">Exclude</option>
+        </Select>
+      </label>
+
+      {/* Source before Category, mirroring the Transactions table's column
+          order below (see its Source/Category header pair). */}
+      {typeChoice === "expense" && (
         <label className={fieldLabel}>
-          Date
-          <Input type="date" name="posted_date" required />
-        </label>
-        <label className={fieldLabel}>
-          Account
-          <Select name="account_id" required uiSize="sm" className="w-36">
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
+          Source
+          <Select
+            name="source_id"
+            uiSize="sm"
+            className="w-36"
+            defaultValue={defaultSourceId ?? ""}
+            placeholder="No source"
+          >
+            <option value="">No source</option>
+            {sources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
           </Select>
         </label>
-        <label className={`flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted`}>
-          Description
-          <Input
-            type="text"
-            name="description"
-            required
-            placeholder="e.g. Trader Joe's"
-            onBlur={(e) => handleDescriptionBlur(e.target.value)}
-          />
-        </label>
-        <label className={fieldLabel}>
-          Amount
-          <Input
-            type="number"
-            name="amount"
-            step="0.01"
-            min="0"
-            required
-            onKeyDown={stepAmountByDollar}
-            className="w-28"
-          />
-        </label>
+      )}
 
+      {(typeChoice === "expense" || typeChoice === "income") && (
         <label className={fieldLabel}>
-          Type
+          Category
           <Select
-            name="type_choice"
+            name="category_id"
             uiSize="sm"
-            className="w-32"
-            value={typeChoice}
-            onChange={(value) => setTypeChoice(value as TypeChoice)}
+            className="w-36"
+            value={categoryId}
+            onChange={handleCategoryChange}
+            placeholder="Uncategorized"
           >
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-            <option value="exclude">Exclude</option>
+            <option value="">Uncategorized</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </Select>
+          <input type="hidden" name="category_source" value={categorySource ?? ""} />
         </label>
+      )}
 
-        {(typeChoice === "expense" || typeChoice === "income") && (
-          <label className={fieldLabel}>
-            Category
-            <Select
-              name="category_id"
-              uiSize="sm"
-              className="w-36"
-              value={categoryId}
-              onChange={handleCategoryChange}
-              placeholder="Uncategorized"
-            >
-              <option value="">Uncategorized</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-            <input type="hidden" name="category_source" value={categorySource ?? ""} />
-          </label>
-        )}
+      {typeChoice === "income" && monthAhead && (
+        <p className="max-w-xs pb-2 text-xs text-muted">
+          Flows to the Income Fund automatically — swept into the current
+          budget at the start of next month.
+        </p>
+      )}
 
-        {typeChoice === "expense" && (
-          <label className={fieldLabel}>
-            Source
-            <Select
-              name="source_id"
-              uiSize="sm"
-              className="w-36"
-              defaultValue={defaultSourceId ?? ""}
-              placeholder="No source"
-            >
-              <option value="">No source</option>
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-        )}
+      {typeChoice === "income" && !monthAhead && (
+        <>
+          <fieldset className={fieldLabel}>
+            <legend className="mb-1">Income</legend>
+            <div className="flex flex-wrap gap-3 pb-2">
+              <label className="flex items-center gap-1.5 text-foreground">
+                <input
+                  type="radio"
+                  name="income_action"
+                  value="include_in_budget"
+                  checked={incomeAction === "include_in_budget"}
+                  onChange={() => setIncomeAction("include_in_budget")}
+                />
+                Include in Budget
+              </label>
+              <label className="flex items-center gap-1.5 text-foreground">
+                <input
+                  type="radio"
+                  name="income_action"
+                  value="add_to_source"
+                  checked={incomeAction === "add_to_source"}
+                  onChange={() => setIncomeAction("add_to_source")}
+                />
+                Add to Source
+              </label>
+              <label className="flex items-center gap-1.5 text-foreground">
+                <input
+                  type="radio"
+                  name="income_action"
+                  value="create_source"
+                  checked={incomeAction === "create_source"}
+                  onChange={() => setIncomeAction("create_source")}
+                />
+                Create a Source
+              </label>
+            </div>
+          </fieldset>
 
-        {typeChoice === "income" && monthAhead && (
-          <p className="max-w-xs pb-2 text-xs text-muted">
-            Flows to the Income Fund automatically — swept into the current
-            budget at the start of next month.
-          </p>
-        )}
+          {incomeAction === "add_to_source" && (
+            <label className={fieldLabel}>
+              Source
+              <Select name="source_id" uiSize="sm" className="w-36" placeholder="Choose a source">
+                <option value="">Choose a source</option>
+                {sources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
 
-        {typeChoice === "income" && !monthAhead && (
-          <>
-            <fieldset className={fieldLabel}>
-              <legend className="mb-1">Income</legend>
-              <div className="flex flex-wrap gap-3 pb-2">
-                <label className="flex items-center gap-1.5 text-foreground">
-                  <input
-                    type="radio"
-                    name="income_action"
-                    value="include_in_budget"
-                    checked={incomeAction === "include_in_budget"}
-                    onChange={() => setIncomeAction("include_in_budget")}
-                  />
-                  Include in Budget
-                </label>
-                <label className="flex items-center gap-1.5 text-foreground">
-                  <input
-                    type="radio"
-                    name="income_action"
-                    value="add_to_source"
-                    checked={incomeAction === "add_to_source"}
-                    onChange={() => setIncomeAction("add_to_source")}
-                  />
-                  Add to Source
-                </label>
-                <label className="flex items-center gap-1.5 text-foreground">
-                  <input
-                    type="radio"
-                    name="income_action"
-                    value="create_source"
-                    checked={incomeAction === "create_source"}
-                    onChange={() => setIncomeAction("create_source")}
-                  />
-                  Create a Source
-                </label>
-              </div>
-            </fieldset>
-
-            {incomeAction === "add_to_source" && (
+          {incomeAction === "create_source" && (
+            <>
               <label className={fieldLabel}>
-                Source
-                <Select name="source_id" uiSize="sm" className="w-36" placeholder="Choose a source">
-                  <option value="">Choose a source</option>
-                  {sources.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                New source name
+                <Input
+                  type="text"
+                  name="new_source_name"
+                  required
+                  placeholder="e.g. Bonus"
+                  className="w-36"
+                />
+              </label>
+              <label className={fieldLabel}>
+                Source type
+                <Select name="new_source_type" uiSize="sm" className="w-36" defaultValue="reimbursement">
+                  <option value="reimbursement">Reimbursement</option>
                 </Select>
               </label>
-            )}
+            </>
+          )}
+        </>
+      )}
 
-            {incomeAction === "create_source" && (
-              <>
-                <label className={fieldLabel}>
-                  New source name
-                  <Input
-                    type="text"
-                    name="new_source_name"
-                    required
-                    placeholder="e.g. Bonus"
-                    className="w-36"
-                  />
-                </label>
-                <label className={fieldLabel}>
-                  Source type
-                  <Select name="new_source_type" uiSize="sm" className="w-36" defaultValue="reimbursement">
-                    <option value="reimbursement">Reimbursement</option>
-                  </Select>
-                </label>
-              </>
-            )}
-          </>
-        )}
+      {typeChoice === "exclude" && (
+        <p className="max-w-xs pb-2 text-xs text-muted">
+          Disregarded entirely — no category, source, or budget tracking.
+        </p>
+      )}
 
-        {typeChoice === "exclude" && (
-          <p className="max-w-xs pb-2 text-xs text-muted">
-            Disregarded entirely — no category, source, or budget tracking.
-          </p>
-        )}
-
-        <Button type="submit" variant="accent" size="icon" aria-label="Add transaction">
-          <AddIcon />
-        </Button>
-        {error && <p className="w-full text-xs text-negative">{error}</p>}
-      </form>
-    </>
+      <Button type="submit" variant="accent" size="icon" aria-label="Add transaction">
+        <AddIcon />
+      </Button>
+      {error && <p className="w-full text-xs text-negative">{error}</p>}
+    </form>
   );
 }

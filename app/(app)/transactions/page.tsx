@@ -35,11 +35,6 @@ export default async function TransactionsPage({
     ...resolveSourceFilter(params.source_id),
   };
 
-  // No separate getAccounts() here: getFilterOptions already reads the
-  // accounts table for the Account column filter, in exactly the shape the
-  // manual-entry form needs (id + name). It was a second read of the same
-  // table on every load. The form's account list is now ordered by name
-  // rather than creation date as a result.
   const [transactions, filterOptions, settings] = await Promise.all([
     getFilteredTransactions(filters),
     getFilterOptions(),
@@ -89,10 +84,10 @@ export default async function TransactionsPage({
           Manual transactions
         </p>
         <ManualTransactionForm
-          accounts={filterOptions.accounts.map((a) => ({ id: a.id, name: a.account_name }))}
           categories={filterOptions.categories}
           sources={filterOptions.sources}
           defaultSourceId={filterOptions.defaultSourceId}
+          defaultAccountId={filterOptions.defaultAccountId}
           monthAhead={settings.month_ahead}
         />
       </section>
