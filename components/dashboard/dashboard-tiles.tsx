@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { computeProgress } from "@/lib/progress";
 import { useModal } from "@/components/ui/modal";
 import { Card } from "@/components/ui/card";
@@ -55,13 +55,25 @@ export function DashboardStatTiles({
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile label="Income" onClick={() => openTile("Income", { type: "income" })}>
+        <StatTile
+          label="Income"
+          tooltip="Standard income."
+          onClick={() => openTile("Income", { type: "income" })}
+        >
           <Money amount={income} decimalPlaces={decimalPlaces} className="text-positive" />
         </StatTile>
-        <StatTile label="Expenses" onClick={() => openTile("Expenses", { type: "budgeted_outflow" })}>
+        <StatTile
+          label="Expenses"
+          tooltip="Budget-sourced spending."
+          onClick={() => openTile("Expenses", { type: "budgeted_outflow" })}
+        >
           <Money amount={expenses} decimalPlaces={decimalPlaces} className="text-negative" />
         </StatTile>
-        <StatTile label="Budget Net" onClick={() => openTile("Budget Net", { type: "budget_net" })}>
+        <StatTile
+          label="Budget Net"
+          tooltip="Budget Allocation - Expenses + Categorized Income."
+          onClick={() => openTile("Budget Net", { type: "budget_net" })}
+        >
           <Money
             amount={budgetNet}
             decimalPlaces={decimalPlaces}
@@ -71,17 +83,23 @@ export function DashboardStatTiles({
 
         <StatTile
           label="Other Inflows"
+          tooltip="Nonbudget income."
           onClick={() => openTile("Other Inflows", { type: "other_inflow" })}
         >
           <Money amount={otherInflow} decimalPlaces={decimalPlaces} className="text-positive" />
         </StatTile>
         <StatTile
           label="Other Outflows"
+          tooltip="Nonbudget spending."
           onClick={() => openTile("Other Outflows", { type: "other_outflow" })}
         >
           <Money amount={otherOutflow} decimalPlaces={decimalPlaces} className="text-negative" />
         </StatTile>
-        <StatTile label="Net Cash Flow" onClick={() => openTile("Net Cash Flow", { type: "total_net" })}>
+        <StatTile
+          label="Net Cash Flow"
+          tooltip="Any income - any expenses."
+          onClick={() => openTile("Net Cash Flow", { type: "total_net" })}
+        >
           <Money
             amount={totalNet}
             decimalPlaces={decimalPlaces}
@@ -89,16 +107,19 @@ export function DashboardStatTiles({
           />
         </StatTile>
 
-        <StatTile label="Float" onClick={() => openTile("Float", { type: "float" })}>
+        <StatTile label="Float" tooltip="Total money owed." onClick={() => openTile("Float", { type: "float" })}>
           <Money
             amount={floatBalance}
             decimalPlaces={decimalPlaces}
             className={floatBalance < 0 ? "text-negative" : ""}
           />
         </StatTile>
-        <StatTile label="Budget Fill">{budgetFillPct === null ? "—" : `${budgetFillPct}%`}</StatTile>
+        <StatTile label="Budget Fill" tooltip="Income / Budget Allocation.">
+          {budgetFillPct === null ? "—" : `${budgetFillPct}%`}
+        </StatTile>
         <StatTile
           label="Budget Rate"
+          tooltip="Actual spending vs. even-paced spending."
           onClick={() => openTile("Budget Rate", { type: "budgeted_outflow" })}
         >
           <BudgetRateChart
@@ -116,10 +137,12 @@ export function DashboardStatTiles({
 
 function StatTile({
   label,
+  tooltip,
   children,
   onClick,
 }: {
   label: string;
+  tooltip: string;
   children: ReactNode;
   onClick?: () => void;
 }) {
@@ -132,8 +155,9 @@ function StatTile({
     </Card>
   );
 
-  if (!onClick) return content;
-  return (
+  const inner = !onClick ? (
+    content
+  ) : (
     <button
       type="button"
       onClick={onClick}
@@ -141,6 +165,38 @@ function StatTile({
     >
       {content}
     </button>
+  );
+
+  // Tracks the pointer so the tooltip appears right where the cursor is
+  // rather than at a fixed spot on the tile. Falls back to centered-above
+  // (no cursor coordinates yet) for keyboard focus, which never fires
+  // onMouseMove.
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const tooltipStyle: CSSProperties = cursor
+    ? { left: cursor.x, top: cursor.y, transform: "translate(-50%, calc(-100% - 12px))" }
+    : { left: "50%", top: 0, transform: "translate(-50%, calc(-100% - 8px))" };
+
+  return (
+    <div
+      className="group relative"
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }}
+    >
+      {inner}
+      {/* Delay-in / instant-out: the base 100ms transition has no delay (fast
+          vanish on mouse-out); the hover/focus state overrides duration+delay
+          to fade in slowly after ~1s. Leaving removes the hover rule, so the
+          no-delay base transition takes over immediately. */}
+      <div
+        role="tooltip"
+        style={tooltipStyle}
+        className="pointer-events-none absolute z-10 w-max max-w-[15rem] rounded-lg border border-card-border bg-surface px-3 py-2 text-xs text-muted opacity-0 shadow-popover transition-opacity duration-100 group-hover:opacity-100 group-hover:delay-[1000ms] group-hover:duration-150 group-focus-visible:opacity-100 group-focus-visible:delay-[1000ms] group-focus-visible:duration-150"
+      >
+        {tooltip}
+      </div>
+    </div>
   );
 }
 
