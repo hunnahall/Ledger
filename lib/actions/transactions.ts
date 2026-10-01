@@ -234,7 +234,19 @@ export async function assignTransaction(
   // See createManualTransaction — "skip" means the user was prompted to
   // save a new vendor rule for this merchant and declined.
   const ruleAction = String(formData.get("rule_action") ?? "");
-  const sourceId = String(formData.get("source_id") ?? "") || null;
+  // Same stripping as categoryId above, and for the same reason: the Source
+  // select's hidden input carries this row's own Exclude/Income sentinel
+  // (EXCLUDE_SOURCE/INCOME_SOURCE in transaction-list.tsx, same strings as
+  // these two constants) whenever the row is currently flagged that way, not
+  // just at the moment it's picked — so *any* later autosave on an already-
+  // Excluded/Income row (the "+Add Rule" toggle, a Date/Notes edit, ...)
+  // read it straight off the DOM and tried to write it into this uuid
+  // column, which Postgres rejects.
+  const rawSourceId = String(formData.get("source_id") ?? "");
+  const sourceId =
+    rawSourceId && rawSourceId !== INCOME_RULE_TARGET && rawSourceId !== EXCLUDE_RULE_TARGET
+      ? rawSourceId
+      : null;
   const postedDate = String(formData.get("posted_date") ?? "") || null;
   const isTransfer = formData.get("is_transfer") === "on";
   const isIncome = formData.get("is_income") === "on";
@@ -391,7 +403,12 @@ export async function createSourceFromTransaction(
 
 export async function bulkUpdateTransactions(
   transactionIds: string[],
-  updates: { categoryId?: string | null; sourceId?: string | null; excludeFromBudget?: boolean },
+  updates: {
+    categoryId?: string | null;
+    sourceId?: string | null;
+    excludeFromBudget?: boolean;
+    isIncome?: boolean;
+  },
 ): Promise<{ error: string } | null> {
   if (transactionIds.length === 0) return null;
 
@@ -402,26 +419,34 @@ export async function bulkUpdateTransactions(
     exclude_from_budget?: boolean;
     is_income?: boolean;
   } = {};
-  // Excluded is "never tracked/budgeted" (see context.md), same as the
-  // single-row EXCLUDE_SOURCE path in handleSourceChange — mutually
-  // exclusive with a category/Income/source pick, so it short-circuits those.
+  // Excluded and Income are both Source-select sentinels now (see
+  // EXCLUDE_SOURCE/INCOME_SOURCE in transaction-list.tsx) — mutually
+  // exclusive with a category/source pick and with each other, so each
+  // short-circuits the plain field updates below.
   if (updates.excludeFromBudget) {
     patch.exclude_from_budget = true;
     patch.source_id = null;
     patch.category_id = null;
     patch.category_source = null;
     patch.is_income = false;
+  } else if (updates.isIncome) {
+    patch.is_income = true;
+    patch.source_id = null;
+    patch.category_id = null;
+    patch.category_source = null;
+    patch.exclude_from_budget = false;
   } else {
     if (updates.categoryId !== undefined) {
       patch.category_id = updates.categoryId;
       patch.category_source = updates.categoryId ? "manual" : null;
     }
-    // Picking a real source is this row's only way out of Excluded (see
-    // handleSourceChange's wasExcluded handling) — mirror that here so a
-    // bulk source pick doesn't leave exclude_from_budget stuck true.
+    // Picking a real source is this row's only way out of Excluded/Income
+    // (see handleSourceChange's wasExcluded/clearIncome handling) — mirror
+    // that here so a bulk source pick doesn't leave either stuck true.
     if (updates.sourceId !== undefined) {
       patch.source_id = updates.sourceId;
       patch.exclude_from_budget = false;
+      patch.is_income = false;
     }
   }
   if (Object.keys(patch).length === 0) return null;

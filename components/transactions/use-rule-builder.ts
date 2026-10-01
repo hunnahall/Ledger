@@ -3,20 +3,20 @@
 import { useCallback } from "react";
 import { ruleExistsForDescription } from "@/lib/actions/transactions";
 
+// Rule targets, shared by the "Add Rule" flow below (resolveRuleAction's
+// label, and the target this row passes it — see handleToggleBuildRule and
+// handleSourceChange in transaction-list.tsx, which is the only place these
+// now get *picked*: Income lives on the Source select, Excluded on the same
+// select's EXCLUDE_SOURCE sentinel).
 export const INCOME = "__income__";
-// Local to this row's rule-builder flow, same idea as INCOME above — the
-// "+"/buildRule toggle uses this to represent an already-Excluded row (see
-// handleToggleBuildRule in transaction-list.tsx) when there's no category
-// pick to key off of. Not imported from vendor-rule-target.ts: that file's
-// EXCLUDE_RULE_TARGET drives the Settings rule forms' own <select>, a
-// separate surface that happens to use the same string.
 export const EXCLUDE = "__exclude__";
 
 type Option = { id: string; name: string };
 
 // The "Add Rule" flow, lifted out of TransactionRow: deciding whether a
-// category pick should also teach a vendor rule, and asking the user about
-// it. Three call sites shared this and each carried part of the reasoning.
+// category/Income/Exclude pick should also teach a vendor rule, and asking
+// the user about it. Three call sites shared this and each carried part of
+// the reasoning.
 //
 // `resolveRuleAction` returns what to send as rule_action on the next save:
 //   "write"  — user said yes, learn a rule for this merchant
@@ -33,16 +33,16 @@ export function useRuleBuilder({
   confirm: (message: string) => Promise<boolean>;
 }) {
   const resolveRuleAction = useCallback(
-    async (targetCategoryId: string): Promise<string | undefined> => {
+    async (target: string): Promise<string | undefined> => {
       const exists = await ruleExistsForDescription(description);
       if (exists) return undefined;
 
       const targetLabel =
-        targetCategoryId === INCOME
+        target === INCOME
           ? "Income"
-          : targetCategoryId === EXCLUDE
+          : target === EXCLUDE
             ? "Excluded"
-            : (categories.find((c) => c.id === targetCategoryId)?.name ?? "this category");
+            : (categories.find((c) => c.id === target)?.name ?? "this category");
       const saveRule = await confirm(`Make all "${description}" transactions ${targetLabel}?`);
       return saveRule ? "write" : "skip";
     },
@@ -53,35 +53,10 @@ export function useRuleBuilder({
   // this row — re-picking what's already saved (or what a learned rule
   // already fills in) is reinforcement, not a decision.
   const isFreshPick = useCallback(
-    ({
-      nowIncome,
-      newCategoryId,
-      savedIsIncome,
-      savedCategoryId,
-    }: {
-      nowIncome: boolean;
-      newCategoryId: string;
-      savedIsIncome: boolean;
-      savedCategoryId: string | null;
-    }) =>
-      nowIncome ? !savedIsIncome : Boolean(newCategoryId) && newCategoryId !== (savedCategoryId ?? ""),
+    (newCategoryId: string, savedCategoryId: string | null) =>
+      Boolean(newCategoryId) && newCategoryId !== (savedCategoryId ?? ""),
     [],
   );
 
-  // A rule can target Income just like a real category (see the
-  // vendor_category_rules.is_income column), but the two are stored
-  // differently: category_id's hidden input still holds the raw INCOME
-  // sentinel, which must not reach a uuid column.
-  const overridesFor = useCallback(
-    (categoryId: string): Record<string, string> => {
-      const nowIncome = categoryId === INCOME;
-      return {
-        category_id: nowIncome ? "" : categoryId,
-        is_income: nowIncome ? "on" : "",
-      };
-    },
-    [],
-  );
-
-  return { resolveRuleAction, isFreshPick, overridesFor };
+  return { resolveRuleAction, isFreshPick };
 }

@@ -48,14 +48,9 @@ export type TransactionRowData = {
 
 type Option = { id: string; name: string };
 
-// A sentinel option in the Category select rather than a separate
-// checkbox — always available regardless of which budget's categories
-// are currently loaded, since it isn't a real categories row. Picking it
-// sets is_income and clears category_id; picking a real category (or
-// Uncategorized) clears is_income back out.
-// Same idea, in the Source select: picking it doesn't change source_id
-// directly — it reveals the inline "create a source from this amount"
-// form instead (see addingSource below).
+// A sentinel option in the Source select — picking it doesn't change
+// source_id directly, it reveals the inline "create a source from this
+// amount" form instead (see addingSource below).
 const ADD_SOURCE = "__add_source__";
 
 // Another sentinel option in the same Source select, replacing the Exclude
@@ -64,6 +59,18 @@ const ADD_SOURCE = "__add_source__";
 // did; see handleSourceChange. There's no Transfer equivalent — Source
 // Transfers on the Budgets page cover that now.
 const EXCLUDE_SOURCE = "__exclude__";
+
+// Same idea, for Income — there is no "Income" category (see context.md:
+// every transaction gets a Category and a Source, and Income describes what
+// pays for it, not what it is), so marking a transaction Income now lives
+// here instead of as a sentinel in the Category select. Picking it clears
+// source_id/category_id the same way EXCLUDE_SOURCE does; the Category
+// select is disabled whenever a row is Income (see isBudgetSource below).
+// Same string as INCOME (imported from use-rule-builder.ts) deliberately —
+// that constant drives the rule-builder's target resolution/label, this one
+// the Source select's own value space; see EXCLUDE_SOURCE/EXCLUDE above for
+// the same pairing.
+const INCOME_SOURCE = "__income__";
 
 // accounts.last4 isn't populated by anything in this app yet (no bank-sync
 // pipeline writes it), so the Account column would otherwise show nothing
@@ -234,6 +241,15 @@ export function TransactionList({
     });
   }, [selectedIds]);
 
+  // Same idea, for the Source select's Income sentinel (see INCOME_SOURCE).
+  const applyBulkIncome = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    startTransition(async () => {
+      const result = await bulkUpdateTransactions(ids, { isIncome: true });
+      setBulkError(result?.error ?? null);
+    });
+  }, [selectedIds]);
+
   return (
     <div className="flex flex-col gap-3">
       {selectedIds.size > 0 && (
@@ -341,6 +357,7 @@ export function TransactionList({
                     onBulkApplyCategory={applyBulkCategory}
                     onBulkApplySource={applyBulkSource}
                     onBulkApplyExclude={applyBulkExclude}
+                    onBulkApplyIncome={applyBulkIncome}
                     buildRule={buildRuleIds.has(txn.id)}
                     onToggleBuildRule={toggleBuildRule}
                     isLastRow={virtualRow.index === transactions.length - 1}
@@ -372,6 +389,7 @@ const TransactionRow = memo(function TransactionRow({
   onBulkApplyCategory,
   onBulkApplySource,
   onBulkApplyExclude,
+  onBulkApplyIncome,
   buildRule,
   onToggleBuildRule,
   isLastRow,
@@ -394,6 +412,7 @@ const TransactionRow = memo(function TransactionRow({
   onBulkApplyCategory: (categoryId: string | null) => void;
   onBulkApplySource: (sourceId: string | null) => void;
   onBulkApplyExclude: () => void;
+  onBulkApplyIncome: () => void;
   // Whether picking a category on this row should go through the
   // learn-a-rule flow (existing-rule lookup, then the "make this a rule?"
   // prompt) — lifted to the parent (see buildRuleIds) rather than kept as
@@ -418,7 +437,14 @@ const TransactionRow = memo(function TransactionRow({
   const [editingDescription, setEditingDescription] = useState(false);
   const [descError, setDescError] = useState<string | null>(null);
   const [splitOpen, setSplitOpen] = useState(txn.isSplit);
-  const [categoryId, setCategoryId] = useState(txn.isIncome ? INCOME : txn.categoryId ?? "");
+  // Not cleared/replaced by a sentinel when txn.isIncome — Income no longer
+  // lives in this field (see INCOME_SOURCE), and a transaction can carry a
+  // real category_id alongside is_income (the manual-entry form's own
+  // Income type still lets a paycheck be filed under a category — see
+  // v_budget_category_income). Keeping the real value here means an Income
+  // row's other autosaves (Date, Notes, ...) keep resubmitting it instead of
+  // silently nulling it out the first time anything else on the row saves.
+  const [categoryId, setCategoryId] = useState(txn.categoryId ?? "");
   const [sourceId, setSourceId] = useState(txn.sourceId ?? "");
   const [addingSource, setAddingSource] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
@@ -455,7 +481,7 @@ const TransactionRow = memo(function TransactionRow({
     setPrevTxn(txn);
     setIsTransfer(txn.isTransfer);
     setIsIncome(txn.isIncome);
-    setCategoryId(txn.isIncome ? INCOME : txn.categoryId ?? "");
+    setCategoryId(txn.categoryId ?? "");
     setSourceId(txn.sourceId ?? "");
     setPostedDate(txn.postedDate);
     setDescription(txn.description);
@@ -497,27 +523,21 @@ const TransactionRow = memo(function TransactionRow({
 
   // "Add Rule": whether this category pick should also teach a vendor rule,
   // and the prompt that asks. See use-rule-builder.ts.
-  const { resolveRuleAction, isFreshPick, overridesFor } = useRuleBuilder({
+  const { resolveRuleAction, isFreshPick } = useRuleBuilder({
     description: txn.description,
     categories,
     confirm,
   });
 
   async function handleCategoryChange(newCategoryId: string) {
-    const nowIncome = newCategoryId === INCOME;
     setCategoryId(newCategoryId);
-    setIsIncome(nowIncome);
 
-    // Part of a multi-selection: apply this pick to every selected row at
-    // once instead of just this one. Income is a flag, not a real category
-    // (bulkUpdateTransactions has no notion of it), so that pick still only
-    // ever applies to this single row.
-    if (selected && selectedCount > 1 && !nowIncome) {
+    if (selected && selectedCount > 1) {
       onBulkApplyCategory(newCategoryId || null);
       return;
     }
 
-    const overrides = overridesFor(newCategoryId);
+    const overrides: Record<string, string> = { category_id: newCategoryId };
 
     if (!buildRule) {
       // Build Rule unchecked: assign the category and leave rules alone
@@ -525,15 +545,7 @@ const TransactionRow = memo(function TransactionRow({
       // whenever category_id is set, so this has to be explicit, not just
       // "don't show the prompt".
       overrides.rule_action = "skip";
-    } else if (
-      !isTransfer &&
-      isFreshPick({
-        nowIncome,
-        newCategoryId,
-        savedIsIncome: txn.isIncome,
-        savedCategoryId: txn.categoryId,
-      })
-    ) {
+    } else if (!isTransfer && isFreshPick(newCategoryId, txn.categoryId)) {
       const ruleAction = await resolveRuleAction(newCategoryId);
       if (ruleAction) overrides.rule_action = ruleAction;
     }
@@ -541,31 +553,33 @@ const TransactionRow = memo(function TransactionRow({
     await saveRow(overrides);
   }
 
-  // Add Rule can be turned on after a category was already picked, not
-  // just before — order shouldn't change the outcome. If this row already
-  // carries a category (or Income) when the toggle flips on, offer the
-  // same "make this a rule?" prompt for it right now instead of only ever
+  // Add Rule can be turned on after a category/Income/Exclude was already
+  // picked, not just before — order shouldn't change the outcome. If this
+  // row already carries a target when the toggle flips on, offer the same
+  // "make this a rule?" prompt for it right now instead of only ever
   // checking at the moment the category itself changes.
   async function handleToggleBuildRule() {
     const turningOn = !buildRule;
     onToggleBuildRule(txn.id);
     if (!turningOn || isTransfer) return;
 
-    // An already-Excluded row (no category, no Income) is a rule target
-    // too — see the isExcludeTarget check in assignTransaction, which is
-    // what actually persists the rule once rule_action isn't "skip".
+    // An already-Excluded row (no category) is a rule target too — see the
+    // isExcludeTarget check in assignTransaction, which is what actually
+    // persists the rule once rule_action isn't "skip".
     const isExcludeRow = excludeFromBudget && !categoryId;
-    const hasTarget = categoryId === INCOME || Boolean(categoryId) || isExcludeRow;
+    const hasTarget = isIncome || Boolean(categoryId) || isExcludeRow;
     if (!hasTarget) return;
 
-    const target = isExcludeRow ? EXCLUDE : categoryId;
+    const target = isExcludeRow ? EXCLUDE : isIncome ? INCOME : categoryId;
     const ruleAction = await resolveRuleAction(target);
     if (ruleAction === "skip") return;
 
-    // Excluded has nothing to write into category_id/is_income — the row's
-    // own hidden mirrors already carry exclude_from_budget=true, so just
-    // the rule_action override is enough to make assignTransaction learn it.
-    const overrides: Record<string, string> = isExcludeRow ? {} : overridesFor(categoryId);
+    // Income/Excluded have nothing to write into category_id — the row's
+    // own hidden mirrors already carry is_income/exclude_from_budget, so
+    // just the rule_action override is enough to make assignTransaction
+    // learn it.
+    const overrides: Record<string, string> =
+      isExcludeRow || isIncome ? {} : { category_id: categoryId };
     if (ruleAction) overrides.rule_action = ruleAction;
     await saveRow(overrides);
   }
@@ -576,28 +590,26 @@ const TransactionRow = memo(function TransactionRow({
       return;
     }
 
-    // Exclude lives as a sentinel option in this same Source select (see
-    // EXCLUDE_SOURCE) rather than a separate checkbox — there's no longer a
-    // detail panel to put one in. It clears source_id/category_id the same
-    // way leaving Budget already did, and — like a real source pick — it
-    // participates in the multi-select bulk-apply below.
+    // Exclude and Income both live as sentinel options in this same Source
+    // select (see EXCLUDE_SOURCE/INCOME_SOURCE) rather than separate
+    // controls — there's no "Income"/Excluded category, so marking either
+    // clears source_id/category_id the same way leaving Budget already did,
+    // and — like a real source pick — both participate in the multi-select
+    // bulk-apply below.
     //
-    // There's no equivalent Transfer option here — Source Transfers on the
-    // Budgets page now cover recurring/manual movement between a user's own
+    // There's no Transfer option here — Source Transfers on the Budgets
+    // page now cover recurring/manual movement between a user's own
     // sources, so marking an individual bank transaction as a transfer is
     // handled entirely by match_transfer_pairs during sync (or by picking
-    // "Transfer" on the manual-entry form), never from this row. Whenever
-    // isTransfer is true the Source select below is disabled, so this
-    // function can never actually be reached with it true.
+    // "Transfer" on the manual-entry form), never from this row. Picking
+    // any real value here on a match_transfer_pairs-flagged row (isTransfer)
+    // clears that flag instead — match_transfer_pairs is a same-day/same-
+    // amount heuristic (see its own comment), so this is this row's way out
+    // of a false-positive match.
     if (newSourceId === EXCLUDE_SOURCE) {
       setIsTransfer(false);
       setExcludeFromBudget(true);
       setSourceId("");
-      // Excluded means never tracked/budgeted (see context.md) — unlike
-      // leaving Budget for another real source, Income isn't exempt here:
-      // there's no "Income" bucket once a row is Excluded, so a prior
-      // category (or Income) pick falls away instead of persisting
-      // alongside a flag that no longer applies to it.
       const clearCategory = Boolean(categoryId);
       const clearIncome = isIncome;
       if (clearCategory) setCategoryId("");
@@ -619,22 +631,45 @@ const TransactionRow = memo(function TransactionRow({
       return;
     }
 
+    if (newSourceId === INCOME_SOURCE) {
+      setIsTransfer(false);
+      setExcludeFromBudget(false);
+      setSourceId("");
+      setIsIncome(true);
+      const clearCategory = Boolean(categoryId);
+      if (clearCategory) setCategoryId("");
+
+      if (selected && selectedCount > 1) {
+        onBulkApplyIncome();
+        return;
+      }
+
+      await saveRow({
+        is_income: "on",
+        is_transfer: "",
+        exclude_from_budget: "",
+        source_id: "",
+        ...(clearCategory ? { category_id: "" } : {}),
+        rule_action: "skip",
+      });
+      return;
+    }
+
     const wasExcluded = excludeFromBudget;
+    const wasTransfer = isTransfer;
     setExcludeFromBudget(false);
+    setIsTransfer(false);
     setSourceId(newSourceId);
 
     // Any source change clears a picked category — a category picked under
     // the old Source no longer necessarily applies under the new one (and a
     // real category only applies while Source is Budget in the first place;
     // see the Category select below), so there's nothing worth carrying
-    // over either way. Income is exempt (its own flag, not gated by Source)
-    // — except when Source resets to "No source": that's this row's one way
-    // out of Income once picked, since the Category select otherwise only
-    // ever offers "Income" (already selected) on any non-Budget Source,
-    // with nothing else there to switch to instead.
-    const resettingToNoSource = newSourceId === "";
-    const clearIncome = resettingToNoSource && isIncome;
-    const clearCategory = (!isIncome && Boolean(categoryId)) || clearIncome;
+    // over either way. Income is cleared too: it's this row's one way out
+    // of Income now that picking it lives here (see INCOME_SOURCE above),
+    // the same way picking a real source already ends Excluded.
+    const clearIncome = isIncome;
+    const clearCategory = Boolean(categoryId);
     if (clearCategory) setCategoryId("");
     if (clearIncome) setIsIncome(false);
 
@@ -652,6 +687,7 @@ const TransactionRow = memo(function TransactionRow({
       rule_action: "skip",
     };
     if (wasExcluded) overrides.exclude_from_budget = "";
+    if (wasTransfer) overrides.is_transfer = "";
     if (clearCategory) overrides.category_id = "";
     if (clearIncome) overrides.is_income = "";
     await saveRow(overrides);
@@ -701,11 +737,16 @@ const TransactionRow = memo(function TransactionRow({
   const accountLast4Value = txn.accountLast4 ?? accountLast4(txn.accountName);
   const accountDisplay = accountLast4Value ?? txn.accountName ?? "—";
 
-  // What the Source select currently shows — a real source id, or the
-  // Exclude sentinel that replaces the old Exclude checkbox (see
-  // handleSourceChange). A transaction the sync auto-flagged as a transfer
-  // has no notion here at all: the select is disabled below and shows "—".
-  const sourceSelectValue = excludeFromBudget ? EXCLUDE_SOURCE : sourceId;
+  // What the Source select currently shows — a real source id, the Exclude
+  // sentinel (see handleSourceChange), or the Income sentinel when Income is
+  // set with no linked source. A real sourceId still wins over isIncome: the
+  // manual-entry form's Income type can link a real source (e.g. "Add to
+  // Source"), and that's worth showing over the generic sentinel.
+  const sourceSelectValue = excludeFromBudget
+    ? EXCLUDE_SOURCE
+    : isIncome && !sourceId
+      ? INCOME_SOURCE
+      : sourceId;
 
   const [createSourceState, createSourceAction] = useActionState(
     createSourceFromTransaction.bind(null, txn.id),
@@ -860,13 +901,13 @@ const TransactionRow = memo(function TransactionRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:contents">
-            {/* Disabled while isTransfer — a transfer's source_id stays
-                null (transactions_sync_transfer_balance applies its amount
-                via transfer_from/to_source_id instead), and there's no
-                Transfer option here to switch into or out of: Source
-                Transfers on the Budgets page own that now, so a bank
-                transaction only ever becomes one via match_transfer_pairs
-                during sync or the manual-entry form's own Transfer type. */}
+            {/* Not disabled for isTransfer — match_transfer_pairs is a
+                same-day/same-amount sync heuristic (see its own comment)
+                and can mismatch, so this row's one way out of a false
+                positive is picking a real value here, which clears the
+                flag (see handleSourceChange). There's still no Transfer
+                option to switch *into*: Source Transfers on the Budgets
+                page own recording an intentional one. */}
             <Select
               form={`txn-${txn.id}`}
               name="source_id"
@@ -874,8 +915,7 @@ const TransactionRow = memo(function TransactionRow({
               className="min-w-0 flex-1 md:w-40 md:flex-none"
               value={sourceSelectValue}
               onChange={handleSourceChange}
-              placeholder={isTransfer ? "—" : "No source"}
-              disabled={isTransfer}
+              placeholder="No source"
             >
               <option value="">No source</option>
               {sources.map((s) => (
@@ -884,6 +924,7 @@ const TransactionRow = memo(function TransactionRow({
                 </option>
               ))}
               <option value={EXCLUDE_SOURCE}>Exclude</option>
+              {!isTransfer && txn.amount > 0 && <option value={INCOME_SOURCE}>Income</option>}
               {!isTransfer && !excludeFromBudget && txn.amount > 0 && (
                 <option value={ADD_SOURCE}>+ Add source</option>
               )}
@@ -897,22 +938,19 @@ const TransactionRow = memo(function TransactionRow({
                 // v_spending_by_category, scoped to s.type = 'budget'), so
                 // this reads as inert on any other Source — shaded the same
                 // as the table header (bg-surface-subtle) rather than left
-                // looking like a normal, pickable field. The one exception
-                // is Income, which is its own flag with its own
-                // Source-routing (see handleCategoryChange/
-                // route_income_to_fund) and stays available — and normal-
-                // looking — no matter what this row's Source is. Transfer
-                // and Excluded (see EXCLUDE_SOURCE) both disable it outright,
-                // per the same "grayed out" treatment a non-budget source
-                // already gets.
-                className={`min-w-0 flex-1 md:w-full ${!isBudgetSource && !isIncome ? "bg-surface-subtle" : ""}`}
+                // looking like a normal, pickable field. There is no
+                // "Income" category (see context.md) — Income lives on the
+                // Source select (INCOME_SOURCE) instead, and isBudgetSource
+                // is already false whenever it's set (Income clears
+                // source_id), so this shading and the disabled prop below
+                // both already cover it without a separate check.
+                className={`min-w-0 flex-1 md:w-full ${!isBudgetSource ? "bg-surface-subtle" : ""}`}
                 value={categoryId}
                 onChange={handleCategoryChange}
-                placeholder={isTransfer ? "—" : isBudgetSource ? "Uncategorized" : "—"}
-                disabled={isTransfer || excludeFromBudget}
+                placeholder={isBudgetSource ? "Uncategorized" : "—"}
+                disabled={excludeFromBudget || isIncome}
               >
-                {(isBudgetSource || isIncome) && <option value="">Uncategorized</option>}
-                {!isTransfer && txn.amount > 0 && <option value={INCOME}>Income</option>}
+                {isBudgetSource && <option value="">Uncategorized</option>}
                 {isBudgetSource &&
                   categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -920,7 +958,7 @@ const TransactionRow = memo(function TransactionRow({
                     </option>
                   ))}
               </Select>
-              {(isBudgetSource || isIncome) && txn.categorySource === "rule" && (
+              {isBudgetSource && txn.categorySource === "rule" && (
                 <span
                   className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
                   title="Auto-categorized from a learned rule"

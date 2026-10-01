@@ -36,7 +36,15 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   if (filters.accountId) query = query.eq("account_id", filters.accountId);
   if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
   if (filters.sourceId) query = query.eq("source_id", filters.sourceId);
-  if (filters.sourceIsNull) query = query.is("source_id", null);
+  // source_id is also null for an Excluded or Income-marked row (see
+  // EXCLUDE_SOURCE/INCOME_SOURCE in transaction-list.tsx) — neither shows as
+  // "No source" in that row's own Source select (they're their own distinct
+  // sentinel values there), so this filter shouldn't surface them as if they
+  // did. A still-unresolved Transfer *does* show "No source" in that same
+  // select (it has no sentinel of its own), so it stays included here.
+  if (filters.sourceIsNull) {
+    query = query.is("source_id", null).eq("exclude_from_budget", false).eq("is_income", false);
+  }
   if (filters.uncategorizedOnly) {
     query = query.is("category_id", null).eq("is_transfer", false);
   }
