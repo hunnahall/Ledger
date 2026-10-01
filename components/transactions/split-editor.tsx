@@ -45,20 +45,8 @@ export function SplitEditor({
         const existing = splits[i - 1];
         return (
           <div key={existing?.id ?? `new-${i}`} className="flex flex-wrap items-center gap-2">
-            <Select
-              name={`split_category_${i}`}
-              uiSize="sm"
-              className="w-36 py-1 text-xs"
-              defaultValue={existing?.categoryId ?? ""}
-              placeholder="No category"
-            >
-              <option value="">No category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            {/* Source before Category, matching the Transactions table's own
+                column order (see its Source/Category header pair). */}
             <Select
               name={`split_source_${i}`}
               uiSize="sm"
@@ -70,6 +58,20 @@ export function SplitEditor({
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              name={`split_category_${i}`}
+              uiSize="sm"
+              className="w-36 py-1 text-xs"
+              defaultValue={existing?.categoryId ?? ""}
+              placeholder="No category"
+            >
+              <option value="">No category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </Select>

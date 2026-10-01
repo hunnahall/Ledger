@@ -64,23 +64,65 @@ export async function getDashboardTileTransactions(
     // No amount-sign filter — v_spending_by_source nets any inflow (a
     // refund, reimbursement, income) tied to this Source against its
     // outflows, so this popup has to list both sides to sum to the same
-    // total the tile shows.
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("id, posted_date, description, amount")
-      .eq("source_id", kind.sourceId)
-      .eq("is_transfer", false)
-      .eq("exclude_from_budget", false)
-      .gte("posted_date", month)
-      .lt("posted_date", nextMonth)
-      .order("posted_date", { ascending: false });
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((r) => ({
+    // total the tile shows. Mirrors that view's own shape (see its latest
+    // migration): a plain, not-split transaction keyed by its own
+    // source_id, unioned with transaction_splits rows keyed by theirs — a
+    // split transaction's own source_id/amount go balance-inert the moment
+    // is_split flips true (transactions_sync_balance's "not is_split"
+    // guard), so reading only this table would both double-count a split
+    // parent whose own source_id happens to match this Source and miss any
+    // split that actually routed money to it from a different parent.
+    const [{ data: plain, error: plainError }, { data: splits, error: splitsError }] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("id, posted_date, description, amount")
+        .eq("source_id", kind.sourceId)
+        .eq("is_transfer", false)
+        .eq("exclude_from_budget", false)
+        .eq("is_split", false)
+        .gte("posted_date", month)
+        .lt("posted_date", nextMonth)
+        .order("posted_date", { ascending: false }),
+      supabase
+        .from("transaction_splits")
+        .select("id, amount, transactions!inner(posted_date, description, is_transfer, exclude_from_budget)")
+        .eq("source_id", kind.sourceId),
+    ]);
+    if (plainError) throw new Error(plainError.message);
+    if (splitsError) throw new Error(splitsError.message);
+
+    const plainRows = (plain ?? []).map((r) => ({
       id: r.id,
       postedDate: r.posted_date,
       description: r.description,
       amount: r.amount,
     }));
+    const splitRows = (splits ?? [])
+      .map((s) => ({
+        id: s.id,
+        amount: s.amount,
+        parent: s.transactions as {
+          posted_date: string;
+          description: string;
+          is_transfer: boolean;
+          exclude_from_budget: boolean;
+        },
+      }))
+      .filter(
+        (s) =>
+          !s.parent.is_transfer &&
+          !s.parent.exclude_from_budget &&
+          s.parent.posted_date >= month &&
+          s.parent.posted_date < nextMonth,
+      )
+      .map((s) => ({
+        id: s.id,
+        postedDate: s.parent.posted_date,
+        description: s.parent.description,
+        amount: s.amount,
+      }));
+
+    return [...plainRows, ...splitRows].sort((a, b) => b.postedDate.localeCompare(a.postedDate));
   }
 
   let query = supabase
@@ -169,28 +211,53 @@ export async function getDashboardTileTransactions(
 // All-time transaction list for the Float source's running balance — every
 // transaction booked to it plus any transfer in/out, since sources.balance
 // is kept in sync with both by the DB triggers in
-// transactions_sync_transfer_balance/sync_source_or_fund_balance.
+// transactions_sync_transfer_balance/transaction_splits_sync_balance. A
+// split transaction's own source_id/amount go balance-inert the moment
+// is_split flips true (transactions_sync_balance's "not is_split" guard) —
+// each split row counts individually against *its own* source_id instead
+// (transaction_splits_sync_balance) — so this has to union both tables the
+// same way v_spending_by_source does, or a split that routed money to this
+// source (of either sign) would silently be missing from the list even
+// though it's already counted in the balance the list is supposed to explain.
 async function getSourceTransactions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   sourceId: string,
 ): Promise<DashboardTileTransaction[]> {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("id, posted_date, description, amount, is_transfer, transfer_from_source_id, transfer_to_source_id")
-    .or(`source_id.eq.${sourceId},transfer_from_source_id.eq.${sourceId},transfer_to_source_id.eq.${sourceId}`)
-    .order("posted_date", { ascending: false });
-  if (error) throw new Error(error.message);
+  const [{ data: plain, error: plainError }, { data: splits, error: splitsError }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select(
+        "id, posted_date, description, amount, is_split, is_transfer, transfer_from_source_id, transfer_to_source_id",
+      )
+      .or(`source_id.eq.${sourceId},transfer_from_source_id.eq.${sourceId},transfer_to_source_id.eq.${sourceId}`)
+      .order("posted_date", { ascending: false }),
+    supabase
+      .from("transaction_splits")
+      .select("id, amount, transactions!inner(posted_date, description)")
+      .eq("source_id", sourceId),
+  ]);
+  if (plainError) throw new Error(plainError.message);
+  if (splitsError) throw new Error(splitsError.message);
 
   // A transfer row's own `amount` is an unsigned magnitude (direction is in
   // transfer_from/to_source_id) — sign it relative to this source so the
   // list reads the same way "amount < 0 ? negative : positive" does
   // everywhere else.
-  return (data ?? []).map((r) => {
-    const amount = r.is_transfer
-      ? r.transfer_to_source_id === sourceId
-        ? Math.abs(r.amount)
-        : -Math.abs(r.amount)
-      : r.amount;
-    return { id: r.id, postedDate: r.posted_date, description: r.description, amount };
+  const plainRows = (plain ?? [])
+    .filter((r) => !r.is_split)
+    .map((r) => {
+      const amount = r.is_transfer
+        ? r.transfer_to_source_id === sourceId
+          ? Math.abs(r.amount)
+          : -Math.abs(r.amount)
+        : r.amount;
+      return { id: r.id, postedDate: r.posted_date, description: r.description, amount };
+    });
+
+  const splitRows = (splits ?? []).map((s) => {
+    const parent = s.transactions as { posted_date: string; description: string };
+    return { id: s.id, postedDate: parent.posted_date, description: parent.description, amount: s.amount };
   });
+
+  return [...plainRows, ...splitRows].sort((a, b) => b.postedDate.localeCompare(a.postedDate));
 }
