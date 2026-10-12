@@ -584,6 +584,16 @@ const TransactionRow = memo(function TransactionRow({
     await saveRow(overrides);
   }
 
+  // Income and Exclude are picked in the Source select (see INCOME_SOURCE/
+  // EXCLUDE_SOURCE), so with Add Rule on, that pick is this row's rule
+  // target the same way a category pick is in handleCategoryChange. Only a
+  // plain source pick stays "skip" — a source alone isn't a rule target.
+  async function sentinelRuleAction(target: string): Promise<Record<string, string>> {
+    if (!buildRule) return { rule_action: "skip" };
+    const ruleAction = await resolveRuleAction(target);
+    return ruleAction ? { rule_action: ruleAction } : {};
+  }
+
   async function handleSourceChange(newSourceId: string) {
     if (newSourceId === ADD_SOURCE) {
       setAddingSource(true);
@@ -626,7 +636,7 @@ const TransactionRow = memo(function TransactionRow({
         source_id: "",
         ...(clearCategory ? { category_id: "" } : {}),
         ...(clearIncome ? { is_income: "" } : {}),
-        rule_action: "skip",
+        ...(await sentinelRuleAction(EXCLUDE)),
       });
       return;
     }
@@ -650,7 +660,7 @@ const TransactionRow = memo(function TransactionRow({
         exclude_from_budget: "",
         source_id: "",
         ...(clearCategory ? { category_id: "" } : {}),
-        rule_action: "skip",
+        ...(await sentinelRuleAction(INCOME)),
       });
       return;
     }
@@ -978,10 +988,10 @@ const TransactionRow = memo(function TransactionRow({
                 aria-pressed={buildRule}
                 aria-label={
                   buildRule
-                    ? "Rule-building on for this row — picking a category will prompt to save a rule"
+                    ? "Rule-building on for this row — picking a category, Income or Exclude will prompt to save a rule"
                     : "Rule-building off for this row"
                 }
-                title="Prompt to save a rule when this row's category changes"
+                title="Prompt to save a rule when this row's category, Income or Exclude changes"
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-[120ms] ease-standard ${
                   buildRule
                     ? "border-mark bg-mark text-mark-foreground"
