@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 // Records one changed field to the activity_log for the "manual admin
-// change" pages (Budgets/Sources/Accounts) — Transactions has its own
-// record in the transaction row, so nothing there calls this. Called
+// change" pages (Budgets/Sources/Accounts/Rules) — a transaction's own
+// edits are its record, so Transactions only calls this when it creates a
+// source or deletes a rule. Automatic month-start moves and new rules are
+// logged in the database instead (ensure_month_current, learn_vendor_rule). Called
 // inline from the mutating action after it succeeds, the same way
 // learnVendorRule is (lib/actions/transactions.ts) — an already-created
 // client + userId passed in, not its own "use server" action.

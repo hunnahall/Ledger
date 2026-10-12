@@ -6,7 +6,8 @@ import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
 import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
-import { parseMoney } from "@/lib/format";
+import { logMoney, parseMoney } from "@/lib/format";
+import { logChange } from "@/lib/actions/log";
 
 export async function learnVendorRule(
   supabase: SupabaseServerClient,
@@ -366,7 +367,7 @@ export async function createSourceFromTransaction(
 
   const { data: txn, error: fetchError } = await supabase
     .from("transactions")
-    .select("posted_date, is_transfer, category_id")
+    .select("posted_date, amount, is_transfer, category_id")
     .eq("id", transactionId)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
@@ -402,6 +403,10 @@ export async function createSourceFromTransaction(
     })
     .eq("id", transactionId);
   if (updateError) return { error: updateError.message };
+
+  // Same entry createSource writes on the Sources page — the new source's
+  // starting balance is this transaction's amount (via the trigger above).
+  await logChange(supabase, user.id, "Sources", `Source: ${name}`, null, logMoney(txn.amount));
 
   revalidateLedgerPages();
   return null;

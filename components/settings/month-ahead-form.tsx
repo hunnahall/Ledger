@@ -17,9 +17,7 @@ export function MonthAheadForm({ monthAhead }: { monthAhead: boolean }) {
         />
         Month Ahead
       </label>
-      <p className="text-xs text-muted">
-        Allows for income earned this month to be stored and used next month.
-      </p>
+      <p className="text-sm text-muted">Use this month&apos;s income for next month&apos;s transactions.</p>
       {state?.error && <p className="text-xs text-negative">{state.error}</p>}
     </form>
   );

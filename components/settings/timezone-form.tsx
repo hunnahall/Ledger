@@ -27,11 +27,7 @@ export function TimezoneForm({ timezone }: { timezone: string }) {
 
   return (
     <div>
-      <p className="text-sm font-medium">Time zone</p>
-      <p className="mt-1 text-sm text-muted">
-        Decides when a month starts and ends — the budget reset, income sweep and sinking-fund
-        contribution all follow it.
-      </p>
+      <p className="text-sm font-medium">Time Zone</p>
       <Select
         uiSize="sm"
         className="mt-3 w-full"

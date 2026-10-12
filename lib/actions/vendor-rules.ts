@@ -6,6 +6,7 @@ import { revalidateVendorRulePages } from "@/lib/actions/revalidate";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { resolveRuleTarget } from "@/lib/transactions/vendor-rule-target";
 import { learnVendorRule } from "@/lib/actions/transactions";
+import { logChange } from "@/lib/actions/log";
 
 export async function createVendorRule(
   _prevState: { error: string } | null,
@@ -111,9 +112,27 @@ export async function deleteVendorRule(
 ): Promise<{ error: string } | null> {
   // Without this an unauthenticated call deleted nothing under RLS and
   // reported success.
-  const { supabase } = await requireUser();
-  const { error } = await supabase.from("vendor_category_rules").delete().eq("id", ruleId);
+  const { supabase, user } = await requireUser();
+  const { data: deleted, error } = await supabase
+    .from("vendor_category_rules")
+    .delete()
+    .eq("id", ruleId)
+    .select("merchant_normalized, category_id, is_income, is_exclude, categories(name), sources(name)")
+    .maybeSingle();
   if (error) return { error: error.message };
+
+  // New rules are logged inside learn_vendor_rule itself (every way a rule
+  // gets made goes through it); deletes only ever happen here.
+  if (deleted) {
+    const target = deleted.is_income
+      ? "Income"
+      : deleted.is_exclude
+        ? "Excluded"
+        : deleted.category_id
+          ? ((deleted.categories as { name: string } | null)?.name ?? "Category")
+          : `Source: ${(deleted.sources as { name: string } | null)?.name ?? "—"}`;
+    await logChange(supabase, user.id, "Rules", `Rule: ${deleted.merchant_normalized}`, target, null);
+  }
 
   revalidatePath("/settings");
   return null;

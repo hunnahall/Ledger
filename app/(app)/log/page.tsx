@@ -1,9 +1,28 @@
+import Link from "next/link";
 import { getActivityLog } from "@/lib/queries/log";
 import { Card } from "@/components/ui/card";
 import { LocalTimestamp } from "@/components/ui/local-timestamp";
+import { cn } from "@/lib/cn";
 
-export default async function LogPage() {
-  const entries = await getActivityLog();
+// Same look as a small secondary Button — these navigate, so they're links.
+const PAGE_LINK =
+  "rounded-md border border-border bg-surface px-3 py-1.5 text-sm shadow-xs hover:border-border-strong hover:bg-paper-a1";
+
+export default async function LogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: rawPage } = await searchParams;
+  const requested = Math.max(1, Math.floor(Number(rawPage)) || 1);
+  let { entries, totalPages } = await getActivityLog(requested);
+  // A stale or hand-typed ?page= past the end (e.g. after the 60-day purge
+  // shrank the log) lands on the last real page instead of an empty one.
+  let page = requested;
+  if (page > totalPages) {
+    page = totalPages;
+    ({ entries, totalPages } = await getActivityLog(page));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +70,43 @@ export default async function LogPage() {
           ))}
         </div>
       )}
+
+      {totalPages > 1 && (
+        <nav aria-label="Log pages" className="flex items-center justify-center gap-3">
+          <PageLink page={page - 1} disabled={page <= 1}>
+            Previous
+          </PageLink>
+          <span className="text-sm text-muted">
+            Page {page} of {totalPages}
+          </span>
+          <PageLink page={page + 1} disabled={page >= totalPages}>
+            Next
+          </PageLink>
+        </nav>
+      )}
     </div>
+  );
+}
+
+function PageLink({
+  page,
+  disabled,
+  children,
+}: {
+  page: number;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (disabled) {
+    return (
+      <span aria-disabled="true" className={cn(PAGE_LINK, "pointer-events-none opacity-50")}>
+        {children}
+      </span>
+    );
+  }
+  return (
+    <Link href={page === 1 ? "/log" : `/log?page=${page}`} className={PAGE_LINK}>
+      {children}
+    </Link>
   );
 }
