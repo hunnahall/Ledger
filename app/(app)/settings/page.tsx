@@ -21,7 +21,7 @@ import { TimezoneForm } from "@/components/settings/timezone-form";
 import { AccountCard } from "@/components/settings/account-card";
 
 export default async function SettingsPage() {
-  const [settings, vendorRules, { categories }, connections, { user }] = await Promise.all([
+  const [settings, vendorRules, { categories, sources }, connections, { user }] = await Promise.all([
     getSettings(),
     getVendorRules(),
     getFilterOptions(),
@@ -63,7 +63,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <AddVendorRuleButton categories={categories} />
+            <AddVendorRuleButton categories={categories} sources={sources} />
             <RunRulesButton />
           </div>
         </div>
@@ -83,16 +83,20 @@ export default async function SettingsPage() {
                     id: rule.id,
                     merchantNormalized: rule.merchant_normalized,
                     categoryId: rule.category_id,
+                    sourceId: rule.source_id,
                     isIncome: rule.is_income,
                     isExclude: rule.is_exclude,
                     categoryName: rule.is_income
                       ? "Income"
                       : rule.is_exclude
                         ? "Excluded"
-                        : ((rule.categories as { name: string } | null)?.name ?? "—"),
+                        : rule.category_id
+                          ? ((rule.categories as { name: string } | null)?.name ?? "—")
+                          : `Source: ${(rule.sources as { name: string } | null)?.name ?? "—"}`,
                     useCount: rule.use_count,
                   }}
                   categories={categories}
+                  sources={sources}
                   updateAction={updateVendorRule.bind(null, rule.id)}
                   deleteAction={deleteVendorRule.bind(null, rule.id)}
                 />

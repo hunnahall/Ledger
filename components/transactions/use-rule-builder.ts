@@ -33,16 +33,19 @@ export function useRuleBuilder({
   confirm: (message: string) => Promise<boolean>;
 }) {
   const resolveRuleAction = useCallback(
-    async (target: string): Promise<string | undefined> => {
+    // `label` names a target that isn't a category (a source) — categories,
+    // Income and Excluded are looked up from `target` itself.
+    async (target: string, label?: string): Promise<string | undefined> => {
       const exists = await ruleExistsForDescription(description);
       if (exists) return undefined;
 
       const targetLabel =
-        target === INCOME
+        label ??
+        (target === INCOME
           ? "Income"
           : target === EXCLUDE
             ? "Excluded"
-            : (categories.find((c) => c.id === target)?.name ?? "this category");
+            : (categories.find((c) => c.id === target)?.name ?? "this category"));
       const saveRule = await confirm(`Make all "${description}" transactions ${targetLabel}?`);
       return saveRule ? "write" : "skip";
     },

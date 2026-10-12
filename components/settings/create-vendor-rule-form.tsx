@@ -2,16 +2,22 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { createVendorRule } from "@/lib/actions/vendor-rules";
-import { EXCLUDE_RULE_TARGET, INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
+import {
+  EXCLUDE_RULE_TARGET,
+  INCOME_RULE_TARGET,
+  SOURCE_RULE_TARGET_PREFIX,
+} from "@/lib/transactions/vendor-rule-target";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
 export function CreateVendorRuleForm({
   categories,
+  sources,
   onDone,
 }: {
   categories: { id: string; name: string }[];
+  sources: { id: string; name: string }[];
   onDone?: () => void;
 }) {
   const [state, formAction] = useActionState(createVendorRule, null);
@@ -45,14 +51,19 @@ export function CreateVendorRuleForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-xs text-muted">
-        Then category is
-        <Select name="category_id" required uiSize="sm" className="w-40" placeholder="Choose a category">
-          <option value="">Choose a category</option>
+        Then set
+        <Select name="category_id" required uiSize="sm" className="w-40" placeholder="Choose a target">
+          <option value="">Choose a target</option>
           <option value={INCOME_RULE_TARGET}>Income</option>
           <option value={EXCLUDE_RULE_TARGET}>Excluded</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
+            </option>
+          ))}
+          {sources.map((s) => (
+            <option key={s.id} value={SOURCE_RULE_TARGET_PREFIX + s.id}>
+              Source: {s.name}
             </option>
           ))}
         </Select>

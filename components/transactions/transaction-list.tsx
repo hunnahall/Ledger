@@ -567,8 +567,17 @@ const TransactionRow = memo(function TransactionRow({
     // isExcludeTarget check in assignTransaction, which is what actually
     // persists the rule once rule_action isn't "skip".
     const isExcludeRow = excludeFromBudget && !categoryId;
-    const hasTarget = isIncome || Boolean(categoryId) || isExcludeRow;
+    // A row with only a source (no category/Income/Excluded) teaches a
+    // source rule — see isSourceTarget in assignTransaction.
+    const isSourceRow = !isExcludeRow && !isIncome && !categoryId && Boolean(sourceId);
+    const hasTarget = isIncome || Boolean(categoryId) || isExcludeRow || isSourceRow;
     if (!hasTarget) return;
+
+    if (isSourceRow) {
+      const ruleAction = await sourceRuleAction(sourceId);
+      if (ruleAction) await saveRow({ rule_action: ruleAction });
+      return;
+    }
 
     const target = isExcludeRow ? EXCLUDE : isIncome ? INCOME : categoryId;
     const ruleAction = await resolveRuleAction(target);
@@ -586,12 +595,22 @@ const TransactionRow = memo(function TransactionRow({
 
   // Income and Exclude are picked in the Source select (see INCOME_SOURCE/
   // EXCLUDE_SOURCE), so with Add Rule on, that pick is this row's rule
-  // target the same way a category pick is in handleCategoryChange. Only a
-  // plain source pick stays "skip" — a source alone isn't a rule target.
+  // target the same way a category pick is in handleCategoryChange. A plain
+  // source pick has its own variant below (sourceRuleAction).
   async function sentinelRuleAction(target: string): Promise<Record<string, string>> {
     if (!buildRule) return { rule_action: "skip" };
     const ruleAction = await resolveRuleAction(target);
     return ruleAction ? { rule_action: ruleAction } : {};
+  }
+
+  // A plain source pick with Add Rule on teaches a source rule. Always an
+  // explicit "write" or "skip" — assignTransaction never learns a source
+  // rule by default — so "a rule already covers this merchant" (undefined)
+  // reinforces it as a write too.
+  async function sourceRuleAction(target: string): Promise<"write" | "skip"> {
+    const name = sources.find((s) => s.id === target)?.name ?? "this source";
+    const ruleAction = await resolveRuleAction(target, name);
+    return ruleAction === "skip" ? "skip" : "write";
   }
 
   async function handleSourceChange(newSourceId: string) {
@@ -694,7 +713,7 @@ const TransactionRow = memo(function TransactionRow({
     // changing), so this has to opt out explicitly.
     const overrides: Record<string, string> = {
       source_id: newSourceId,
-      rule_action: "skip",
+      rule_action: buildRule && newSourceId ? await sourceRuleAction(newSourceId) : "skip",
     };
     if (wasExcluded) overrides.exclude_from_budget = "";
     if (wasTransfer) overrides.is_transfer = "";
@@ -988,10 +1007,10 @@ const TransactionRow = memo(function TransactionRow({
                 aria-pressed={buildRule}
                 aria-label={
                   buildRule
-                    ? "Rule-building on for this row — picking a category, Income or Exclude will prompt to save a rule"
+                    ? "Rule-building on for this row — picking a category, source, Income or Exclude will prompt to save a rule"
                     : "Rule-building off for this row"
                 }
-                title="Prompt to save a rule when this row's category, Income or Exclude changes"
+                title="Prompt to save a rule when this row's category, source, Income or Exclude changes"
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-[120ms] ease-standard ${
                   buildRule
                     ? "border-mark bg-mark text-mark-foreground"

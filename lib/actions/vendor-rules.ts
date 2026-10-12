@@ -27,7 +27,7 @@ export async function createVendorRule(
     merchantNormalized,
     target.categoryId,
     target.isIncome,
-    null,
+    target.sourceId,
     target.isExclude,
   );
 
@@ -58,6 +58,11 @@ export async function updateVendorRule(
       category_id: target.categoryId,
       is_income: target.isIncome,
       is_exclude: target.isExclude,
+      // A category rule's source_id is a secondary fill-in learned from the
+      // Transactions page, which this form doesn't show — leave it as is.
+      // Every other target owns source_id outright (null for Income/
+      // Excluded, the target itself for a source rule).
+      ...(target.categoryId ? {} : { source_id: target.sourceId }),
     })
     .eq("id", ruleId)
     .eq("user_id", user.id);

@@ -4,7 +4,12 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
 import { SpinnerIcon } from "@/components/ui/icons";
-import { EXCLUDE_RULE_TARGET, INCOME_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
+import {
+  EXCLUDE_RULE_TARGET,
+  INCOME_RULE_TARGET,
+  SOURCE_RULE_TARGET_PREFIX,
+  ruleTargetValue,
+} from "@/lib/transactions/vendor-rule-target";
 import { useInlineEdit } from "@/components/ui/inline-edit";
 import { FIELD_BASE, Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -21,6 +26,7 @@ type DeleteRuleAction = (prevState: ActionResult, formData: FormData) => Promise
 export function VendorRuleRow({
   rule,
   categories,
+  sources,
   updateAction,
   deleteAction,
 }: {
@@ -28,12 +34,14 @@ export function VendorRuleRow({
     id: string;
     merchantNormalized: string;
     categoryId: string | null;
+    sourceId: string | null;
     isIncome: boolean;
     isExclude: boolean;
     categoryName: string;
     useCount: number;
   };
   categories: { id: string; name: string }[];
+  sources: { id: string; name: string }[];
   updateAction: UpdateRuleAction;
   deleteAction: DeleteRuleAction;
 }) {
@@ -64,13 +72,7 @@ export function VendorRuleRow({
         <span className="text-muted">then</span>
         <select
           ref={categoryRef}
-          defaultValue={
-            rule.isIncome
-              ? INCOME_RULE_TARGET
-              : rule.isExclude
-                ? EXCLUDE_RULE_TARGET
-                : (rule.categoryId ?? "")
-          }
+          defaultValue={ruleTargetValue(rule)}
           className={cn(FIELD_BASE, "px-2 py-1 text-xs")}
         >
           <option value={INCOME_RULE_TARGET}>Income</option>
@@ -78,6 +80,11 @@ export function VendorRuleRow({
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
+            </option>
+          ))}
+          {sources.map((s) => (
+            <option key={s.id} value={SOURCE_RULE_TARGET_PREFIX + s.id}>
+              Source: {s.name}
             </option>
           ))}
         </select>

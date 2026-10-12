@@ -319,12 +319,18 @@ export async function assignTransaction(
   // on its own — only when the row's own rule-builder asked for it.
   const isExcludeTarget = excludeFromBudget && !categoryId && !isIncome;
 
+  // A source on its own is a rule target too ("always put this merchant on
+  // Courtney") — but unlike the three above it's only ever learned on an
+  // explicit "write", never by default: a row with just a source is what
+  // most autosaves look like, and none of them should quietly mint a rule.
+  const isSourceTarget = !categoryId && !isIncome && !isExcludeTarget && Boolean(sourceId);
+
   let learnedRule = false;
   if (
     !isTransfer &&
-    (categoryId || isIncome || isExcludeTarget) &&
     merchantNormalized &&
-    ruleAction !== "skip"
+    (((categoryId || isIncome || isExcludeTarget) && ruleAction !== "skip") ||
+      (isSourceTarget && ruleAction === "write"))
   ) {
     await learnVendorRule(supabase, merchantNormalized, categoryId, isIncome, sourceId, isExcludeTarget);
     learnedRule = true;
