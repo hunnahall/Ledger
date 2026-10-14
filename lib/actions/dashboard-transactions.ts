@@ -61,11 +61,10 @@ export async function getDashboardTileTransactions(
   }
 
   if (kind.type === "source") {
-    // No amount-sign filter — v_spending_by_source nets any inflow (a
-    // refund, reimbursement, income) tied to this Source against its
-    // outflows, so this popup has to list both sides to sum to the same
-    // total the tile shows. Mirrors that view's own shape (see its latest
-    // migration): a plain, not-split transaction keyed by its own
+    // Outflows only — Source Allocation shows gross spending per source
+    // (getDashboardData's sourceOutflows), so money coming into the source
+    // isn't listed and the popup sums to that source's slice. Mirrors that
+    // query's shape: a plain, not-split transaction keyed by its own
     // source_id, unioned with transaction_splits rows keyed by theirs — a
     // split transaction's own source_id/amount go balance-inert the moment
     // is_split flips true (transactions_sync_balance's "not is_split"
@@ -80,13 +79,15 @@ export async function getDashboardTileTransactions(
         .eq("is_transfer", false)
         .eq("exclude_from_budget", false)
         .eq("is_split", false)
+        .lt("amount", 0)
         .gte("posted_date", month)
         .lt("posted_date", nextMonth)
         .order("posted_date", { ascending: false }),
       supabase
         .from("transaction_splits")
         .select("id, amount, transactions!inner(posted_date, description, is_transfer, exclude_from_budget)")
-        .eq("source_id", kind.sourceId),
+        .eq("source_id", kind.sourceId)
+        .lt("amount", 0),
     ]);
     if (plainError) throw new Error(plainError.message);
     if (splitsError) throw new Error(splitsError.message);

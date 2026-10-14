@@ -54,6 +54,22 @@
   --positive: light-dark(#4f7358, #7ea888);
   --negative: light-dark(#a24a4a, #c17b7b);
 
+  /* Dashboard chart roles. warning = "ahead of pace" (between on-track blue
+     and over-budget red); the -soft pair are the secondary shades of
+     positive/negative (other inflows/outflows on the Cash Flow bar); the
+     chart-1..4 ramp is one slate hue stepped in lightness so pie slices stay
+     distinguishable without relying on hue; chart-neutral is the "done /
+     other" grey. Dark values flip lightness order where needed so each step
+     still reads against the dark surface. */
+  --warning: light-dark(#b7791f, #d19a45);
+  --positive-soft: light-dark(#8fbf9a, #3f5f47);
+  --negative-soft: light-dark(#d39a9a, #7a4646);
+  --chart-1: var(--accent);
+  --chart-2: light-dark(#6b7690, #6b7690);
+  --chart-3: light-dark(#a3adc2, #4a5470);
+  --chart-4: light-dark(#d0d6e2, #343b4f);
+  --chart-neutral: light-dark(#b7b4ab, #5c5950);
+
   /* The mark's gold stays constant across themes, so anything painted on top
      of it needs a fixed ink too, not --foreground (which flips to near-white
      in dark mode and would vanish on gold). */
@@ -125,6 +141,14 @@
   --color-accent: var(--accent);
   --color-positive: var(--positive);
   --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative-soft: var(--negative-soft);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-neutral: var(--chart-neutral);
   --color-mark: var(--mark);
   --color-mark-foreground: var(--mark-foreground);
   --color-card-border: var(--card-border);

@@ -1,11 +1,16 @@
 import Link from "next/link";
-import { getDashboardData } from "@/lib/queries/dashboard";
+import { getDashboardData, getMonthlyTrend } from "@/lib/queries/dashboard";
 import { getBudgetRateData } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { currentMonthISO, previousMonthISO, monthLabel } from "@/lib/dates";
-import { DashboardStatTiles, SpendingByCategoryCard } from "@/components/dashboard/dashboard-tiles";
-import { SpendingBySourceCard } from "@/components/dashboard/spending-by-source-card";
-import { MonthPicker } from "@/components/dashboard/month-picker";
+import { MonthSegments } from "@/components/dashboard/month-segments";
+import { PaceCard } from "@/components/dashboard/pace-card";
+import { CashFlowCard } from "@/components/dashboard/cash-flow-card";
+import { DailySpendingCard } from "@/components/dashboard/daily-spending-card";
+import { SourceAllocationCard } from "@/components/dashboard/source-allocation-card";
+import { CategorySpendingCard } from "@/components/dashboard/category-spending-card";
+import { BudgetFundingCard, FloatCard } from "@/components/dashboard/funding-and-float";
+import { LastMonthsCard } from "@/components/dashboard/last-months-card";
 
 // Current month plus the 3 full calendar months before it — the same
 // window purge_expired_data() keeps (see
@@ -29,52 +34,69 @@ export default async function DashboardPage({
   const months = selectableMonths(settings.timezone);
   const monthISO = month && months.includes(month) ? month : currentMonthISO(settings.timezone);
 
-  const [data, rateData] = await Promise.all([
+  const [data, rateData, trendTotals] = await Promise.all([
     getDashboardData(monthISO),
     getBudgetRateData(monthISO, settings.timezone),
+    getMonthlyTrend(months),
   ]);
+  const totalAllocation = rateData?.totalAllocation ?? data.totalAllocation;
+  const trend = trendTotals.map((m) => ({ ...m, totalAllocation }));
   const decimalPlaces = settings.decimal_places;
 
-  const budgetFillPct =
-    rateData && rateData.totalAllocation > 0
-      ? Math.round((rateData.income / rateData.totalAllocation) * 100)
-      : null;
+  const daysInMonth = rateData?.daysInMonth ?? 30;
+  const currentDay = rateData?.currentDay ?? 0;
+  const actualByDay = rateData?.actualByDay ?? [];
+  const common = { monthISO, decimalPlaces };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="mb-1 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="mt-1 text-sm text-muted">
-            {data.hasBudget ? "Budget" : "No current budget set"} &middot;{" "}
             {monthLabel(monthISO)}
+            {monthISO === months[0] && ` · Day ${currentDay} of ${daysInMonth}`}
+            {!data.hasBudget && " · No current budget set"}
           </p>
         </div>
-        <MonthPicker months={months} selected={monthISO} currentMonthISO={months[0]} />
+        <MonthSegments months={months} selected={monthISO} currentMonthISO={months[0]} />
       </div>
 
-      <DashboardStatTiles
-        income={data.income}
-        otherInflow={data.otherInflow}
-        expenses={data.budgetedOutflow}
-        otherOutflow={data.otherOutflow}
-        budgetNet={data.budgetNet}
-        cashFlow={data.cashFlow}
-        floatBalance={data.floatBalance}
-        budgetFillPct={budgetFillPct}
-        totalAllocation={rateData?.totalAllocation ?? 0}
-        daysInMonth={rateData?.daysInMonth ?? 30}
-        currentDay={rateData?.currentDay ?? 0}
-        actualByDay={rateData?.actualByDay ?? []}
-        decimalPlaces={decimalPlaces}
-        monthISO={monthISO}
-      />
+      <div className="flex flex-wrap gap-4">
+        <PaceCard
+          budgetNet={data.budgetNet}
+          totalAllocation={totalAllocation}
+          budgetedOutflow={data.budgetedOutflow}
+          daysInMonth={daysInMonth}
+          currentDay={currentDay}
+          actualByDay={actualByDay}
+          {...common}
+        />
+        <CashFlowCard
+          income={data.income}
+          otherInflow={data.otherInflow}
+          budgetedOutflow={data.budgetedOutflow}
+          otherOutflow={data.otherOutflow}
+          cashFlow={data.cashFlow}
+          {...common}
+        />
+      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SpendingByCategoryCard
-          categorySpending={data.categorySpending}
-          decimalPlaces={decimalPlaces}
-          monthISO={monthISO}
+      <div className="flex flex-wrap gap-4">
+        <DailySpendingCard
+          actualByDay={actualByDay}
+          totalAllocation={totalAllocation}
+          daysInMonth={daysInMonth}
+          currentDay={currentDay}
+          {...common}
+        />
+        <SourceAllocationCard sources={data.sourceOutflows} {...common} />
+      </div>
+
+      <div className="flex flex-wrap gap-4">
+        <CategorySpendingCard
+          categories={data.categorySpending}
+          monthProgress={daysInMonth > 0 ? currentDay / daysInMonth : 0}
           emptyState={
             <p className="text-sm text-muted">
               No categories in your current budget yet.{" "}
@@ -84,13 +106,13 @@ export default async function DashboardPage({
               .
             </p>
           }
+          {...common}
         />
-
-        <SpendingBySourceCard
-          spending={data.spendingBySource}
-          decimalPlaces={decimalPlaces}
-          monthISO={monthISO}
-        />
+        <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+          <BudgetFundingCard income={data.income} totalAllocation={totalAllocation} {...common} />
+          <FloatCard balance={data.floatBalance} {...common} />
+          <LastMonthsCard months={trend} currentMonthISO={months[0]} decimalPlaces={decimalPlaces} />
+        </div>
       </div>
     </div>
   );

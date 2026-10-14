@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { spentFromRawAmount } from "@/lib/progress";
 import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/queries/budgets";
+import { nextMonthISO } from "@/lib/dates";
 
 // The category Transfers tags Sinking Fund contributions and Source
 // Transfers (see the Transactions page) — its own monthly_amount is a
@@ -11,12 +12,6 @@ import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/qu
 // categories have no "this one is special" marker (see sources.is_system
 // for the analogous thing sources do have).
 const TRANSFERS_CATEGORY_NAME = "Transfers";
-
-// The Spending By Source tile mirrors every Source's monthly spend
-// (everything under the Sources page's "Budget" heading, plus
-// Reimbursements and Funds) — Float and Income get their own tiles, so
-// they're left out here.
-const BALANCE_TILE_TYPES = ["budget", "sinking_fund", "reimbursement", "fund"];
 
 export async function getDashboardData(monthISO: string) {
   const supabase = await createClient();
@@ -32,7 +27,8 @@ export async function getDashboardData(monthISO: string) {
     { data: inflowOutflow, error: inflowOutflowError },
     { data: outflowByBucket, error: outflowByBucketError },
     { data: sourceBalances, error: sourceBalancesError },
-    { data: spendingBySource, error: spendingBySourceError },
+    { data: plainOutflows, error: plainOutflowsError },
+    { data: splitOutflows, error: splitOutflowsError },
     { data: budgetCategoryIncome, error: budgetCategoryIncomeError },
     { data: categories, error: categoriesError },
     transfersMonthlyTotal,
@@ -41,7 +37,31 @@ export async function getDashboardData(monthISO: string) {
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
     supabase.from("v_outflow_by_bucket").select("*").eq("month", month),
     supabase.from("v_source_balances").select("*"),
-    supabase.from("v_spending_by_source").select("*").eq("month", month),
+    // Gross spending per source for Source Allocation: negative amounts
+    // only, so money coming into a source never offsets its spending and the
+    // slices sum to outflows. (v_spending_by_source is net per source and
+    // can go positive, so it can't back a pie.) Same rows v_outflow_by_bucket
+    // counts: non-split transactions plus split legs, transfers and Excluded
+    // left out, unsourced dropped.
+    supabase
+      .from("transactions")
+      .select("source_id, amount")
+      .gte("posted_date", month)
+      .lt("posted_date", nextMonthISO(month))
+      .eq("is_transfer", false)
+      .eq("exclude_from_budget", false)
+      .eq("is_split", false)
+      .lt("amount", 0)
+      .not("source_id", "is", null),
+    supabase
+      .from("transaction_splits")
+      .select("source_id, amount, transactions!inner(posted_date, is_transfer, exclude_from_budget)")
+      .gte("transactions.posted_date", month)
+      .lt("transactions.posted_date", nextMonthISO(month))
+      .eq("transactions.is_transfer", false)
+      .eq("transactions.exclude_from_budget", false)
+      .lt("amount", 0)
+      .not("source_id", "is", null),
     supabase.from("v_budget_category_income").select("*").eq("month", month).maybeSingle(),
     userId
       ? supabase
@@ -62,7 +82,8 @@ export async function getDashboardData(monthISO: string) {
     inflowOutflowError,
     outflowByBucketError,
     sourceBalancesError,
-    spendingBySourceError,
+    plainOutflowsError,
+    splitOutflowsError,
     budgetCategoryIncomeError,
     categoriesError,
   ]) {
@@ -94,9 +115,11 @@ export async function getDashboardData(monthISO: string) {
   // tracks to it), so nothing is hidden here any more.
   const visibleSourceBalances = sourceBalances ?? [];
 
-  const spentBySourceId = new Map(
-    (spendingBySource ?? []).map((s) => [s.source_id, spentFromRawAmount(s.amount)]),
-  );
+  const spentBySourceId = new Map<string, number>();
+  for (const row of [...(plainOutflows ?? []), ...(splitOutflows ?? [])]) {
+    if (!row.source_id) continue;
+    spentBySourceId.set(row.source_id, (spentBySourceId.get(row.source_id) ?? 0) - row.amount);
+  }
 
   return {
     hasBudget: userId !== null,
@@ -109,12 +132,52 @@ export async function getDashboardData(monthISO: string) {
       categorizedIncome: budgetCategoryIncome?.amount ?? 0,
       totalAllocation,
     }),
-    spendingBySource: visibleSourceBalances
-      .filter(
-        (s): s is typeof s & { id: string; name: string } =>
-          s.id !== null && s.name !== null && s.type !== null && BALANCE_TILE_TYPES.includes(s.type),
-      )
+    // Every (non-archived) source, so Source Allocation can list them all;
+    // ones with no spending this month show as $0.
+    sourceOutflows: visibleSourceBalances
+      .filter((s): s is typeof s & { id: string; name: string } => s.id !== null && s.name !== null)
       .map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
     floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
   };
+}
+
+// Last 4 Months: per-month totals from the same views (and the same
+// computeDashboardTotals) the current-month figures use, so a month's column
+// always matches what the Dashboard shows when that month is selected.
+// Allocation history isn't stored — categories/sinking/transfer amounts are
+// current values only — so the caller fills in totalAllocation with one
+// figure for every month; a month whose budget differed shows today's
+// budget, not the one it had.
+export async function getMonthlyTrend(months: string[]) {
+  const supabase = await createClient();
+  const [
+    { data: inflowOutflow, error: inflowOutflowError },
+    { data: outflowByBucket, error: outflowByBucketError },
+  ] = await Promise.all([
+    supabase.from("v_inflow_outflow").select("*").in("month", months),
+    supabase.from("v_outflow_by_bucket").select("*").in("month", months),
+  ]);
+  if (inflowOutflowError) throw new Error(inflowOutflowError.message);
+  if (outflowByBucketError) throw new Error(outflowByBucketError.message);
+
+  return [...months].sort().map((month) => {
+    const io = inflowOutflow?.find((r) => r.month === month);
+    const bucket = (name: string) =>
+      outflowByBucket?.find((b) => b.month === month && b.bucket === name)?.amount ?? null;
+    const totals = computeDashboardTotals({
+      income: io?.income ?? 0,
+      otherInflow: io?.other_inflow ?? 0,
+      budgetedOutflowRaw: bucket("budget"),
+      otherOutflowRaw: bucket("other"),
+      categorizedIncome: 0,
+      totalAllocation: 0,
+    });
+    return {
+      month,
+      income: totals.income,
+      inflows: totals.inflows,
+      budgetedOutflow: totals.budgetedOutflow,
+      outflows: totals.outflows,
+    };
+  });
 }
