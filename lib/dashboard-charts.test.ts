@@ -4,7 +4,6 @@ import {
   categoryStatus,
   dailyFromCumulative,
   dailyPaceStatus,
-  projectMonthEnd,
   trendPair,
   type TrendMonth,
 } from "./dashboard-charts";
@@ -41,15 +40,6 @@ describe("categoryStatus", () => {
   });
   it("treats an unbudgeted, unspent category as below", () => {
     expect(categoryStatus({ spent: 0, budget: 0, monthProgress })).toBe("below");
-  });
-});
-
-describe("projectMonthEnd", () => {
-  it("extends the current rate to month end", () => {
-    expect(projectMonthEnd(2785, 12, 31)).toBeCloseTo(7194.58, 2);
-  });
-  it("returns the actual for a fully elapsed month", () => {
-    expect(projectMonthEnd(9000, 30, 30)).toBe(9000);
   });
 });
 

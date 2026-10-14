@@ -32,6 +32,7 @@ export async function getDashboardData(monthISO: string) {
     { data: budgetCategoryIncome, error: budgetCategoryIncomeError },
     { data: categories, error: categoriesError },
     transfersMonthlyTotal,
+    nextTransfersMonthlyTotal,
   ] = await Promise.all([
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
@@ -75,6 +76,9 @@ export async function getDashboardData(monthISO: string) {
           error: null,
         }),
     userId ? getSinkingAndTransferMonthlyTotal(userId, month) : Promise.resolve(0),
+    // Next month's sinking + transfer commitment, for Budget Funding under
+    // Month Ahead (this month's income funds next month's allocation).
+    userId ? getSinkingAndTransferMonthlyTotal(userId, nextMonthISO(month)) : Promise.resolve(0),
   ]);
 
   for (const error of [
@@ -107,6 +111,9 @@ export async function getDashboardData(monthISO: string) {
   // reaches the identical figure without a second query for it.
   const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
   const totalAllocation = categoriesTotal + transfersMonthlyTotal;
+  // Category amounts carry no per-month history, so next month's categories
+  // are today's; only sinking goal contributions can differ by month.
+  const nextMonthAllocation = categoriesTotal + nextTransfersMonthlyTotal;
 
   const budgetedOutflowRaw = outflowByBucket?.find((b) => b.bucket === "budget")?.amount ?? null;
   const otherOutflowRaw = outflowByBucket?.find((b) => b.bucket === "other")?.amount ?? null;
@@ -137,6 +144,7 @@ export async function getDashboardData(monthISO: string) {
     sourceOutflows: visibleSourceBalances
       .filter((s): s is typeof s & { id: string; name: string } => s.id !== null && s.name !== null)
       .map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
+    nextMonthAllocation,
     floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
   };
 }

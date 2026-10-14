@@ -40,16 +40,6 @@ export function categoryStatus({
   return share > monthProgress ? "ahead" : "below";
 }
 
-/**
- * Straight-line month-end projection of Budget spending. A month that has
- * fully elapsed has nothing to project, so its actual is returned.
- */
-export function projectMonthEnd(spent: number, currentDay: number, daysInMonth: number): number {
-  if (currentDay <= 0) return 0;
-  if (currentDay >= daysInMonth) return spent;
-  return (spent / currentDay) * daysInMonth;
-}
-
 export type PieSlice = {
   key: string;
   label: string;

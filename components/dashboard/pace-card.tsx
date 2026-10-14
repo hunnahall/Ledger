@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { Money } from "@/components/ui/money";
 import { useTilePopup } from "@/components/dashboard/use-tile-popup";
 import { compactMoney, niceCeiling, shortMonthLabel } from "@/components/dashboard/format";
-import { projectMonthEnd } from "@/lib/dashboard-charts";
 import { cn } from "@/lib/cn";
 
 const W = 560;
@@ -12,7 +11,8 @@ const H = 160;
 
 // Budget Net headline over the month's pace chart: cumulative Budget spend
 // (getBudgetRateData's actualByDay) against an even pace to the allocation,
-// with a straight-line projection to month end while the month is running.
+// with today marked while the month is running. No month-end projection:
+// spending is too front-loaded (bills, transfers) for a straight line to mean anything.
 export function PaceCard({
   budgetNet,
   totalAllocation,
@@ -38,9 +38,8 @@ export function PaceCard({
   const paceToday = (totalAllocation / daysInMonth) * currentDay;
   const underPace = paceToday - spentSoFar;
   const monthRunning = currentDay < daysInMonth;
-  const projected = projectMonthEnd(spentSoFar, currentDay, daysInMonth);
 
-  const maxY = niceCeiling(Math.max(totalAllocation, projected, spentSoFar, 1));
+  const maxY = niceCeiling(Math.max(totalAllocation, spentSoFar, 1));
   const x = (day: number) => (day / daysInMonth) * W;
   const y = (amount: number) => H - (amount / maxY) * H;
   const actual = [[0, H], ...actualByDay.map((v, i) => [x(i + 1), y(v)])];
@@ -77,30 +76,13 @@ export function PaceCard({
             </button>
           </div>
           {monthRunning && (
-            <div className="grid grid-cols-[auto_auto] gap-x-7 gap-y-1 whitespace-nowrap text-xs text-muted">
+            <div className="flex flex-col gap-1 whitespace-nowrap text-xs text-muted">
               <span>Pace today</span>
-              <span>
-                Projected {month} {daysInMonth}
-              </span>
               <span className={cn("text-lg font-semibold", underPace >= 0 ? "text-positive" : "text-negative")}>
                 <Money amount={Math.abs(underPace)} decimalPlaces={decimalPlaces} /> {underPace >= 0 ? "under" : "over"}
               </span>
-              <span className="text-lg font-semibold text-foreground">
-                <Money amount={projected} decimalPlaces={decimalPlaces} />
-              </span>
               <span>
                 Even pace: <Money amount={paceToday} decimalPlaces={decimalPlaces} />
-              </span>
-              <span>
-                {projected <= totalAllocation ? (
-                  <>
-                    <Money amount={totalAllocation - projected} decimalPlaces={decimalPlaces} /> left unspent
-                  </>
-                ) : (
-                  <>
-                    <Money amount={projected - totalAllocation} decimalPlaces={decimalPlaces} /> over budget
-                  </>
-                )}
               </span>
             </div>
           )}
@@ -118,7 +100,7 @@ export function PaceCard({
               preserveAspectRatio="none"
               className="block h-40 w-full overflow-visible"
               role="img"
-              aria-label={`Budget spending: ${compactMoney(spentSoFar)} by day ${currentDay} against an even pace of ${compactMoney(paceToday)}${monthRunning ? `, projected ${compactMoney(projected)} by month end` : ""}.`}
+              aria-label={`Budget spending: ${compactMoney(spentSoFar)} by day ${currentDay} against an even pace of ${compactMoney(paceToday)}.`}
             >
               {monthRunning && (
                 <rect x={todayX} y={0} width={W - todayX} height={H} className="fill-paper-3" fillOpacity={0.6} />
@@ -155,29 +137,15 @@ export function PaceCard({
                 </>
               )}
               {monthRunning && (
-                <>
-                  <line
-                    x1={todayX}
-                    y1={y(spentSoFar)}
-                    x2={W}
-                    y2={y(projected)}
-                    className="stroke-accent"
-                    strokeOpacity={0.6}
-                    strokeWidth={2}
-                    strokeDasharray="1 5"
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <line
-                    x1={todayX}
-                    x2={todayX}
-                    y1={0}
-                    y2={H}
-                    className="stroke-accent"
-                    strokeOpacity={0.4}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </>
+                <line
+                  x1={todayX}
+                  x2={todayX}
+                  y1={0}
+                  y2={H}
+                  className="stroke-accent"
+                  strokeOpacity={0.4}
+                  vectorEffect="non-scaling-stroke"
+                />
               )}
             </svg>
             <div className="mt-2 flex justify-between text-[11px] tabular-nums text-paper-7">
@@ -193,7 +161,6 @@ export function PaceCard({
         <div className="flex flex-wrap gap-5 text-xs text-foreground-secondary">
           <LegendLine className="h-[3px] rounded-sm bg-accent">Budget spending</LegendLine>
           <LegendLine className="border-t-2 border-dashed border-paper-7">Even pace</LegendLine>
-          {monthRunning && <LegendLine className="border-t-2 border-dotted border-accent">Current projection</LegendLine>}
         </div>
       </section>
       {modal}

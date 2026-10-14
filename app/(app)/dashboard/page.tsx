@@ -109,7 +109,12 @@ export default async function DashboardPage({
           {...common}
         />
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
-          <BudgetFundingCard income={data.income} totalAllocation={totalAllocation} {...common} />
+          <BudgetFundingCard
+            income={data.income}
+            totalAllocation={settings.month_ahead ? data.nextMonthAllocation : totalAllocation}
+            fundsNextMonth={settings.month_ahead}
+            {...common}
+          />
           <FloatCard balance={data.floatBalance} {...common} />
           <LastMonthsCard months={trend} currentMonthISO={months[0]} decimalPlaces={decimalPlaces} />
         </div>

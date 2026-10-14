@@ -84,7 +84,7 @@ export function CashFlowCard({
           <Segment top={zeroY + segments.budgetedOutflow} height={segments.otherOutflow} className="rounded-b bg-negative-soft" />
           <div aria-hidden="true" className="absolute -inset-x-3 h-0.5 bg-foreground" style={{ top: zeroY - 1 }} />
           {total > 0 && (
-            <div aria-hidden="true" className="absolute -inset-x-1.5 border-t-2 border-dashed border-surface" style={{ top: netY - 1 }} />
+            <div aria-hidden="true" className="absolute -inset-x-2 border-t-2 border-dashed border-foreground" style={{ top: netY - 1 }} />
           )}
         </div>
 

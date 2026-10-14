@@ -7,16 +7,19 @@ import { cn } from "@/lib/cn";
 const R = 56;
 const C = 2 * Math.PI * R;
 
-// How much of the budget allocation this month's income has covered so far
-// (income / totalAllocation — the old Budget Fill figure).
+// How much of the budget this month's income has covered so far. With Month
+// Ahead on, this month's income funds next month, so it's measured against
+// next month's allocation; with it off, against this month's.
 export function BudgetFundingCard({
   income,
   totalAllocation,
+  fundsNextMonth,
   monthISO,
   decimalPlaces,
 }: {
   income: number;
   totalAllocation: number;
+  fundsNextMonth: boolean;
   monthISO: string;
   decimalPlaces: number;
 }) {
@@ -69,7 +72,9 @@ export function BudgetFundingCard({
             </span>
           </button>
           <div>
-            <span className="block text-xs text-muted">Budget allocation</span>
+            <span className="block text-xs text-muted">
+              {fundsNextMonth ? "Next month's allocation" : "Budget allocation"}
+            </span>
             <span className="text-lg font-semibold">
               <Money amount={totalAllocation} decimalPlaces={decimalPlaces} />
             </span>

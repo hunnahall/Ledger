@@ -59,15 +59,15 @@
      positive/negative (other inflows/outflows on the Cash Flow bar); the
      chart-1..4 ramp is one slate hue stepped in lightness so pie slices stay
      distinguishable without relying on hue; chart-neutral is the "done /
-     other" grey. Dark values flip lightness order where needed so each step
-     still reads against the dark surface. */
+     other" grey. In dark mode the ramp steps lighter rather than darker, so
+     no slice sinks into the dark surface. */
   --warning: light-dark(#b7791f, #d19a45);
   --positive-soft: light-dark(#8fbf9a, #3f5f47);
   --negative-soft: light-dark(#d39a9a, #7a4646);
   --chart-1: var(--accent);
-  --chart-2: light-dark(#6b7690, #6b7690);
-  --chart-3: light-dark(#a3adc2, #4a5470);
-  --chart-4: light-dark(#d0d6e2, #343b4f);
+  --chart-2: light-dark(#5f6b88, #b4bdd2);
+  --chart-3: light-dark(#8a95ae, #dbe0ea);
+  --chart-4: light-dark(#b6bfd1, #66708a);
   --chart-neutral: light-dark(#b7b4ab, #5c5950);
 
   /* The mark's gold stays constant across themes, so anything painted on top
