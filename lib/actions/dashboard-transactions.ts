@@ -11,7 +11,7 @@ export type DashboardTileKind =
   | { type: "budgeted_outflow" }
   | { type: "other_outflow" }
   | { type: "budget_net" }
-  | { type: "total_net" }
+  | { type: "cash_flow" }
   | { type: "float" }
   | { type: "source"; sourceId: string };
 
@@ -139,21 +139,22 @@ export async function getDashboardTileTransactions(
       query = query.eq("category_id", kind.categoryId);
       break;
     case "income":
-      query = query.eq("is_income", true).gt("amount", 0);
+      query = query.eq("is_income", true).gt("amount", 0).not("source_id", "is", null);
       break;
     case "other_inflow":
-      query = query.eq("is_income", false).gt("amount", 0);
+      // Mirrors v_inflow_outflow.other_inflow: unsourced money isn't counted.
+      query = query.eq("is_income", false).gt("amount", 0).not("source_id", "is", null);
       break;
     case "budgeted_outflow":
     case "other_outflow":
       query = query.lt("amount", 0);
       break;
-    // budget_net (income - budgeted outflows) and total_net (every inflow
+    // budget_net (income - budgeted outflows) and cash_flow (every inflow
     // minus every outflow) don't need an amount-sign filter at the DB level
     // — they're unioning multiple of the kinds above, filtered in JS below
     // instead so one query covers all of it.
     case "budget_net":
-    case "total_net":
+    case "cash_flow":
       break;
   }
 
@@ -189,15 +190,12 @@ export async function getDashboardTileTransactions(
       if (!isBudget) return false;
       return r.amount < 0 || r.category_id !== null;
     });
-  } else if (kind.type === "total_net") {
-    // totalNet = income + otherInflow - budgetedOutflow - otherOutflow, and
-    // budgetedOutflow/otherOutflow both come from v_outflow_by_bucket, which
-    // silently drops any outflow with no source at all (`where source_type
-    // is not null`) — inflows have no such requirement. Mirror that here so
-    // this sums to the exact same figure the tile shows, not a superset of
-    // it that happens to include sourceless expenses the tile itself never
-    // counted.
-    rows = rows.filter((r) => r.amount > 0 || r.sources !== null);
+  } else if (kind.type === "cash_flow") {
+    // cashFlow = inflows - outflows, and unsourced money counts on neither
+    // side (v_outflow_by_bucket and v_inflow_outflow both require a source;
+    // Income rows carry the Income source). Mirror that here so this sums to
+    // the exact figure the tile shows.
+    rows = rows.filter((r) => r.sources !== null);
   }
 
   return rows.map((r) => ({

@@ -55,7 +55,7 @@ export default async function SourcesPage() {
               decimalPlaces={decimalPlaces}
             />
           )}
-          {settings.month_ahead && incomeSource && (
+          {incomeSource && (
             <SourceCard key={incomeSource.id} source={incomeSource} decimalPlaces={decimalPlaces} />
           )}
         </div>

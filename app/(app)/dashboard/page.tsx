@@ -59,7 +59,7 @@ export default async function DashboardPage({
         expenses={data.budgetedOutflow}
         otherOutflow={data.otherOutflow}
         budgetNet={data.budgetNet}
-        totalNet={data.totalNet}
+        cashFlow={data.cashFlow}
         floatBalance={data.floatBalance}
         budgetFillPct={budgetFillPct}
         totalAllocation={rateData?.totalAllocation ?? 0}

@@ -85,7 +85,7 @@ export async function createManualTransaction(
   const amount = isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
 
   if (isIncome && incomeAction === "include_in_budget") {
-    // Tracked for inflow/filtering only (see v_inflow_outflow) — no source.
+    // route_income_to_fund sets the Income source on insert.
     resolvedSourceId = null;
   } else if (isIncome && incomeAction === "create_source") {
     if (newSourceType !== "reimbursement") {
@@ -151,7 +151,10 @@ export async function createManualTransaction(
     category_id: resolvedCategoryId,
     source_id: resolvedSourceId,
     category_source: categorySource,
-    is_income: isIncome,
+    // Only "Income" itself is Income (tracked to the Income source). "Add to
+    // Source"/"Create a Source" put the money into that other source, which
+    // makes it an ordinary inflow there, not Income.
+    is_income: isIncome && incomeAction === "include_in_budget",
     exclude_from_budget: isExcluded,
   });
   if (error) return { error: error.message };
@@ -237,7 +240,7 @@ export async function assignTransaction(
   const ruleAction = String(formData.get("rule_action") ?? "");
   // Same stripping as categoryId above, and for the same reason: the Source
   // select's hidden input carries this row's own Exclude/Income sentinel
-  // (EXCLUDE_SOURCE/INCOME_SOURCE in transaction-list.tsx, same strings as
+  // (EXCLUDE_SOURCE in transaction-list.tsx; the old Income sentinel, same strings as
   // these two constants) whenever the row is currently flagged that way, not
   // just at the moment it's picked — so *any* later autosave on an already-
   // Excluded/Income row (the "+Add Rule" toggle, a Date/Notes edit, ...)
@@ -423,6 +426,24 @@ export async function bulkUpdateTransactions(
 ): Promise<{ error: string } | null> {
   if (transactionIds.length === 0) return null;
 
+  const { supabase, user } = await requireUser();
+
+  // Picking the Income source is marking Income — route it through the
+  // isIncome branch below. Sending it as a plain source pick (is_income
+  // false + source = Income) would read to route_income_to_fund as
+  // "un-mark Income" on rows that already are, and clear their source.
+  if (updates.sourceId && !updates.isIncome) {
+    const { data: incomeSource, error: incomeSourceError } = await supabase
+      .from("sources")
+      .select("id")
+      .eq("type", "income")
+      .maybeSingle();
+    if (incomeSourceError) return { error: incomeSourceError.message };
+    if (incomeSource && updates.sourceId === incomeSource.id) {
+      updates = { isIncome: true };
+    }
+  }
+
   const patch: {
     category_id?: string | null;
     category_source?: "manual" | null;
@@ -430,8 +451,8 @@ export async function bulkUpdateTransactions(
     exclude_from_budget?: boolean;
     is_income?: boolean;
   } = {};
-  // Excluded and Income are both Source-select sentinels now (see
-  // EXCLUDE_SOURCE/INCOME_SOURCE in transaction-list.tsx) — mutually
+  // Excluded (a Source-select sentinel, EXCLUDE_SOURCE in
+  // transaction-list.tsx) and Income (the Income source) are mutually
   // exclusive with a category/source pick and with each other, so each
   // short-circuits the plain field updates below.
   if (updates.excludeFromBudget) {
@@ -441,8 +462,9 @@ export async function bulkUpdateTransactions(
     patch.category_source = null;
     patch.is_income = false;
   } else if (updates.isIncome) {
+    // source_id is left to route_income_to_fund, which sets the Income
+    // source on every row this marks Income.
     patch.is_income = true;
-    patch.source_id = null;
     patch.category_id = null;
     patch.category_source = null;
     patch.exclude_from_budget = false;
@@ -461,8 +483,6 @@ export async function bulkUpdateTransactions(
     }
   }
   if (Object.keys(patch).length === 0) return null;
-
-  const { supabase, user } = await requireUser();
 
   // Transfers keep category_id/source_id null (see createManualTransaction) —
   // bulk edits skip them rather than risk double-applying transfer balances.

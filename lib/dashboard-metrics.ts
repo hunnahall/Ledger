@@ -27,15 +27,22 @@ export function computeDashboardTotals({
   const budgetedOutflow = spentFromRawAmount(budgetedOutflowRaw);
   const otherOutflow = spentFromRawAmount(otherOutflowRaw);
   const budgetNet = totalAllocation - budgetedOutflow + categorizedIncome;
-  const totalNet = income + otherInflow - budgetedOutflow - otherOutflow;
+  // otherInflow already contains categorizedIncome (v_inflow_outflow counts
+  // every positive, non-Income amount, split legs included), so it is never
+  // added a second time here — categorizedIncome only feeds budgetNet.
+  const inflows = income + otherInflow;
+  const outflows = budgetedOutflow + otherOutflow;
+  const cashFlow = inflows - outflows;
   return {
     income,
     otherInflow,
+    inflows,
     budgetedOutflow,
     otherOutflow,
+    outflows,
     categorizedIncome,
     totalAllocation,
     budgetNet,
-    totalNet,
+    cashFlow,
   };
 }

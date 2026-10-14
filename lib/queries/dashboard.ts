@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { spentFromRawAmount } from "@/lib/progress";
 import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/queries/budgets";
-import { getSettings } from "@/lib/queries/settings";
 
 // The category Transfers tags Sinking Fund contributions and Source
 // Transfers (see the Transactions page) — its own monthly_amount is a
@@ -35,7 +34,6 @@ export async function getDashboardData(monthISO: string) {
     { data: sourceBalances, error: sourceBalancesError },
     { data: spendingBySource, error: spendingBySourceError },
     { data: budgetCategoryIncome, error: budgetCategoryIncomeError },
-    settings,
     { data: categories, error: categoriesError },
     transfersMonthlyTotal,
   ] = await Promise.all([
@@ -45,7 +43,6 @@ export async function getDashboardData(monthISO: string) {
     supabase.from("v_source_balances").select("*"),
     supabase.from("v_spending_by_source").select("*").eq("month", month),
     supabase.from("v_budget_category_income").select("*").eq("month", month).maybeSingle(),
-    getSettings(),
     userId
       ? supabase
           .from("categories")
@@ -93,13 +90,9 @@ export async function getDashboardData(monthISO: string) {
   const budgetedOutflowRaw = outflowByBucket?.find((b) => b.bucket === "budget")?.amount ?? null;
   const otherOutflowRaw = outflowByBucket?.find((b) => b.bucket === "other")?.amount ?? null;
 
-  // The Income Fund only does anything while Month Ahead is on (see
-  // ensure_income_fund_current) — hidden here the rest of the time to
-  // match it being hidden on the Sources page, rather than sitting on
-  // the Dashboard permanently at $0.
-  const visibleSourceBalances = (sourceBalances ?? []).filter(
-    (s) => settings.month_ahead || s.type !== "income",
-  );
+  // The Income source is used whether Month Ahead is on or off (income always
+  // tracks to it), so nothing is hidden here any more.
+  const visibleSourceBalances = sourceBalances ?? [];
 
   const spentBySourceId = new Map(
     (spendingBySource ?? []).map((s) => [s.source_id, spentFromRawAmount(s.amount)]),

@@ -218,8 +218,8 @@ export function ManualTransactionForm({
 
       {typeChoice === "income" && monthAhead && (
         <p className="max-w-xs pb-2 text-xs text-muted">
-          Flows to the Income Fund automatically — swept into the current
-          budget at the start of next month.
+          Tracked to the Income source — swept into the budget at the start
+          of next month.
         </p>
       )}
 
@@ -236,7 +236,7 @@ export function ManualTransactionForm({
                   checked={incomeAction === "include_in_budget"}
                   onChange={() => setIncomeAction("include_in_budget")}
                 />
-                Include in Budget
+                Add to Income
               </label>
               <label className="flex items-center gap-1.5 text-foreground">
                 <input

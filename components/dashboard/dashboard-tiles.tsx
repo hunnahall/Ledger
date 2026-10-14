@@ -21,7 +21,7 @@ export function DashboardStatTiles({
   expenses,
   otherOutflow,
   budgetNet,
-  totalNet,
+  cashFlow,
   floatBalance,
   budgetFillPct,
   totalAllocation,
@@ -36,7 +36,7 @@ export function DashboardStatTiles({
   expenses: number;
   otherOutflow: number;
   budgetNet: number;
-  totalNet: number;
+  cashFlow: number;
   floatBalance: number;
   budgetFillPct: number | null;
   totalAllocation: number;
@@ -98,12 +98,12 @@ export function DashboardStatTiles({
         <StatTile
           label="Net Cash Flow"
           tooltip="Any income - any expenses."
-          onClick={() => openTile("Net Cash Flow", { type: "total_net" })}
+          onClick={() => openTile("Net Cash Flow", { type: "cash_flow" })}
         >
           <Money
-            amount={totalNet}
+            amount={cashFlow}
             decimalPlaces={decimalPlaces}
-            className={totalNet < 0 ? "text-negative" : "text-positive"}
+            className={cashFlow < 0 ? "text-negative" : "text-positive"}
           />
         </StatTile>
 

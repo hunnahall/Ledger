@@ -100,6 +100,7 @@ export default async function TransactionsPage({
           sources={filterOptions.sources}
           decimalPlaces={decimalPlaces}
           budgetSourceId={filterOptions.defaultSourceId}
+          incomeSourceId={filterOptions.incomeSourceId}
         />
       </section>
     </div>
