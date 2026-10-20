@@ -7,7 +7,7 @@ import { buildSourcePie } from "@/lib/dashboard-charts";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
-// A ring of amounts: six series at most, the rest grouped as Other. The
+// A ring of amounts: eight series at most, the rest grouped as Other. The
 // legend lists every item with its share and amount; each row and slice that
 // maps to something real is a button.
 export function PieChart({

@@ -16,7 +16,7 @@ export type MoneyMapSource = {
 };
 
 export type MoneyMapSegment = {
-  /** A Source id, or "other" for Sources past the sixth color. */
+  /** A Source id, or "other" for Sources past the eighth color. */
   id: string;
   name: string;
   amount: number;
