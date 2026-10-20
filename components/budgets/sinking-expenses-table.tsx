@@ -13,6 +13,9 @@ import { SinkingExpenseRow } from "@/components/budgets/sinking-expense-row";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
+import { Card } from "@/components/ui/card";
+import { AddIcon } from "@/components/ui/icons";
+import { Money } from "@/components/ui/money";
 import { Input } from "@/components/ui/input";
 
 type SinkingExpense = {
@@ -39,122 +42,146 @@ export function SinkingExpensesTable({
   const [, createAction] = useActionState(createSinkingExpense, null);
 
   return (
-    <TableShell columns={["Sinking expense", "Monthly", ""]}>
-      {sinkingExpenses.map((expense, index) => (
-        <SinkingExpenseRow
-          key={expense.id}
-          expense={expense}
-          decimalPlaces={decimalPlaces}
-          isLast={!showAdd && index === sinkingExpenses.length - 1}
-          onRequestAdd={() => setShowAdd(true)}
-        />
-      ))}
-
-      {sinkingExpenses.length === 0 && !showAdd && (
-        <TableEmptyRow colSpan={3} label="Add sinking expense" onClick={() => setShowAdd(true)} />
-      )}
-
-      {showAdd && (
-        <tr className="border-b border-border bg-surface-subtle last:border-0">
-          <td colSpan={3} className="px-4 py-3">
-            <form
-              action={createAction}
-              onSubmit={() => {
-                setShowAdd(false);
-                setMode("frequency");
-              }}
-              className="flex flex-wrap items-end gap-3"
-            >
-              <label className="flex flex-col gap-1 text-sm">
-                New sinking expense
-                <Input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder="e.g. Car insurance"
-                  className="w-32"
+    <Card
+      id="block:sinking-expenses"
+      title="Sinking Expenses"
+      action={
+        <Button type="button" size="sm" onClick={() => setShowAdd(true)}>
+          <AddIcon size={16} />
+          Add sinking expense
+        </Button>
+      }
+      className="scroll-mt-6"
+    >
+      <TableShell
+        bare
+        columns={["Sinking expense", "Type", { label: "Monthly", align: "right" }, ""]}
+        footer={
+          sinkingExpenses.length > 0 && (
+            <tr className="h-9">
+              <td className="px-4" colSpan={2}>Total</td>
+              <td className="px-4 text-right">
+                <Money
+                  amount={sinkingExpenses.reduce((sum, e) => sum + e.monthly_amount, 0)}
+                  decimalPlaces={decimalPlaces}
+                  symbol={false}
                 />
-              </label>
+              </td>
+              <td />
+            </tr>
+          )
+        }
+      >
+        {sinkingExpenses.map((expense) => (
+          <SinkingExpenseRow
+            key={expense.id}
+            expense={expense}
+            decimalPlaces={decimalPlaces}
+          />
+        ))}
 
-              <label className="flex flex-col gap-1 text-sm">
-                Type
-                <Select
-                  name="contribution_type"
-                  uiSize="sm"
-                  className="w-28"
-                  value={mode}
-                  onChange={(value) => setMode(value as SinkingContributionType)}
-                >
-                  <option value="frequency">Frequency</option>
-                  <option value="goal">Goal</option>
-                </Select>
-              </label>
+        {sinkingExpenses.length === 0 && !showAdd && (
+          <TableEmptyRow colSpan={4} label="No sinking expenses yet." />
+        )}
 
-              {mode === "frequency" ? (
-                <>
-                  <label className="flex flex-col gap-1 text-sm">
-                    Amount
-                    <Input
-                      type="number"
-                      name="amount"
-                      step="0.01"
-                      min="0"
-                      onKeyDown={stepAmountByDollar}
-                      defaultValue={0}
-                      className="w-24"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm">
-                    Frequency
-                    <Select name="frequency" defaultValue="annual" className="w-36">
-                      {SINKING_FREQUENCIES.map((frequency: SinkingFrequency) => (
-                        <option key={frequency} value={frequency}>
-                          {SINKING_FREQUENCY_LABELS[frequency]}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                </>
-              ) : (
-                <>
-                  <label className="flex flex-col gap-1 text-sm">
-                    Target amount
-                    <Input
-                      type="number"
-                      name="target_amount"
-                      step="0.01"
-                      min="0"
-                      onKeyDown={stepAmountByDollar}
-                      defaultValue={0}
-                      className="w-28"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm">
-                    Target date
-                    <Input
-                      type="date"
-                      name="target_date"
-                      required={mode === "goal"}
-                      className="w-36"
-                    />
-                  </label>
-                </>
-              )}
-
-              <Button type="submit" variant="accent" size="sm">
-                Add
-              </Button>
-              <button
-                type="button"
-                onClick={() => setShowAdd(false)}
-                className="pb-2 text-xs text-muted hover:underline"
+        {showAdd && (
+          <tr className="border-b border-border bg-surface-subtle">
+            <td colSpan={4} className="px-4 py-3">
+              <form
+                action={createAction}
+                onSubmit={() => {
+                  setShowAdd(false);
+                  setMode("frequency");
+                }}
+                className="flex flex-wrap items-end gap-3"
               >
-                Cancel
-              </button>
-            </form>
-          </td>
-        </tr>
-      )}
-    </TableShell>
+                <label className="flex flex-col gap-1 text-sm">
+                  New sinking expense
+                  <Input
+                    type="text"
+                    name="name"
+                    required
+                    placeholder="e.g. Car insurance"
+                    className="w-32"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm">
+                  Type
+                  <Select
+                    name="contribution_type"
+                    uiSize="sm"
+                    className="w-28"
+                    value={mode}
+                    onChange={(value) => setMode(value as SinkingContributionType)}
+                  >
+                    <option value="frequency">Frequency</option>
+                    <option value="goal">Goal</option>
+                  </Select>
+                </label>
+
+                {mode === "frequency" ? (
+                  <>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Amount
+                      <Input
+                        type="number"
+                        name="amount"
+                        step="0.01"
+                        min="0"
+                        onKeyDown={stepAmountByDollar}
+                        defaultValue={0}
+                        className="w-24"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Frequency
+                      <Select name="frequency" defaultValue="annual" className="w-36">
+                        {SINKING_FREQUENCIES.map((frequency: SinkingFrequency) => (
+                          <option key={frequency} value={frequency}>
+                            {SINKING_FREQUENCY_LABELS[frequency]}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Target amount
+                      <Input
+                        type="number"
+                        name="target_amount"
+                        step="0.01"
+                        min="0"
+                        onKeyDown={stepAmountByDollar}
+                        defaultValue={0}
+                        className="w-28"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Target date
+                      <Input
+                        type="date"
+                        name="target_date"
+                        required={mode === "goal"}
+                        className="w-36"
+                      />
+                    </label>
+                  </>
+                )}
+
+                <Button type="submit" variant="primary" size="sm">
+                  Add
+                </Button>
+                <Button type="button" variant="tertiary" size="sm" onClick={() => setShowAdd(false)}>
+                  Cancel
+                </Button>
+              </form>
+            </td>
+          </tr>
+        )}
+      </TableShell>
+    </Card>
   );
 }

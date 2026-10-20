@@ -64,6 +64,10 @@ describe("formatMoney", () => {
     expect(formatMoney(-1204.18)).toBe("\u2212$1,204.18");
   });
 
+  it("drops the $ for table cells", () => {
+    expect(formatMoney(-1204.18, 2, { symbol: false })).toBe("\u22121,204.18");
+  });
+
   it("rounds to the requested decimals", () => {
     expect(formatMoney(1234.5, 0)).toBe("$1,235");
   });

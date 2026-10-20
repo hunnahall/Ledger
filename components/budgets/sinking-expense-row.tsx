@@ -14,6 +14,7 @@ import {
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
+import { Tag } from "@/components/ui/badge";
 import { ExpandableRow } from "@/components/budgets/expandable-row";
 import { Input } from "@/components/ui/input";
 
@@ -32,13 +33,9 @@ type SinkingExpense = {
 export function SinkingExpenseRow({
   expense,
   decimalPlaces,
-  isLast,
-  onRequestAdd,
 }: {
   expense: SinkingExpense;
   decimalPlaces: number;
-  isLast: boolean;
-  onRequestAdd: () => void;
 }) {
   const [mode, setMode] = useState<SinkingContributionType>(
     expense.contribution_type === "goal" ? "goal" : "frequency",
@@ -58,19 +55,19 @@ export function SinkingExpenseRow({
 
   return (
     <ExpandableRow
-      colSpan={3}
-      isLast={isLast}
-      addLabel="Add sinking expense"
-      expandLabel="Edit sinking expense"
+      colSpan={4}
+      expandLabel={`Edit ${expense.name}`}
       collapseLabel="Collapse details"
-      onAddClick={onRequestAdd}
       updateAction={updateSinkingExpense.bind(null, expense.id)}
       deleteAction={deleteSinkingExpense.bind(null, expense.id)}
       compactCells={
         <>
-          <td className="px-4 py-3 font-medium">{expense.name}</td>
-          <td className="px-4 py-3">
-            <Money amount={expense.monthly_amount} decimalPlaces={decimalPlaces} />/mo
+          <td className="px-4 font-medium">{expense.name}</td>
+          <td className="px-4">
+            <Tag>{sinkingTag(expense)}</Tag>
+          </td>
+          <td className="px-4 text-right">
+            <Money amount={expense.monthly_amount} decimalPlaces={decimalPlaces} symbol={false} />
           </td>
         </>
       }
@@ -146,4 +143,18 @@ export function SinkingExpenseRow({
       )}
     </ExpandableRow>
   );
+}
+
+// "Annual", or "Goal · Dec 2026" for a goal with a target date.
+function sinkingTag(expense: SinkingExpense) {
+  if (expense.contribution_type === "goal") {
+    if (!expense.target_date) return "Goal";
+    const date = new Date(`${expense.target_date}T00:00:00Z`).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+    return `Goal · ${date}`;
+  }
+  return SINKING_FREQUENCY_LABELS[(expense.frequency ?? "annual") as SinkingFrequency];
 }

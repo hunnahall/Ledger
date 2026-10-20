@@ -21,7 +21,9 @@ export function BudgetCharts({
   monthISO,
   decimalPlaces,
 }: {
-  categories: { id: string; name: string; monthlyAmount: number; spent: number }[];
+  /** monthlyAmount is the category's own amount (the pie's slices); budget is
+   * what its bar measures against (Transfers gets its override). */
+  categories: { id: string; name: string; monthlyAmount: number; budget: number; spent: number }[];
   sinkingExpensesTotal: number;
   sourceTransfersTotal: number;
   monthISO: string;
@@ -76,8 +78,8 @@ export function BudgetCharts({
               key: c.id,
               label: c.name,
               value: c.spent,
-              target: c.monthlyAmount,
-              valueLabel: `${formatMoney(c.spent, decimalPlaces)} / ${formatMoney(c.monthlyAmount, decimalPlaces)}`,
+              target: c.budget,
+              valueLabel: `${formatMoney(c.spent, decimalPlaces)} / ${formatMoney(c.budget, decimalPlaces)}`,
             }))}
             onSelect={openCategory}
           />

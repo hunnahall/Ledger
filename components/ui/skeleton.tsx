@@ -98,3 +98,18 @@ export function SkeletonTable({ rows = 8 }: { rows?: number }) {
     </div>
   );
 }
+
+/** Stands in for a StatRow (components/ui/stat.tsx). */
+export function SkeletonStatRow({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 divide-y divide-border border border-border bg-surface sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none sm:divide-x sm:divide-y-0">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="px-5 py-4">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="mt-2.5 h-7 w-28" />
+          <Skeleton className="mt-2 h-3 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}

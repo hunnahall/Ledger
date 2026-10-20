@@ -4,6 +4,7 @@ import { updateSourceTransfer, deleteSourceTransfer } from "@/lib/actions/source
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
+import { Tag } from "@/components/ui/badge";
 import { ExpandableRow } from "@/components/budgets/expandable-row";
 import { Input } from "@/components/ui/input";
 
@@ -20,30 +21,26 @@ export function SourceTransferRow({
   transfer,
   sourceOptions,
   decimalPlaces,
-  isLast,
-  onAddClick,
 }: {
   transfer: SourceTransfer;
   sourceOptions: { id: string; name: string }[];
   decimalPlaces: number;
-  isLast: boolean;
-  onAddClick: () => void;
 }) {
   return (
     <ExpandableRow
-      colSpan={3}
-      isLast={isLast}
-      addLabel="Add Source Transfer"
-      expandLabel="Edit Source Transfer"
+      colSpan={4}
+      expandLabel={`Edit ${transfer.name}`}
       collapseLabel="Collapse details"
-      onAddClick={onAddClick}
       updateAction={updateSourceTransfer.bind(null, transfer.id)}
       deleteAction={deleteSourceTransfer.bind(null, transfer.id)}
       compactCells={
         <>
-          <td className="px-4 py-3 font-medium">{transfer.name}</td>
-          <td className="px-4 py-3">
-            <Money amount={transfer.amount} decimalPlaces={decimalPlaces} />/mo
+          <td className="px-4 font-medium">{transfer.name}</td>
+          <td className="px-4">
+            <Tag>{transfer.source_name}</Tag>
+          </td>
+          <td className="px-4 text-right">
+            <Money amount={transfer.amount} decimalPlaces={decimalPlaces} symbol={false} />
           </td>
         </>
       }

@@ -30,3 +30,19 @@ export function Badge({
     </span>
   );
 }
+
+// A neutral mono label for a kind, not a status: a Source type, a frequency,
+// an account's last 4.
+export function Tag({ className, children, ...props }: HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 items-center whitespace-nowrap border border-border px-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-muted",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </span>
+  );
+}

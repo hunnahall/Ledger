@@ -229,18 +229,3 @@ export async function getBudgetRateData(monthISO: string, timeZone: string) {
     actualByDay,
   };
 }
-
-// This month's spending per Category (a positive magnitude), for the Budget
-// page's spending-by-category bars. Same view the Dashboard's category bars
-// read, so the two always agree.
-export async function getCategorySpending(monthISO: string): Promise<Map<string, number>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("v_spending_by_category")
-    .select("category_id, amount")
-    .eq("month", monthISO);
-  if (error) throw new Error(error.message);
-  return new Map(
-    (data ?? []).flatMap((r) => (r.category_id ? [[r.category_id, spentFromRawAmount(r.amount)] as const] : [])),
-  );
-}

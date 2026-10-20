@@ -4,15 +4,7 @@ import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/queries/budgets";
 import { nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
-
-// The category Transfers tags Sinking Fund contributions and Source
-// Transfers (see the Transactions page) — its own monthly_amount is a
-// placeholder $0 (categories aren't specific to Sinking/Source Transfer
-// money), so its Dashboard denominator is swapped for the actual combined
-// monthly commitment from the Budget page instead. Matched by name since
-// categories have no "this one is special" marker (see sources.is_system
-// for the analogous thing sources do have).
-const TRANSFERS_CATEGORY_NAME = "Transfers";
+import { TRANSFERS_CATEGORY_NAME } from "@/lib/budgets/category-status";
 
 export async function getDashboardData(monthISO: string) {
   const supabase = await createClient();
