@@ -3,8 +3,6 @@
 import {
   Children,
   isValidElement,
-  useEffect,
-  useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
@@ -13,6 +11,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { FIELD_BASE, type FieldSize } from "@/components/ui/input";
 import { ChevronDownIcon, CheckIcon } from "@/components/ui/icons";
+import { useAnchoredPopover } from "@/components/ui/use-anchored-popover";
 
 const SIZE_CLASSES: Record<FieldSize, string> = {
   sm: "px-2 py-1.5 text-sm",
@@ -69,24 +68,18 @@ export function Select({
   // its own bookkeeping on top of a walk that ran regardless. The walk itself
   // is cheap — it reads props off an already-built element list.
   const options = optionsFromChildren(children);
-  const [open, setOpen] = useState(false);
   const [internalValue, setInternalValue] = useState(
     defaultValue != null ? String(defaultValue) : "",
   );
   const [highlighted, setHighlighted] = useState(0);
-  const [placement, setPlacement] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    openUp: boolean;
-  } | null>(null);
+  const { open, setOpen, openPanel, placement, panelStyle, triggerRef, panelRef } =
+    useAnchoredPopover<HTMLButtonElement, HTMLUListElement>({
+      estimatedHeight: Math.min(options.length * 36 + 8, 256),
+    });
 
   const selected = value !== undefined ? value : internalValue;
   const selectedIndex = options.findIndex((o) => o.value === selected);
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
-
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLUListElement>(null);
 
   function commit(next: string) {
     if (value === undefined) setInternalValue(next);
@@ -96,62 +89,9 @@ export function Select({
   }
 
   function openMenu() {
-    const trigger = triggerRef.current;
-    if (trigger) {
-      const rect = trigger.getBoundingClientRect();
-      const estimatedPanelHeight = Math.min(options.length * 36 + 8, 256);
-      const openUp = rect.bottom + estimatedPanelHeight > window.innerHeight && rect.top > estimatedPanelHeight;
-      // The panel can grow up to 320px wide (see maxWidth below), wider
-      // than most triggers — left-aligning it with the trigger unchecked
-      // would push it past the right edge on a narrow screen whenever the
-      // trigger itself sits right-of-center (e.g. the Source select next
-      // to Category in a transaction row). Clamp so it stays on-screen,
-      // preferring to hang right off the trigger but sliding left as
-      // needed, with an 8px margin on either edge as a last resort.
-      const estimatedPanelWidth = Math.max(rect.width, 320);
-      const left = Math.min(rect.left, window.innerWidth - estimatedPanelWidth - 8);
-      setPlacement({
-        top: openUp ? rect.top : rect.bottom,
-        left: Math.max(8, left),
-        width: rect.width,
-        openUp,
-      });
-    }
     setHighlighted(selectedIndex >= 0 ? selectedIndex : 0);
-    setOpen(true);
+    openPanel();
   }
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-    function handleScroll(event: Event) {
-      // Scrolling inside the panel's own option list must not close it —
-      // only close when something outside (the page, another container)
-      // scrolls, since that would invalidate the trigger-relative position.
-      const target = event.target;
-      if (panelRef.current && target instanceof Node && panelRef.current.contains(target)) {
-        return;
-      }
-      setOpen(false);
-    }
-    function handleResize() {
-      setOpen(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", handleResize);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [open]);
 
   function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (disabled) return;
@@ -214,18 +154,11 @@ export function Select({
             // pre-open state is @starting-style (Tailwind's `starting:`), so
             // the entrance needs no mount-and-flip state of its own.
             className={cn(
-              "fixed z-50 max-h-64 overflow-y-auto rounded-lg border border-card-border bg-surface py-1 text-sm shadow-popover",
+              "fixed z-50 max-h-64 overflow-y-auto border border-border-strong bg-surface-2 py-1 text-sm shadow-popover",
               "transition-[opacity,transform] duration-[120ms] ease-entrance",
               "opacity-100 translate-y-0 starting:opacity-0 starting:-translate-y-1",
             )}
-            style={{
-              left: placement.left,
-              minWidth: placement.width,
-              maxWidth: Math.max(placement.width, 320),
-              ...(placement.openUp
-                ? { bottom: window.innerHeight - placement.top }
-                : { top: placement.top }),
-            }}
+            style={{ ...panelStyle, maxWidth: Math.max(placement.width, 320) }}
           >
             {options.map((option, index) => (
               <li

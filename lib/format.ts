@@ -61,6 +61,41 @@ export function formatShortDate(dateString: string) {
   return `${dateString.slice(5, 7)}/${dateString.slice(8, 10)}`;
 }
 
+function calendarDay(date: Date, timeZone?: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    timeZone,
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return { year: get("year"), utcDay: Date.UTC(get("year"), get("month") - 1, get("day")) / 86_400_000 };
+}
+
+// Short "how long ago" for sync times and the like: "Just now", "5m", then
+// "2h" while it's still the same calendar day, then "Yesterday", then "Oct 12"
+// (with the year once it's a different year). Calendar days are counted in
+// `timeZone`, which defaults to the device's own.
+export function formatRelative(iso: string, now: Date = new Date(), timeZone?: string) {
+  const then = new Date(iso);
+  const minutes = Math.floor((now.getTime() - then.getTime()) / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m`;
+
+  const today = calendarDay(now, timeZone);
+  const day = calendarDay(then, timeZone);
+  const daysAgo = today.utcDay - day.utcDay;
+  if (daysAgo === 0) return `${Math.floor(minutes / 60)}h`;
+  if (daysAgo === 1) return "Yesterday";
+
+  return then.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(day.year !== today.year ? { year: "numeric" } : {}),
+    timeZone,
+  });
+}
+
 // Short "$1,234.56" used in activity-log entries. Five action files each
 // had their own `$${amount.toFixed(2)}` reimplementation of this; the "/mo"
 // suffix (categories, source transfers) is the only variation any of them
