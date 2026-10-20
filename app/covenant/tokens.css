@@ -5,9 +5,17 @@
    Usage, on <html>:
      data-theme="light" | "dark"   optional; omit to follow the device
      data-accent="<color>"         the app's signature color; omit for suite pages
-   --chart-1..6                  categorical chart series; the app's own color is always --chart-1
-     ledger   -> data-accent="slate-blue"  (Slate Blue)
+   --chart-1..8                  categorical chart series; the app's own color is always --chart-1
+     ledger   -> data-accent="umber"  (Umber)
      parable  -> data-accent="umber"  (Umber)
+
+   Chart palette (October 2026): Umber, Pistachio, Rose, Indigo, Slate Blue,
+   Spruce, Apricot, Periwinkle, in that order. Each is the most unlike the
+   ones before it, so a chart with fewer series uses the most distinct ones
+   first; past eight, group the rest as Other. Sage, Mist and Plum stay as
+   signature colors but aren't chart colors (Mist read as Slate Blue and Plum
+   as Umber). An app whose signature isn't one of the eight puts it first and
+   drops the palette color closest to it.
 
    Fonts are loaded by each app (see the reference). Every family token has a
    system fallback, so swapping a face means changing one line here.
@@ -42,12 +50,19 @@
   --hue-periwinkle: #CDC1FF;
   --hue-mist: #95AFBA;
   --hue-plum: #9F818D;
-  --chart-1: var(--hue-slate-blue);
-  --chart-2: var(--hue-umber);
-  --chart-3: var(--hue-sage);
-  --chart-4: var(--hue-periwinkle);
-  --chart-5: var(--hue-mist);
-  --chart-6: var(--hue-plum);
+  --hue-pistachio: #BADB94;
+  --hue-rose: #FFADC8;
+  --hue-indigo: #7678BB;
+  --hue-spruce: #508C89;
+  --hue-apricot: #FFC48A;
+  --chart-1: var(--hue-umber);
+  --chart-2: var(--hue-pistachio);
+  --chart-3: var(--hue-rose);
+  --chart-4: var(--hue-indigo);
+  --chart-5: var(--hue-slate-blue);
+  --chart-6: var(--hue-spruce);
+  --chart-7: var(--hue-apricot);
+  --chart-8: var(--hue-periwinkle);
   color-scheme: dark;
   /* Signature color. Suite pages with no data-accent use ink. */
   --accent: var(--fg);
@@ -152,12 +167,11 @@
     --hue-periwinkle: #7665AC;
     --hue-mist: #557581;
     --hue-plum: #7F636E;
-    --chart-1: var(--hue-slate-blue);
-    --chart-2: var(--hue-umber);
-    --chart-3: var(--hue-sage);
-    --chart-4: var(--hue-periwinkle);
-    --chart-5: var(--hue-mist);
-    --chart-6: var(--hue-plum);
+    --hue-pistachio: #709441;
+    --hue-rose: #C66D8C;
+    --hue-indigo: #47458E;
+    --hue-spruce: #005C5A;
+    --hue-apricot: #BD7C34;
     color-scheme: light;
   }
 }
@@ -189,12 +203,11 @@
   --hue-periwinkle: #7665AC;
   --hue-mist: #557581;
   --hue-plum: #7F636E;
-  --chart-1: var(--hue-slate-blue);
-  --chart-2: var(--hue-umber);
-  --chart-3: var(--hue-sage);
-  --chart-4: var(--hue-periwinkle);
-  --chart-5: var(--hue-mist);
-  --chart-6: var(--hue-plum);
+  --hue-pistachio: #709441;
+  --hue-rose: #C66D8C;
+  --hue-indigo: #47458E;
+  --hue-spruce: #005C5A;
+  --hue-apricot: #BD7C34;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -225,22 +238,21 @@
   --hue-periwinkle: #CDC1FF;
   --hue-mist: #95AFBA;
   --hue-plum: #9F818D;
-  --chart-1: var(--hue-slate-blue);
-  --chart-2: var(--hue-umber);
-  --chart-3: var(--hue-sage);
-  --chart-4: var(--hue-periwinkle);
-  --chart-5: var(--hue-mist);
-  --chart-6: var(--hue-plum);
+  --hue-pistachio: #BADB94;
+  --hue-rose: #FFADC8;
+  --hue-indigo: #7678BB;
+  --hue-spruce: #508C89;
+  --hue-apricot: #FFC48A;
   color-scheme: dark;
 }
 
 /* ---- Signature colors: dark ---- */
-  :root[data-accent="sage"] { --accent: #BBC5AA; --accent-soft: #BBC5AA24; --on-accent: #0E0F12; --chart-1: var(--hue-sage); --chart-2: var(--hue-slate-blue); --chart-3: var(--hue-umber); --chart-4: var(--hue-periwinkle); --chart-5: var(--hue-mist); --chart-6: var(--hue-plum); }
-  :root[data-accent="mist"] { --accent: #95AFBA; --accent-soft: #95AFBA24; --on-accent: #0E0F12; --chart-1: var(--hue-mist); --chart-2: var(--hue-slate-blue); --chart-3: var(--hue-umber); --chart-4: var(--hue-sage); --chart-5: var(--hue-periwinkle); --chart-6: var(--hue-plum); }
-  :root[data-accent="slate-blue"] { --accent: #92AFD7; --accent-soft: #92AFD724; --on-accent: #0E0F12; --chart-1: var(--hue-slate-blue); --chart-2: var(--hue-umber); --chart-3: var(--hue-sage); --chart-4: var(--hue-periwinkle); --chart-5: var(--hue-mist); --chart-6: var(--hue-plum); }
-  :root[data-accent="periwinkle"] { --accent: #CDC1FF; --accent-soft: #CDC1FF24; --on-accent: #0E0F12; --chart-1: var(--hue-periwinkle); --chart-2: var(--hue-slate-blue); --chart-3: var(--hue-umber); --chart-4: var(--hue-sage); --chart-5: var(--hue-mist); --chart-6: var(--hue-plum); }
-  :root[data-accent="plum"] { --accent: #9F818D; --accent-soft: #9F818D24; --on-accent: #0E0F12; --chart-1: var(--hue-plum); --chart-2: var(--hue-slate-blue); --chart-3: var(--hue-umber); --chart-4: var(--hue-sage); --chart-5: var(--hue-periwinkle); --chart-6: var(--hue-mist); }
-  :root[data-accent="umber"] { --accent: #A6816E; --accent-soft: #A6816E24; --on-accent: #0E0F12; --chart-1: var(--hue-umber); --chart-2: var(--hue-slate-blue); --chart-3: var(--hue-sage); --chart-4: var(--hue-periwinkle); --chart-5: var(--hue-mist); --chart-6: var(--hue-plum); }
+  :root[data-accent="sage"] { --accent: #BBC5AA; --accent-soft: #BBC5AA24; --on-accent: #0E0F12; --chart-1: var(--hue-sage); --chart-2: var(--hue-pistachio); --chart-3: var(--hue-rose); --chart-4: var(--hue-indigo); --chart-5: var(--hue-slate-blue); --chart-6: var(--hue-spruce); --chart-7: var(--hue-apricot); --chart-8: var(--hue-periwinkle); }
+  :root[data-accent="mist"] { --accent: #95AFBA; --accent-soft: #95AFBA24; --on-accent: #0E0F12; --chart-1: var(--hue-mist); --chart-2: var(--hue-umber); --chart-3: var(--hue-pistachio); --chart-4: var(--hue-rose); --chart-5: var(--hue-indigo); --chart-6: var(--hue-spruce); --chart-7: var(--hue-apricot); --chart-8: var(--hue-periwinkle); }
+  :root[data-accent="slate-blue"] { --accent: #92AFD7; --accent-soft: #92AFD724; --on-accent: #0E0F12; --chart-1: var(--hue-slate-blue); --chart-2: var(--hue-umber); --chart-3: var(--hue-pistachio); --chart-4: var(--hue-rose); --chart-5: var(--hue-indigo); --chart-6: var(--hue-spruce); --chart-7: var(--hue-apricot); --chart-8: var(--hue-periwinkle); }
+  :root[data-accent="periwinkle"] { --accent: #CDC1FF; --accent-soft: #CDC1FF24; --on-accent: #0E0F12; --chart-1: var(--hue-periwinkle); --chart-2: var(--hue-umber); --chart-3: var(--hue-pistachio); --chart-4: var(--hue-rose); --chart-5: var(--hue-indigo); --chart-6: var(--hue-slate-blue); --chart-7: var(--hue-spruce); --chart-8: var(--hue-apricot); }
+  :root[data-accent="plum"] { --accent: #9F818D; --accent-soft: #9F818D24; --on-accent: #0E0F12; --chart-1: var(--hue-plum); --chart-2: var(--hue-pistachio); --chart-3: var(--hue-rose); --chart-4: var(--hue-indigo); --chart-5: var(--hue-slate-blue); --chart-6: var(--hue-spruce); --chart-7: var(--hue-apricot); --chart-8: var(--hue-periwinkle); }
+  :root[data-accent="umber"] { --accent: #A6816E; --accent-soft: #A6816E24; --on-accent: #0E0F12; --chart-1: var(--hue-umber); --chart-2: var(--hue-pistachio); --chart-3: var(--hue-rose); --chart-4: var(--hue-indigo); --chart-5: var(--hue-slate-blue); --chart-6: var(--hue-spruce); --chart-7: var(--hue-apricot); --chart-8: var(--hue-periwinkle); }
 
 /* ---- Signature colors: light ---- */
 @media (prefers-color-scheme: light) {

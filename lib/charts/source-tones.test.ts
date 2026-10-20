@@ -13,6 +13,8 @@ describe("sourceTones", () => {
     src("sink", "sinking_fund", true, "2026-01-01"),
     src("gifts", "fund", false, "2026-02-01"),
     src("pets", "fund", false, "2026-03-01"),
+    src("home", "fund", false, "2026-04-01"),
+    src("kids", "fund", false, "2026-05-01"),
   ];
 
   it("puts system Sources first in a fixed order, then the rest oldest first", () => {
@@ -25,15 +27,18 @@ describe("sourceTones", () => {
       "car",
       "gifts",
       "pets",
+      "home",
+      "kids",
     ]);
   });
 
-  it("gives the first six a tone and groups the rest", () => {
+  it("gives the first eight a tone and groups the rest", () => {
     const tones = sourceTones(sources);
     expect(tones.get("budget")).toBe(1);
     expect(tones.get("car")).toBe(6);
-    expect(tones.get("gifts")).toBeNull();
-    expect(tones.get("pets")).toBeNull();
+    expect(tones.get("pets")).toBe(8);
+    expect(tones.get("home")).toBeNull();
+    expect(tones.get("kids")).toBeNull();
   });
 
   it("doesn't depend on input order", () => {

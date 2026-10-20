@@ -29,12 +29,12 @@ describe("computeMoneyMap", () => {
     expect(map.negatives).toEqual([{ id: "float", name: "Float", amount: -100 }]);
   });
 
-  it("groups Sources past the sixth as Other, in stable order", () => {
-    const sources = ["A", "B", "C", "D", "E", "F", "G", "H"].map((name) => source(name, 100));
+  it("groups Sources past the eighth as Other, in stable order", () => {
+    const sources = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"].map((name) => source(name, 100));
     const map = computeMoneyMap({ sources: [...sources].reverse() });
-    expect(map.segments.map((s) => s.name)).toEqual(["A", "B", "C", "D", "E", "F", "Other"]);
-    expect(map.segments.map((s) => s.tone)).toEqual([1, 2, 3, 4, 5, 6, null]);
-    expect(map.segments[6].amount).toBe(200);
+    expect(map.segments.map((s) => s.name)).toEqual(["A", "B", "C", "D", "E", "F", "G", "H", "Other"]);
+    expect(map.segments.map((s) => s.tone)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, null]);
+    expect(map.segments[8].amount).toBe(200);
   });
 
   it("leaves out archived Sources", () => {
