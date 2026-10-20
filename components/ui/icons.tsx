@@ -19,6 +19,10 @@ import {
   Ellipsis,
   Menu,
   X,
+  GripVertical,
+  EyeOff,
+  LayoutGrid,
+  ChevronsLeftRight,
   type LucideProps,
 } from "lucide-react";
 
@@ -52,3 +56,7 @@ export const RulesIcon = make(ListFilter);
 export const MoreIcon = make(Ellipsis);
 export const MenuIcon = make(Menu);
 export const CloseIcon = make(X);
+export const GripIcon = make(GripVertical);
+export const HideIcon = make(EyeOff);
+export const LayoutIcon = make(LayoutGrid);
+export const ResizeIcon = make(ChevronsLeftRight);

@@ -265,6 +265,7 @@ export type Database = {
         Row: {
           created_at: string
           decimal_places: number
+          dashboard_layout: Json | null
           budget_type: string
           timezone: string
           updated_at: string
@@ -273,6 +274,7 @@ export type Database = {
         Insert: {
           created_at?: string
           decimal_places?: number
+          dashboard_layout?: Json | null
           budget_type?: string
           timezone?: string
           updated_at?: string
@@ -281,6 +283,7 @@ export type Database = {
         Update: {
           created_at?: string
           decimal_places?: number
+          dashboard_layout?: Json | null
           budget_type?: string
           timezone?: string
           updated_at?: string

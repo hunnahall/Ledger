@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TONE_SWATCH } from "@/components/charts/donut";
@@ -9,14 +10,16 @@ import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ChartTitle } from "@/components/charts/chart-title";
 
-// Where your money sits: one bar split by what each Source holds, in each
-// Source's stable color (the same as Source Allocation). Sources below zero
-// are listed under the bar. Clicking a segment opens that Source's
-// transactions.
+// Where your money sits: one slim bar split by what each Source holds, in
+// each Source's stable color (the same as Source Allocation). Segments meet
+// with no gap or outline, like the rings; hovering a segment or its legend
+// row fades the others. Sources below zero are listed under the bar.
+// Clicking a segment opens that Source's transactions.
 export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPlaces: number }) {
   const router = useRouter();
   const money = (n: number) => formatMoney(n, decimalPlaces);
   const filterBy = (sourceId: string) => router.push(`/transactions?source_id=${encodeURIComponent(sourceId)}`);
+  const [active, setActive] = useState<string | null>(null);
 
   if (map.segments.length === 0) {
     return (
@@ -44,8 +47,8 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
       </div>
 
       <div className="-mx-1 overflow-x-auto px-1">
-        <div role="group" aria-label={label} className="min-w-[480px] py-1.5">
-          <div className="flex h-6 gap-px pointer-coarse:h-10">
+        <div role="group" aria-label={label} className="min-w-[480px] py-2">
+          <div className="flex h-3 pointer-coarse:h-6" onMouseLeave={() => setActive(null)}>
             {map.segments.map((s) => {
               const own = s.id !== "other";
               return (
@@ -56,11 +59,15 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
                   title={`${s.name}: ${money(s.amount)}`}
                   aria-label={own ? `${s.name}: ${money(s.amount)}. Show transactions.` : `${s.name}: ${money(s.amount)}`}
                   onClick={() => own && filterBy(s.id)}
+                  onMouseEnter={() => setActive(s.id)}
+                  onFocus={() => setActive(s.id)}
+                  onBlur={() => setActive(null)}
                   style={{ flexGrow: s.share, flexBasis: 0 }}
                   className={cn(
-                    "min-w-px transition-opacity duration-[120ms] ease-standard motion-reduce:transition-none",
+                    "min-w-px transition-opacity duration-[200ms] ease-standard motion-reduce:transition-none",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
                     TONE_SWATCH[s.tone ?? "none"],
-                    own && "hover:opacity-80",
+                    active !== null && active !== s.id && "opacity-35",
                   )}
                 />
               );
@@ -71,7 +78,7 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
 
       <ul className="mt-3 grid grid-cols-1 gap-x-6 text-[13px] tabular-nums sm:grid-cols-2 lg:grid-cols-3">
         {map.segments.map((s) => (
-          <li key={s.id}>
+          <li key={s.id} onMouseEnter={() => setActive(s.id)} onMouseLeave={() => setActive(null)}>
             <LegendRow
               swatch={TONE_SWATCH[s.tone ?? "none"]}
               name={s.name}

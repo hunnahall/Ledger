@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateLedgerPages } from "@/lib/actions/revalidate";
+import { normalizeLayout, type DashboardLayout } from "@/lib/dashboard-layout";
 
 export async function updateDecimalPlaces(
   _prevState: { error: string } | null,
@@ -78,5 +79,19 @@ export async function updateTimezone(timeZone: string): Promise<{ error: string 
   revalidateLedgerPages();
   revalidatePath("/settings");
   revalidatePath("/forecasts");
+  return null;
+}
+
+// The Dashboard's tile order, widths and hidden tiles, saved as the user
+// rearranges them. Checked by normalizeLayout so nothing malformed is stored.
+// No revalidation: the grid already shows the change, and the next render
+// reads it back.
+export async function saveDashboardLayout(layout: DashboardLayout): Promise<{ error: string } | null> {
+  const { supabase, user } = await requireUser();
+  const { error } = await supabase
+    .from("settings")
+    .update({ dashboard_layout: normalizeLayout(layout) })
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
   return null;
 }

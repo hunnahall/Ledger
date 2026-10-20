@@ -13,6 +13,8 @@ import { BudgetFundingCard, FloatCard } from "@/components/dashboard/funding-and
 import { LastMonthsCard } from "@/components/dashboard/last-months-card";
 import { MoneyMapCard } from "@/components/dashboard/money-map-card";
 import { HeatmapCard } from "@/components/dashboard/heatmap-card";
+import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
+import { normalizeLayout } from "@/lib/dashboard-layout";
 
 export default async function DashboardPage({
   searchParams,
@@ -36,8 +38,9 @@ export default async function DashboardPage({
   const currentFigures = data.months.find((m) => m.month === current);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="mb-1 flex flex-wrap items-end justify-between gap-3">
+    <DashboardGrid
+      initialLayout={normalizeLayout(settings.dashboard_layout)}
+      title={
         <div>
           <h1>Dashboard</h1>
           <p className="mt-1 font-mono text-xs text-muted">
@@ -46,65 +49,66 @@ export default async function DashboardPage({
             {!data.hasBudget && " · No current budget set"}
           </p>
         </div>
-        <MonthPicker months={selectable} selected={months} />
-      </div>
-
-      <MoneyMapCard map={data.moneyMap} decimalPlaces={decimalPlaces} />
-
-      <div className="flex flex-wrap gap-4">
-        <PaceCard
-          budgetNet={data.budgetNet}
-          allocation={data.allocation}
-          expense={data.expense}
-          months={data.months}
-          decimalPlaces={decimalPlaces}
-        />
-        <CashFlowCard
-          income={data.income}
-          otherInflows={data.otherInflows}
-          expense={data.expense}
-          otherOutflows={data.otherOutflows}
-          cashFlow={data.cashFlow}
-          months={months}
-          decimalPlaces={decimalPlaces}
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-4">
-        <DailySpendingCard months={data.months} decimalPlaces={decimalPlaces} />
-        <SourceAllocationCard
-          sources={data.sourceOutflows}
-          tones={data.sourceTones}
-          months={months}
-          decimalPlaces={decimalPlaces}
-        />
-      </div>
-
-      <HeatmapCard
-        key={months.join()}
-        days={data.dailySpending}
-        months={months}
-        today={today}
-        decimalPlaces={decimalPlaces}
-      />
-
-      <div className="flex flex-wrap gap-4">
-        <CategorySpendingCard
-          categories={data.categorySpending}
-          monthProgress={selectionProgress(months, today)}
-          months={months}
-          decimalPlaces={decimalPlaces}
-          emptyState={
-            <p className="text-sm text-muted">
-              No categories in your current budget yet.{" "}
-              <Link href="/budget" className="underline">
-                Set one up
-              </Link>
-              .
-            </p>
-          }
-        />
-        <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+      }
+      controls={<MonthPicker months={selectable} selected={months} />}
+      tiles={{
+        "money-map": <MoneyMapCard map={data.moneyMap} decimalPlaces={decimalPlaces} />,
+        "budget-net": (
+          <PaceCard
+            budgetNet={data.budgetNet}
+            allocation={data.allocation}
+            expense={data.expense}
+            months={data.months}
+            decimalPlaces={decimalPlaces}
+          />
+        ),
+        "cash-flow": (
+          <CashFlowCard
+            income={data.income}
+            otherInflows={data.otherInflows}
+            expense={data.expense}
+            otherOutflows={data.otherOutflows}
+            cashFlow={data.cashFlow}
+            months={months}
+            decimalPlaces={decimalPlaces}
+          />
+        ),
+        "daily-spending": <DailySpendingCard months={data.months} decimalPlaces={decimalPlaces} />,
+        "source-allocation": (
+          <SourceAllocationCard
+            sources={data.sourceOutflows}
+            tones={data.sourceTones}
+            months={months}
+            decimalPlaces={decimalPlaces}
+          />
+        ),
+        heatmap: (
+          <HeatmapCard
+            key={months.join()}
+            days={data.dailySpending}
+            months={months}
+            today={today}
+            decimalPlaces={decimalPlaces}
+          />
+        ),
+        "category-spending": (
+          <CategorySpendingCard
+            categories={data.categorySpending}
+            monthProgress={selectionProgress(months, today)}
+            months={months}
+            decimalPlaces={decimalPlaces}
+            emptyState={
+              <p className="text-sm text-muted">
+                No categories in your current budget yet.{" "}
+                <Link href="/budget" className="underline">
+                  Set one up
+                </Link>
+                .
+              </p>
+            }
+          />
+        ),
+        "budget-funding": (
           <BudgetFundingCard
             income={data.income}
             allocation={data.fundingAllocation}
@@ -112,10 +116,10 @@ export default async function DashboardPage({
             months={months}
             decimalPlaces={decimalPlaces}
           />
-          <FloatCard balance={data.floatBalance} months={months} decimalPlaces={decimalPlaces} />
-          <LastMonthsCard months={data.months} currentMonthISO={current} decimalPlaces={decimalPlaces} />
-        </div>
-      </div>
-    </div>
+        ),
+        float: <FloatCard balance={data.floatBalance} months={months} decimalPlaces={decimalPlaces} />,
+        "by-month": <LastMonthsCard months={data.months} currentMonthISO={current} decimalPlaces={decimalPlaces} />,
+      }}
+    />
   );
 }

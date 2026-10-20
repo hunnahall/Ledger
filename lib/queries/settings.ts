@@ -8,6 +8,8 @@ type Settings = {
   decimal_places: number;
   budget_type: BudgetType;
   timezone: string;
+  /** Raw; lib/dashboard-layout.ts's normalizeLayout makes it safe to use. */
+  dashboard_layout: unknown;
 };
 
 // RLS ("own rows") already restricts this to the signed-in user's own
@@ -23,7 +25,7 @@ export const getSettings = cache(async function getSettings(): Promise<Settings>
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("settings")
-    .select("decimal_places, budget_type, timezone")
+    .select("decimal_places, budget_type, timezone, dashboard_layout")
     .maybeSingle();
   if (error) throw new Error(error.message);
 
@@ -42,5 +44,6 @@ export const getSettings = cache(async function getSettings(): Promise<Settings>
     decimal_places: data.decimal_places,
     budget_type: data.budget_type === "rolling" ? "rolling" : "advanced",
     timezone: data.timezone ?? DEFAULT_TIME_ZONE,
+    dashboard_layout: data.dashboard_layout,
   };
 });
