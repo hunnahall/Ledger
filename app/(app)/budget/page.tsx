@@ -26,7 +26,9 @@ export default async function BudgetPage() {
   // total as its budget, the Budget column (and so `totals.budget`) is the
   // whole allocation.
   const { lines, totals, over } = categoryLines(categories, sinkingMonthly + sourceTransfersMonthly);
-  const daysLeft = daysInMonthISO(monthISO) - currentDayOfMonth(settings.timezone);
+  const daysInMonth = daysInMonthISO(monthISO);
+  const dayOfMonth = currentDayOfMonth(settings.timezone);
+  const daysLeft = daysInMonth - dayOfMonth;
   const money = (n: number) => formatMoney(n, decimalPlaces);
 
   return (
@@ -66,7 +68,14 @@ export default async function BudgetPage() {
         decimalPlaces={decimalPlaces}
       />
 
-      <CategoriesTable categories={categories} lines={lines} totals={totals} decimalPlaces={decimalPlaces} />
+      {/* The Budget page always shows the current month, so the pace tick always shows. */}
+      <CategoriesTable
+        categories={categories}
+        lines={lines}
+        totals={totals}
+        monthProgress={dayOfMonth / daysInMonth}
+        decimalPlaces={decimalPlaces}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <SinkingExpensesTable sinkingExpenses={sinkingExpenses} decimalPlaces={decimalPlaces} />

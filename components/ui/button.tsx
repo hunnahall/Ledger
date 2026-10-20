@@ -11,7 +11,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
 }
 
-// Covenant Works v2 buttons. Primary is an ink fill; accent (Slate Blue) is
+// Covenant Works v2 buttons. Primary is an ink fill; accent (Umber) is
 // for the single most frequent action on a screen; secondary is a surface
 // with a strong hairline. Press drops the button 1px, nothing scales.
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {

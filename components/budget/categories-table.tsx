@@ -17,11 +17,13 @@ export function CategoriesTable({
   categories,
   lines,
   totals,
+  monthProgress,
   decimalPlaces,
 }: {
   categories: EditableCategory[];
   lines: CategoryLine[];
   totals: { budget: number; spent: number; left: number };
+  monthProgress: number | null;
   decimalPlaces: number;
 }) {
   const [showAdd, setShowAdd] = useState(false);
@@ -104,7 +106,7 @@ export function CategoriesTable({
         )}
 
         {sorted.map(({ line, category }) => (
-          <CategoryRow key={line.id} category={category} line={line} decimalPlaces={decimalPlaces} />
+          <CategoryRow key={line.id} category={category} line={line} monthProgress={monthProgress} decimalPlaces={decimalPlaces} />
         ))}
 
         {lines.length === 0 && !showAdd && <TableEmptyRow colSpan={7} label="No categories yet." />}

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/auth";
 import { nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
+import { addDays } from "@/lib/charts/heatmap";
 import {
   isCategorizedIncome,
   isExpense,
@@ -26,7 +27,8 @@ export type DashboardTileKind =
   | { type: "budget_net" }
   | { type: "cash_flow" }
   | { type: "float" }
-  | { type: "source"; sourceId: string };
+  | { type: "source"; sourceId: string }
+  | { type: "day"; date: string };
 
 export type DashboardTileTransaction = {
   id: string;
@@ -92,10 +94,20 @@ export async function getDashboardTileTransactions(
     }));
   }
 
+  // One heatmap square: that day's outflows, the same rule getDailySpending
+  // counts, so the list sums to the square's amount.
+  if (kind.type === "day") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(kind.date)) throw new Error("Invalid date.");
+    const legs = await getLegs(supabase, kind.date, addDays(kind.date, 1));
+    return legs
+      .filter(isOutflow)
+      .map((l) => ({ id: l.id, postedDate: l.postedDate, description: l.description, amount: l.amount }));
+  }
+
   // Every other kind reads the same rows the dashboard views count, so a
   // popup always sums to the figure it explains.
   const legs = await getLegs(supabase, month, nextMonth);
-  const matches: Record<Exclude<DashboardTileKind["type"], "float" | "source" | "category">, (l: Leg) => boolean> = {
+  const matches: Record<Exclude<DashboardTileKind["type"], "float" | "source" | "category" | "day">, (l: Leg) => boolean> = {
     income: isIncome,
     other_inflows: isOtherInflow,
     inflows: isInflow,

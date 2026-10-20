@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { getDashboardData, getMonthlyTrend } from "@/lib/queries/dashboard";
+import { getDailySpending, getDashboardData, getMonthlyTrend, getPaceHistory } from "@/lib/queries/dashboard";
 import { getBudgetRateData } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
-import { currentMonthISO, previousMonthISO, monthLabel } from "@/lib/dates";
+import { currentMonthISO, previousMonthISO, monthLabel, todayISO } from "@/lib/dates";
+import { addDays } from "@/lib/charts/heatmap";
 import { applySavedAllocations } from "@/lib/dashboard-charts";
 import { MonthSegments } from "@/components/dashboard/month-segments";
 import { PaceCard } from "@/components/dashboard/pace-card";
@@ -13,6 +14,8 @@ import { CategorySpendingCard } from "@/components/dashboard/category-spending-c
 import { BudgetFundingCard, FloatCard } from "@/components/dashboard/funding-and-float";
 import { LastMonthsCard } from "@/components/dashboard/last-months-card";
 import { SafeToSpendCard } from "@/components/dashboard/safe-to-spend-card";
+import { MoneyMapCard } from "@/components/dashboard/money-map-card";
+import { HeatmapCard } from "@/components/dashboard/heatmap-card";
 
 // Current month plus the 4 full calendar months before it: the same window
 // purge_expired_data() keeps (see
@@ -36,10 +39,16 @@ export default async function DashboardPage({
   const months = selectableMonths(settings.timezone);
   const monthISO = month && months.includes(month) ? month : currentMonthISO(settings.timezone);
 
-  const [data, rateData, monthlyTrend] = await Promise.all([
+  // The heatmap runs from the first month Ledger keeps through today.
+  const today = todayISO(settings.timezone);
+  const firstRetainedMonth = months[months.length - 1];
+
+  const [data, rateData, monthlyTrend, paceHistory, dailySpending] = await Promise.all([
     getDashboardData(monthISO),
     getBudgetRateData(monthISO, settings.timezone),
     getMonthlyTrend(months),
+    getPaceHistory(monthISO),
+    getDailySpending({ from: firstRetainedMonth, to: addDays(today, 1) }),
   ]);
   const allocation = rateData?.allocation ?? data.allocation;
   const trend = applySavedAllocations(monthlyTrend.trend, monthlyTrend.savedAllocations, allocation);
@@ -64,6 +73,8 @@ export default async function DashboardPage({
         <MonthSegments months={months} selected={monthISO} currentMonthISO={months[0]} />
       </div>
 
+      <MoneyMapCard map={data.moneyMap} decimalPlaces={decimalPlaces} />
+
       <div className="flex flex-wrap gap-4">
         <PaceCard
           budgetNet={data.budgetNet}
@@ -72,6 +83,7 @@ export default async function DashboardPage({
           daysInMonth={daysInMonth}
           currentDay={currentDay}
           actualByDay={actualByDay}
+          earlier={paceHistory}
           {...common}
         />
         <CashFlowCard
@@ -92,8 +104,10 @@ export default async function DashboardPage({
           currentDay={currentDay}
           {...common}
         />
-        <SourceAllocationCard sources={data.sourceOutflows} {...common} />
+        <SourceAllocationCard sources={data.sourceOutflows} tones={data.sourceTones} {...common} />
       </div>
+
+      <HeatmapCard days={dailySpending} from={firstRetainedMonth} today={today} decimalPlaces={decimalPlaces} />
 
       <div className="flex flex-wrap gap-4">
         <CategorySpendingCard

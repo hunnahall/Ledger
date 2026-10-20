@@ -7,7 +7,7 @@ import {
   type CategoryLine,
   type CategoryStatus,
 } from "@/lib/budget/category-status";
-import { ProgressBar } from "@/components/ui/progress-bar";
+import { BulletBar } from "@/components/charts/bullet-bar";
 import { Badge } from "@/components/ui/badge";
 import { Money } from "@/components/ui/money";
 import { Input } from "@/components/ui/input";
@@ -31,10 +31,13 @@ export type EditableCategory = {
 export function CategoryRow({
   category,
   line,
+  monthProgress,
   decimalPlaces,
 }: {
   category: EditableCategory;
   line: CategoryLine;
+  /** dayOfMonth / daysInMonth when showing the current month, else null. */
+  monthProgress: number | null;
   decimalPlaces: number;
 }) {
   return (
@@ -59,8 +62,8 @@ export function CategoryRow({
           <td className={cn("px-4 text-right", line.status === "over" && "text-danger")}>
             <Money amount={line.left} decimalPlaces={decimalPlaces} symbol={false} />
           </td>
-          <td className="w-32 px-4">
-            <ProgressBar total={line.budget} spent={line.spent} />
+          <td className="w-40 px-4">
+            <BulletBar spent={line.spent} budget={line.budget} monthProgress={monthProgress} decimalPlaces={decimalPlaces} />
           </td>
           <td className="px-4">
             <Badge tone={STATUS_TONE[line.status]} className="whitespace-nowrap">

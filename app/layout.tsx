@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      data-accent="slate-blue"
+      data-accent="umber"
       className={`${hankenGrotesk.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>

@@ -60,7 +60,7 @@ describe("buildSourcePie", () => {
     expect(pie.slices.reduce((a, s) => a + s.share, 0)).toBeCloseTo(1, 10);
   });
 
-  it("gives the top 5 their own tones", () => {
+  it("gives the top 6 their own tones", () => {
     const pie = buildSourcePie(sources);
     expect(pie.slices.map((s) => s.tone)).toEqual([1, 2, 3, 4, 5]);
   });
@@ -89,6 +89,31 @@ describe("buildSourcePie", () => {
     const pie = buildSourcePie([{ id: "b", name: "Budget", spent: 10 }]);
     expect(pie.slices[0].path).toContain(" A");
     expect(pie.slices[0].share).toBe(1);
+  });
+
+  it("keeps each Source's stable tone when given one, grouping the untoned as Other", () => {
+    const tones = new Map<string, 1 | 2 | 3 | 4 | 5 | 6 | null>([
+      ["b", 1],
+      ["f", 4],
+      ["c", null],
+      ["t", 2],
+      ["g", null],
+      ["s", 3],
+    ]);
+    const pie = buildSourcePie(sources, { tones });
+    expect(pie.slices.map((s) => [s.label, s.tone])).toEqual([
+      ["Budget", 1],
+      ["Float", 4],
+      ["Travel Fund", 2],
+      ["Other", null],
+    ]);
+    expect(pie.slices[3].amount).toBe(360);
+    expect(pie.legend.find((r) => r.id === "s")?.tone).toBe(3);
+  });
+
+  it("draws slices as ring segments with no outline", () => {
+    const pie = buildSourcePie(sources);
+    for (const s of pie.slices) expect(s.path).toMatch(/^M.* A.* L.* A.* Z$/);
   });
 
   it("has no slices when nothing was spent", () => {

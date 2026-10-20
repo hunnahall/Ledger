@@ -6,6 +6,11 @@ import { nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
 import { TRANSFERS_CATEGORY_NAME } from "@/lib/budget/category-status";
 import { safeToSpend, unassignedCash } from "@/lib/accounts/unassigned-cash";
+import { dailySpending } from "@/lib/charts/daily-spending";
+import type { DaySpent } from "@/lib/charts/heatmap";
+import { earlierMonthLines, earlierMonths, type PaceLine } from "@/lib/charts/pace";
+import { computeMoneyMap } from "@/lib/charts/money-map";
+import { sourceTones, type ChartTone } from "@/lib/charts/source-tones";
 
 export async function getDashboardData(monthISO: string) {
   const supabase = await createClient();
@@ -32,7 +37,11 @@ export async function getDashboardData(monthISO: string) {
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
     supabase.from("v_outflows").select("*").eq("month", month).maybeSingle(),
-    supabase.from("v_source_balances").select("*"),
+    supabase
+      .from("sources")
+      .select("id, name, type, balance, is_system, created_at")
+      .is("archived_at", null)
+      .order("created_at"),
     // Gross spending per source for Source Allocation comes from the same
     // legs the views count: negative amounts only, so money coming into a
     // source never offsets its spending and the slices sum to outflows.
@@ -106,6 +115,11 @@ export async function getDashboardData(monthISO: string) {
   // tracks to it), so nothing is hidden here any more.
   const visibleSourceBalances = sourceBalances ?? [];
 
+  // One color per Source, shared by Source Allocation and the money map.
+  const tones = sourceTones(
+    visibleSourceBalances.map((s) => ({ id: s.id, type: s.type, isSystem: s.is_system, createdAt: s.created_at })),
+  );
+
   const spentBySourceId = new Map<string, number>();
   for (const leg of legs) {
     if (!leg.sourceId || leg.amount >= 0) continue;
@@ -125,9 +139,19 @@ export async function getDashboardData(monthISO: string) {
     }),
     // Every (non-archived) source, so Source Allocation can list them all;
     // ones with no spending this month show as $0.
-    sourceOutflows: visibleSourceBalances
-      .filter((s): s is typeof s & { id: string; name: string } => s.id !== null && s.name !== null)
-      .map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
+    sourceOutflows: visibleSourceBalances.map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
+    sourceTones: Object.fromEntries(tones) as Record<string, ChartTone | null>,
+    moneyMap: computeMoneyMap({
+      accounts: (accounts ?? []).map((a) => ({ balance: a.current_balance, includeInCash: a.include_in_cash })),
+      sources: visibleSourceBalances.map((s) => ({
+        id: s.id,
+        name: s.name,
+        type: s.type,
+        isSystem: s.is_system,
+        createdAt: s.created_at,
+        balance: s.balance,
+      })),
+    }),
     nextMonthAllocation,
     floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
     safeToSpend: safeToSpendFigures(accounts ?? [], visibleSourceBalances, lastSync?.last_synced_at ?? null),
@@ -200,4 +224,23 @@ export async function getMonthlyTrend(months: string[]) {
     };
   });
   return { trend, savedAllocations };
+}
+
+// Money spent per day in [from, to): the same rows and the same rule as
+// `outflows` (negative amounts only, transfers, Excluded rows and split
+// originals left out, rows with neither a Source nor a Category dropped), so
+// any month's days sum to that month's Outflows. Backs the heatmap.
+export async function getDailySpending(range: { from: string; to: string }): Promise<DaySpent[]> {
+  const supabase = await createClient();
+  return dailySpending(await getLegs(supabase, range.from, range.to));
+}
+
+// Cumulative Budget spending for up to three months before `monthISO`, for
+// the lines behind this month's on the pace chart. Months older than what
+// Ledger keeps have no transactions and are left out.
+export async function getPaceHistory(monthISO: string): Promise<PaceLine[]> {
+  const supabase = await createClient();
+  const months = earlierMonths(monthISO);
+  const legs = await getLegs(supabase, months[months.length - 1], monthISO);
+  return earlierMonthLines(legs, months);
 }

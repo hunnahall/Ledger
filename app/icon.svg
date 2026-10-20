@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 160 160" fill="none" stroke="#e9d985" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 160 160" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+  <style>path{stroke:#92664E}@media (prefers-color-scheme:dark){path{stroke:#A6816E}}</style>
   <path d="M56 44 H130"/>
   <path d="M74 72 H130"/>
   <path d="M30 102 H130"/>

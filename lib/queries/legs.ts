@@ -9,25 +9,27 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 // types come from one small lookup so each row can be classified without a
 // join per row.
 export async function getLegs(supabase: Supabase, fromISO: string, toISO: string): Promise<Leg[]> {
-  const [txnRes, sourceRes] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select("id, posted_date, description, amount, is_income, category_id, source_id")
-      .gte("posted_date", fromISO)
-      .lt("posted_date", toISO)
-      .eq("is_transfer", false)
-      .eq("exclude_from_budget", false)
-      .eq("is_split", false),
+  const [rows, sourceRes] = await Promise.all([
+    fetchAllPages((from, to) =>
+      supabase
+        .from("transactions")
+        .select("id, posted_date, description, amount, is_income, category_id, source_id")
+        .gte("posted_date", fromISO)
+        .lt("posted_date", toISO)
+        .eq("is_transfer", false)
+        .eq("exclude_from_budget", false)
+        .eq("is_split", false)
+        .order("id")
+        .range(from, to),
+    ),
     supabase.from("sources").select("id, type"),
   ]);
-  for (const res of [txnRes, sourceRes]) {
-    if (res.error) throw new Error(res.error.message);
-  }
+  if (sourceRes.error) throw new Error(sourceRes.error.message);
 
   const typeById = new Map((sourceRes.data ?? []).map((s) => [s.id, s.type as string]));
   const sourceType = (id: string | null) => (id ? (typeById.get(id) ?? null) : null);
 
-  return (txnRes.data ?? []).map((t) => ({
+  return rows.map((t) => ({
     id: t.id,
     postedDate: t.posted_date,
     description: t.description,
@@ -37,4 +39,20 @@ export async function getLegs(supabase: Supabase, fromISO: string, toISO: string
     sourceId: t.source_id,
     sourceType: sourceType(t.source_id),
   }));
+}
+
+// Supabase returns at most 1,000 rows per request, and a multi-month range
+// (the Dashboard's heatmap spans five months) can hold more, so read page
+// by page until a short page comes back.
+const PAGE = 1000;
+async function fetchAllPages<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if (!data || data.length < PAGE) return out;
+  }
 }

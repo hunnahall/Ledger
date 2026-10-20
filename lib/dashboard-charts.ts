@@ -2,6 +2,9 @@
 // comes from computeDashboardTotals (lib/dashboard-metrics.ts) or from here,
 // so components only draw — they never add or compare raw amounts themselves.
 
+import { donutSegmentPath } from "@/lib/charts/donut";
+import { MAX_TONES, type ChartTone } from "@/lib/charts/source-tones";
+
 /** Per-day spend from the pace chart's cumulative series (getBudgetRateData's actualByDay). */
 export function dailyFromCumulative(actualByDay: number[]): number[] {
   return actualByDay.map((total, i) => total - (i === 0 ? 0 : actualByDay[i - 1]));
@@ -40,16 +43,16 @@ export function categoryStatus({
   return share > monthProgress ? "ahead" : "below";
 }
 
-export type PieTone = 1 | 2 | 3 | 4 | 5;
+export type PieTone = ChartTone;
 
 export type PieSlice = {
   key: string;
   label: string;
   amount: number;
   share: number;
-  /** 1-5 index into the chart-1..5 series, or null for the grouped remainder (Other, in --fg-3). */
+  /** 1-6 index into the chart-1..6 series, or null for the grouped remainder (Other, in --fg-3). */
   tone: PieTone | null;
-  /** SVG path for this slice in a 0..size box, or null when it has no area. */
+  /** SVG ring segment for this slice in a 0..size box, or null when it's too thin to draw. */
   path: string | null;
 };
 
@@ -62,30 +65,38 @@ type PieLegendRow = {
 };
 
 /**
- * Splits gross spending per source into pie slices. The largest `maxSlices`
- * sources get their own slice and tone; any further sources with spending are
- * grouped into one neutral "Other" slice. Every source still gets a legend
- * row (zero-spend ones last), so all sources are listed.
+ * Splits amounts into ring slices. Without `tones`, the largest `maxSlices`
+ * items get their own slice and tone in rank order. With `tones` (a stable
+ * per-Source color, see lib/charts/source-tones.ts), each item keeps its own
+ * tone and items mapped to null are grouped. Either way the grouped
+ * remainder is one neutral "Other" slice, and every item still gets a legend
+ * row (zero ones last).
  */
 export function buildSourcePie(
   sources: { id: string; name: string; spent: number }[],
-  { maxSlices = 5, size = 140 }: { maxSlices?: number; size?: number } = {},
+  {
+    maxSlices = MAX_TONES,
+    size = 140,
+    tones,
+  }: { maxSlices?: number; size?: number; tones?: Map<string, PieTone | null> } = {},
 ): { total: number; slices: PieSlice[]; legend: PieLegendRow[] } {
   const spending = sources.filter((s) => s.spent > 0).sort((a, b) => b.spent - a.spent);
   const idle = sources.filter((s) => s.spent <= 0).sort((a, b) => a.name.localeCompare(b.name));
   const total = spending.reduce((sum, s) => sum + s.spent, 0);
   const share = (amount: number) => (total > 0 ? amount / total : 0);
 
-  const own = spending.slice(0, maxSlices);
-  const rest = spending.slice(maxSlices);
-  const toneFor = (i: number) => (i + 1) as PieTone;
+  const toneOf = (id: string, rank: number): PieTone | null =>
+    tones ? (tones.get(id) ?? null) : rank < maxSlices ? ((rank + 1) as PieTone) : null;
 
-  const raw: Omit<PieSlice, "path">[] = own.map((s, i) => ({
+  const own = spending.filter((s, i) => toneOf(s.id, i) !== null);
+  const rest = spending.filter((s, i) => toneOf(s.id, i) === null);
+
+  const raw: Omit<PieSlice, "path">[] = own.map((s) => ({
     key: s.id,
     label: s.name,
     amount: s.spent,
     share: share(s.spent),
-    tone: toneFor(i),
+    tone: toneOf(s.id, spending.indexOf(s)),
   }));
   if (rest.length > 0) {
     const restTotal = rest.reduce((sum, s) => sum + s.spent, 0);
@@ -94,7 +105,7 @@ export function buildSourcePie(
 
   let start = 0;
   const slices = raw.map((s) => {
-    const path = s.share > 0 ? slicePath(start, start + s.share, size) : null;
+    const path = s.share > 0 ? donutSegmentPath(start, start + s.share, size) : null;
     start += s.share;
     return { ...s, path };
   });
@@ -105,33 +116,12 @@ export function buildSourcePie(
       name: s.name,
       amount: s.spent,
       share: share(s.spent),
-      tone: i < maxSlices ? toneFor(i) : null,
+      tone: toneOf(s.id, i),
     })),
-    ...idle.map((s) => ({ id: s.id, name: s.name, amount: 0, share: 0, tone: null })),
+    ...idle.map((s) => ({ id: s.id, name: s.name, amount: 0, share: 0, tone: tones?.get(s.id) ?? null })),
   ];
 
   return { total, slices, legend };
-}
-
-// One wedge from fraction `from` to `to` (0-1, clockwise from 12 o'clock).
-// A single source taking the whole pie is drawn as two half arcs, since an
-// SVG arc can't start and end on the same point.
-function slicePath(from: number, to: number, size: number): string {
-  const r = size / 2;
-  const c = size / 2;
-  const point = (f: number) => {
-    const a = f * 2 * Math.PI;
-    return `${round(c + r * Math.sin(a))},${round(c - r * Math.cos(a))}`;
-  };
-  if (to - from >= 0.9999) {
-    return `M${c},${c - r} A${r},${r} 0 1 1 ${c},${c + r} A${r},${r} 0 1 1 ${c},${c - r} Z`;
-  }
-  const large = to - from > 0.5 ? 1 : 0;
-  return `M${c},${c} L${point(from)} A${r},${r} 0 ${large} 1 ${point(to)} Z`;
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 export type TrendMode = "income_expenses" | "inflows_outflows" | "budget_spending";

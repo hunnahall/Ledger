@@ -4,12 +4,19 @@ import {
   SkeletonCard,
 } from "@/components/ui/skeleton";
 
-// Mirrors the Dashboard's three rows: a wide card and a narrow one in each,
-// the third row's narrow side being a stack (funding, float, 4 months).
+// Mirrors the Dashboard: the money map bar, three rows of a wide card and a
+// narrow one (the third row's narrow side a stack of funding, float, 4
+// months), and the full-width spending heatmap after the second row.
 export default function Loading() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeaderSkeleton title="Dashboard" />
+
+      <SkeletonCard>
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="mt-5 h-6 w-full pointer-coarse:h-10" />
+        <Skeleton className="mt-4 h-3.5 w-48" />
+      </SkeletonCard>
 
       <div className="flex flex-wrap gap-4">
         <SkeletonCard className="min-w-0 flex-[999_1_560px]">
@@ -47,6 +54,11 @@ export default function Loading() {
           </div>
         </SkeletonCard>
       </div>
+
+      <SkeletonCard>
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="mt-4 h-[220px] w-full" />
+      </SkeletonCard>
 
       <div className="flex flex-wrap gap-4">
         <SkeletonCard className="min-w-0 flex-[999_1_560px]">
