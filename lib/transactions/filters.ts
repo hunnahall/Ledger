@@ -61,3 +61,37 @@ export function summarizeTransactions(
   }
   return { count: rows.length, withoutSource, net: Math.round(net * 100) / 100 };
 }
+
+// A search term that reads as an amount ("12.50", "$1,204.18", "-40"), as a
+// positive magnitude, or null. Matched against both signs, since the list
+// shows money out as negative but people type it without the minus.
+export function parseSearchAmount(term: string): number | null {
+  const cleaned = term.trim().replace(/^[−-]/, "").replace(/^\$/, "").replace(/,/g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  return Number(cleaned);
+}
+
+// A value inside a PostgREST or() filter, double-quoted so commas, periods
+// and parentheses in the search term can't break the filter's syntax.
+function quoteFilterValue(value: string) {
+  return `"${value.replace(/[\\"]/g, (c) => `\\${c}`)}"`;
+}
+
+// The or() filter for the Transactions search: description, notes and the
+// normalized merchant contain the term; the amount equals it (either sign)
+// when it reads as one; or the Category or Source name matches (the caller
+// resolves names to ids first).
+export function searchOrFilter(
+  term: string,
+  { categoryIds = [], sourceIds = [] }: { categoryIds?: string[]; sourceIds?: string[] } = {},
+): string {
+  // % and _ are LIKE wildcards; a search for "50% off" means the literal
+  // characters.
+  const like = quoteFilterValue(`%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+  const parts = [`description.ilike.${like}`, `notes.ilike.${like}`, `merchant_normalized.ilike.${like}`];
+  const amount = parseSearchAmount(term);
+  if (amount !== null) parts.push(`amount.eq.${amount}`, `amount.eq.${-amount}`);
+  if (categoryIds.length > 0) parts.push(`category_id.in.(${categoryIds.join(",")})`);
+  if (sourceIds.length > 0) parts.push(`source_id.in.(${sourceIds.join(",")})`);
+  return parts.join(",");
+}

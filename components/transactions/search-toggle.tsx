@@ -57,7 +57,7 @@ export function SearchToggle() {
       </button>
       {open && (
         <form
-          className="absolute right-0 top-full z-10 mt-1 flex items-center gap-1 rounded-lg border border-card-border bg-surface p-2 shadow-popover"
+          className="absolute right-0 top-full z-10 mt-1 flex items-center gap-1 border border-border-strong bg-surface-2 p-2 font-sans normal-case tracking-normal shadow-popover"
           onSubmit={(e) => {
             e.preventDefault();
             commitAndClose();
@@ -68,8 +68,9 @@ export function SearchToggle() {
             autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Search…"
-            className="w-40"
+            placeholder="Description, note, amount, category, source"
+            aria-label="Search any field"
+            className="w-72"
           />
           {value && (
             <button

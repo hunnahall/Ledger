@@ -99,7 +99,7 @@ export function SelectColumnFilter({
       <FilterSummary label={label} active={current !== ""} />
       <ul
         role="listbox"
-        className="absolute left-0 z-10 mt-1 max-h-64 w-48 overflow-y-auto rounded-lg border border-card-border bg-surface py-1 text-sm normal-case text-foreground shadow-popover"
+        className="absolute left-0 z-10 mt-1 max-h-64 w-48 overflow-y-auto border border-border-strong bg-surface-2 py-1 font-sans text-sm normal-case tracking-normal text-foreground shadow-popover"
       >
         <li>
           <button
@@ -142,7 +142,7 @@ export function DateRangeColumnFilter({ label, className }: { label: string; cla
     <details className={`relative ${className ?? ""}`}>
       <FilterSummary label={label} active={Boolean(from || to)} align="start" />
       <form
-        className="absolute left-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-lg border border-card-border bg-surface p-3 text-xs normal-case text-foreground shadow-popover"
+        className="absolute left-0 z-10 mt-1 flex w-56 flex-col gap-2 border border-border-strong bg-surface-2 p-3 font-sans text-xs normal-case tracking-normal text-foreground shadow-popover"
         onSubmit={(e) => {
           e.preventDefault();
           const data = new FormData(e.currentTarget);

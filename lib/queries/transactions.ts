@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { type TransactionFilters } from "@/lib/transactions/filters";
+import { searchOrFilter, type TransactionFilters } from "@/lib/transactions/filters";
 import { buildSplitGroups } from "@/lib/transactions/splits";
 
 export async function getFilteredTransactions(filters: TransactionFilters) {
@@ -41,11 +41,25 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   if (filters.uncategorizedOnly) {
     query = query.is("category_id", null).eq("is_transfer", false);
   }
-  if (filters.search) {
-    // % and _ are LIKE wildcards; a user searching for "50% off" means the
-    // literal characters, not "anything".
-    const escaped = filters.search.replace(/[\\%_]/g, (c) => `\\${c}`);
-    query = query.ilike("description", `%${escaped}%`);
+  const search = filters.search?.trim();
+  if (search) {
+    // Any field: description, notes, merchant, the amount (when the term is
+    // a number), and the Category or Source name. Names resolve to ids first
+    // so the one or() filter can cover them.
+    const like = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const [{ data: categoryMatches, error: categoryError }, { data: sourceMatches, error: sourceError }] =
+      await Promise.all([
+        supabase.from("categories").select("id").ilike("name", like),
+        supabase.from("sources").select("id").ilike("name", like),
+      ]);
+    if (categoryError) throw new Error(categoryError.message);
+    if (sourceError) throw new Error(sourceError.message);
+    query = query.or(
+      searchOrFilter(search, {
+        categoryIds: (categoryMatches ?? []).map((c) => c.id),
+        sourceIds: (sourceMatches ?? []).map((s) => s.id),
+      }),
+    );
   }
 
   const { data, error } = await query;
