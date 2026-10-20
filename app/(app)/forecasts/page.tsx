@@ -21,7 +21,7 @@ export default async function ForecastPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1>Forecast</h1>
+        <h1>Forecasts</h1>
       </div>
 
       <ForecastView

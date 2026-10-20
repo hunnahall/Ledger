@@ -13,6 +13,7 @@ import {
   type TransactionFilters,
 } from "@/lib/transactions/filters";
 import { formatMoney } from "@/lib/format";
+import { ClearFiltersButton } from "@/components/transactions/column-filter";
 import { getSettings } from "@/lib/queries/settings";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
 import { AddTransactionButton } from "@/components/transactions/manual-transaction-form";
@@ -98,6 +99,7 @@ export default async function TransactionsPage({
               </>
             )}
             {" · "}Net {formatMoney(summary.net, decimalPlaces, { symbol: false })}
+            <ClearFiltersButton className="ml-3 font-sans text-foreground underline underline-offset-2 hover:text-accent" />
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

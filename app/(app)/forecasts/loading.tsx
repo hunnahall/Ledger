@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeaderSkeleton
-        title="Forecast"
+        title="Forecasts"
         subtitle="Create Forecasts that project a Source's balance forward, given transfers and transactions."
       />
       <div className="flex flex-col gap-3">

@@ -395,7 +395,6 @@ export function TransactionList({
             <span className="flex w-10 shrink-0 items-center justify-center">
               <SearchToggle />
             </span>
-            <ClearFiltersButton className="shrink-0 whitespace-nowrap text-xs font-medium normal-case text-muted hover:text-foreground hover:underline" />
           </div>
           <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
