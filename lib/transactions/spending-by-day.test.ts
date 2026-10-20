@@ -4,11 +4,10 @@ import { spendingByDay, type SpendingRow } from "./spending-by-day";
 const row = (over: Partial<SpendingRow>): SpendingRow => ({
   postedDate: "2026-10-01",
   amount: -10,
-  isTransfer: false,
   isIncome: false,
-  excludeFromBudget: false,
-  isSplit: false,
-  splits: [],
+  categoryId: null,
+  sourceId: "budget",
+  sourceType: "budget",
   ...over,
 });
 
@@ -26,17 +25,26 @@ describe("spendingByDay", () => {
       { date: "2026-10-04", amount: 3 },
     ]);
   });
-  it("ignores inflows, transfers and Excluded rows", () => {
+
+  it("counts other outflows too, so a day matches outflows", () => {
+    const out = spendingByDay([
+      row({ amount: -10 }),
+      row({ amount: -25, sourceId: "travel", sourceType: "fund" }),
+    ]);
+    expect(out).toEqual([{ date: "2026-10-01", amount: 35 }]);
+  });
+
+  it("ignores inflows and unsourced, uncategorized outflows", () => {
     expect(
       spendingByDay([
-        row({ amount: 100, isIncome: true }),
-        row({ isTransfer: true }),
-        row({ excludeFromBudget: true }),
+        row({ amount: 100, isIncome: true, sourceType: "income" }),
+        row({ amount: -10, sourceId: null, sourceType: null }),
       ]),
     ).toEqual([]);
   });
-  it("counts split transactions by their negative legs", () => {
-    const out = spendingByDay([row({ isSplit: true, amount: -20, splits: [{ amount: -30 }, { amount: 10 }] })]);
-    expect(out).toEqual([{ date: "2026-10-01", amount: 30 }]);
+
+  it("counts an unsourced outflow that carries a category (an expense)", () => {
+    const out = spendingByDay([row({ amount: -8, sourceId: null, sourceType: null, categoryId: "food" })]);
+    expect(out).toEqual([{ date: "2026-10-01", amount: 8 }]);
   });
 });

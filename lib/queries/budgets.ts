@@ -206,7 +206,7 @@ export async function getBudgetRateData(monthISO: string, timeZone: string) {
   ] = await Promise.all([
     supabase.from("categories").select("monthly_amount").eq("user_id", user.id).is("archived_at", null),
     getSinkingAndTransferMonthlyTotal(user.id, month),
-    // Same legs (split legs included) and the same expense definition as
+    // Same rows and the same expense definition as
     // v_outflows, so the pace line ends where Expense does.
     getLegs(supabase, month, nextMonthISO(month)),
     supabase.from("v_inflow_outflow").select("income").eq("month", month).maybeSingle(),

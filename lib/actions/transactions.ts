@@ -4,7 +4,7 @@ import { requireUser, type SupabaseServerClient } from "@/lib/supabase/auth";
 import { revalidateLedgerPages, revalidateRulePages } from "@/lib/actions/revalidate";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { findMatchingRule } from "@/lib/transactions/match-rule";
-import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
+import { validateSplitRows, type SplitRowInput } from "@/lib/transactions/splits";
 import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/rule-target";
 import { logMoney, parseMoney } from "@/lib/format";
 import { logChange } from "@/lib/actions/log";
@@ -534,40 +534,52 @@ export async function deleteTransaction(
     .from("transactions")
     .delete()
     .eq("id", transactionId)
-    .is("provider_transaction_id", null);
+    .is("provider_transaction_id", null)
+    // A split piece goes away by editing its split, never on its own (the
+    // pieces would stop adding up).
+    .is("split_parent_id", null);
   if (error) return { error: error.message };
 
   revalidateLedgerPages();
   return null;
 }
 
+// Saves a split: the original's pieces are replaced with these (an empty
+// list removes the split). The rows were checked by validateSplitRows in the
+// editor; save_transaction_splits checks them again against the original's
+// own amount, so the sum can't be bypassed from the client.
 export async function saveSplits(
   transactionId: string,
-  _prevState: { error: string } | null,
-  formData: FormData,
+  rows: SplitRowInput[],
 ): Promise<{ error: string } | null> {
   const { supabase } = await requireUser();
 
-  const rows: { category_id: string | null; source_id: string | null; amount: number }[] = [];
-  for (let i = 1; i <= MAX_SPLIT_ROWS; i++) {
-    const parsed = parseMoney(formData.get(`split_amount_${i}`), { fallback: 0 });
-    if ("error" in parsed) return { error: `Split ${i}: ${parsed.error}` };
-    if (parsed.amount === 0) continue;
-    rows.push({
-      category_id: String(formData.get(`split_category_${i}`) ?? "") || null,
-      source_id: String(formData.get(`split_source_${i}`) ?? "") || null,
-      amount: parsed.amount,
-    });
-  }
+  const { data: budget, error: budgetError } = await supabase
+    .from("sources")
+    .select("id")
+    .eq("type", "budget")
+    .maybeSingle();
+  if (budgetError) return { error: budgetError.message };
+  const { data: original, error: originalError } = await supabase
+    .from("transactions")
+    .select("amount")
+    .eq("id", transactionId)
+    .maybeSingle();
+  if (originalError) return { error: originalError.message };
+  if (!original) return { error: "Transaction not found." };
 
-  // One RPC rather than delete -> insert -> update is_split as three
-  // separate round trips, each firing balance triggers: a failure part-way
-  // through used to leave is_split wrong and the source balances drifted.
-  // It also reads the transaction's own amount to check the split sum
-  // against, instead of trusting a figure passed in from the client.
+  const checked = validateSplitRows(original.amount, rows, budget?.id ?? null);
+  if ("error" in checked) return checked;
+
   const { error } = await supabase.rpc("save_transaction_splits", {
     p_transaction_id: transactionId,
-    p_rows: rows,
+    p_rows: checked.rows.map((r) => ({
+      amount: r.amount,
+      source_id: r.sourceId,
+      category_id: r.categoryId,
+      exclude: r.exclude,
+      notes: r.notes,
+    })),
   });
   if (error) return { error: error.message };
 

@@ -1,12 +1,6 @@
-export type SpendingRow = {
-  postedDate: string;
-  amount: number;
-  isTransfer: boolean;
-  isIncome: boolean;
-  excludeFromBudget: boolean;
-  isSplit: boolean;
-  splits: { amount: number }[];
-};
+import { isOutflow, type Leg } from "@/lib/transactions/legs";
+
+export type SpendingRow = Pick<Leg, "postedDate" | "amount" | "isIncome" | "categoryId" | "sourceId" | "sourceType">;
 
 export type DaySpending = { date: string; amount: number };
 
@@ -17,25 +11,23 @@ function addDays(iso: string, n: number): string {
 }
 
 /**
- * Money spent per calendar day across the listed transactions: negative
- * amounts only, transfers and Excluded transactions left out, split
- * transactions counted by their legs. Days with nothing spent are filled in
- * as zero so the line runs continuously from the first day to the last.
+ * Money spent per calendar day: each day's `outflows` (expense plus other
+ * outflows, the same rule as v_outflows). The rows arrive with transfers,
+ * Excluded transactions and split originals already left out. Days with
+ * nothing spent are filled in as zero so the line runs continuously from the
+ * first day to the last.
  */
 export function spendingByDay(rows: SpendingRow[]): DaySpending[] {
   const perDay = new Map<string, number>();
   for (const r of rows) {
-    if (r.isTransfer || r.excludeFromBudget) continue;
-    const amounts = r.isSplit ? r.splits.map((s) => s.amount) : [r.amount];
-    for (const a of amounts) {
-      if (a < 0) perDay.set(r.postedDate, (perDay.get(r.postedDate) ?? 0) - a);
-    }
+    if (!isOutflow({ ...r, id: "", description: "" })) continue;
+    perDay.set(r.postedDate, (perDay.get(r.postedDate) ?? 0) - r.amount);
   }
   if (perDay.size === 0) return [];
   const dates = [...perDay.keys()].sort();
   const out: DaySpending[] = [];
   for (let d = dates[0]; d <= dates[dates.length - 1]; d = addDays(d, 1)) {
-    out.push({ date: d, amount: perDay.get(d) ?? 0 });
+    out.push({ date: d, amount: Math.round((perDay.get(d) ?? 0) * 100) / 100 });
   }
   return out;
 }

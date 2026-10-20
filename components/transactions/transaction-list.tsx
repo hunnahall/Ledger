@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/transactions";
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { SplitEditor } from "@/components/transactions/split-editor";
+import type { SplitGroup } from "@/lib/transactions/splits";
 import { EXCLUDE, INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -41,9 +42,9 @@ export type TransactionRowData = {
   isIncome: boolean;
   excludeFromBudget: boolean;
   notes: string | null;
-  isSplit: boolean;
   hasProviderTransactionId: boolean;
-  splits: { id: string; categoryId: string | null; sourceId: string | null; amount: number }[];
+  /** Set on a piece of a split: its original and all of its pieces. */
+  split: SplitGroup | null;
 };
 
 type Option = { id: string; name: string };
@@ -535,7 +536,7 @@ const TransactionRow = memo(function TransactionRow({
   const [editingDate, setEditingDate] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descError, setDescError] = useState<string | null>(null);
-  const [splitOpen, setSplitOpen] = useState(txn.isSplit);
+  const [splitOpen, setSplitOpen] = useState(false);
   // Not cleared when txn.isIncome — Income lives on the Source select (the
   // Income source), not in this field, and a transaction can carry a
   // real category_id alongside is_income (the manual-entry form's own
@@ -572,7 +573,7 @@ const TransactionRow = memo(function TransactionRow({
     txn.categoryId !== prevTxn.categoryId ||
     txn.sourceId !== prevTxn.sourceId ||
     txn.postedDate !== prevTxn.postedDate ||
-    txn.isSplit !== prevTxn.isSplit ||
+    txn.split !== prevTxn.split ||
     txn.excludeFromBudget !== prevTxn.excludeFromBudget ||
     txn.description !== prevTxn.description ||
     txn.notes !== prevTxn.notes
@@ -586,7 +587,6 @@ const TransactionRow = memo(function TransactionRow({
     setDescription(txn.description);
     setNotes(txn.notes ?? "");
     setAddingSource(false);
-    setSplitOpen(txn.isSplit);
     // Assigning an Excluded Category (see Settings) forces this true via
     // a DB trigger, server-side, independent of anything submitted here —
     // reconcile it the same way as the other server-driven fields above,
@@ -861,6 +861,10 @@ const TransactionRow = memo(function TransactionRow({
       : isIncome
         ? "Income"
         : null;
+  // "Split 1 of 3": this row is one piece of a split transaction.
+  const splitLabel = txn.split
+    ? `Split ${txn.split.pieces.findIndex((p) => p.id === txn.id) + 1} of ${txn.split.pieces.length}`
+    : null;
 
   const accountLast4Value = txn.accountLast4 ?? accountLast4(txn.accountName);
   const accountDisplay = accountLast4Value ?? txn.accountName ?? "—";
@@ -1012,6 +1016,14 @@ const TransactionRow = memo(function TransactionRow({
                 className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-fill-active md:max-w-[260px] md:flex-1"
               >
                 {description}
+                {splitLabel && (
+                  <span
+                    className="ml-2 border border-border px-1.5 py-0.5 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted"
+                    title={`Part of a ${formatMoney(txn.split!.parentAmount, decimalPlaces)} transaction`}
+                  >
+                    {splitLabel}
+                  </span>
+                )}
                 {typeLabel && (
                   <span className="ml-2 border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
                     {typeLabel}
@@ -1129,18 +1141,20 @@ const TransactionRow = memo(function TransactionRow({
           <div className="flex items-center justify-end gap-1 md:contents">
             <button
               type="button"
-              onClick={() => setSplitOpen((s) => !s)}
+              onClick={() => setSplitOpen((open) => !open)}
+              disabled={isTransfer}
               aria-pressed={splitOpen}
-              aria-label={splitOpen ? "Hide split" : "Split this transaction"}
-              title="Split into multiple categories/sources"
-              className={`rounded-sm p-1 transition-colors duration-[120ms] ease-standard md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
+              aria-label={splitOpen ? "Hide split" : txn.split ? "Edit split" : "Split this transaction"}
+              title={isTransfer ? "Transfers can't be split" : txn.split ? "Edit the split" : "Split into several transactions"}
+              className={`rounded-sm p-1 transition-colors duration-[120ms] ease-standard disabled:pointer-events-none disabled:opacity-40 md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
                 splitOpen ? "text-accent" : "text-muted hover:bg-fill-active hover:text-foreground"
               }`}
             >
               <SplitIcon size={14} />
             </button>
             <div className="flex items-center gap-1 md:order-1 md:w-8 md:flex-none md:justify-end">
-              {!txn.hasProviderTransactionId && (
+              {/* A split piece goes away by editing or removing its split. */}
+              {!txn.hasProviderTransactionId && !txn.split && (
                 <button
                   type="button"
                   onClick={handleDelete}
@@ -1211,12 +1225,15 @@ const TransactionRow = memo(function TransactionRow({
         {splitOpen && (
           <div className="border-t border-border bg-surface-subtle px-4 py-3">
             <SplitEditor
-              transactionId={txn.id}
-              transactionAmount={txn.amount}
-              splits={txn.splits}
+              transactionId={txn.split?.parentId ?? txn.id}
+              transactionAmount={txn.split?.parentAmount ?? txn.amount}
+              pieces={txn.split?.pieces ?? []}
               categories={categories}
               sources={sources}
+              budgetSourceId={budgetSourceId}
+              incomeSourceId={incomeSourceId}
               decimalPlaces={decimalPlaces}
+              onDone={() => setSplitOpen(false)}
             />
           </div>
         )}

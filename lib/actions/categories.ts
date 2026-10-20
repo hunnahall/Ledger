@@ -101,8 +101,8 @@ export async function deleteCategory(
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
 
-  // transactions.category_id and transaction_splits.category_id are
-  // `on delete set null`, so affected transactions fall back to Uncategorized.
+  // transactions.category_id is `on delete set null`, so affected
+  // transactions fall back to Uncategorized.
   const { error } = await supabase.from("categories").delete().eq("id", categoryId);
   if (error) return { error: error.message };
 

@@ -28,7 +28,7 @@ export function computeDashboardTotals({
   const otherOutflows = spentFromRawAmount(otherOutflowsRaw);
   const budgetNet = allocation - expense + categorizedIncome;
   // otherInflows already contains categorizedIncome (v_inflow_outflow counts
-  // every positive, non-Income amount, split legs included), so it is never
+  // every positive, non-Income amount with a Source), so it is never
   // added a second time here — categorizedIncome only feeds budgetNet.
   const inflows = income + otherInflows;
   const outflows = expense + otherOutflows;

@@ -1,4 +1,9 @@
-import { getFilteredTransactions, getFilterOptions, getSpendingRows } from "@/lib/queries/transactions";
+import {
+  getFilteredTransactions,
+  getFilterOptions,
+  getSpendingRows,
+  getSplitGroups,
+} from "@/lib/queries/transactions";
 import Link from "next/link";
 import {
   NO_SOURCE_FILTER_VALUE,
@@ -41,11 +46,12 @@ export default async function TransactionsPage({
     ...resolveSourceFilter(params.source_id),
   };
 
-  const [transactions, filterOptions, settings, spendingRows] = await Promise.all([
+  const [transactions, filterOptions, settings, spendingRows, splitGroups] = await Promise.all([
     getFilteredTransactions(filters),
     getFilterOptions(),
     getSettings(),
     getSpendingRows(),
+    getSplitGroups(),
   ]);
   const decimalPlaces = settings.decimal_places;
 
@@ -64,27 +70,11 @@ export default async function TransactionsPage({
     isIncome: txn.is_income,
     excludeFromBudget: txn.exclude_from_budget,
     notes: txn.notes,
-    isSplit: txn.is_split,
     hasProviderTransactionId: Boolean(txn.provider_transaction_id),
-    splits: txn.transaction_splits.map((s) => ({
-      id: s.id,
-      categoryId: s.category_id,
-      sourceId: s.source_id,
-      amount: s.amount,
-    })),
+    split: txn.split_parent_id ? (splitGroups.get(txn.split_parent_id) ?? null) : null,
   }));
 
-  const days = spendingByDay(
-    spendingRows.map((r) => ({
-      postedDate: r.posted_date,
-      amount: r.amount,
-      isTransfer: r.is_transfer,
-      isIncome: r.is_income,
-      excludeFromBudget: r.exclude_from_budget,
-      isSplit: r.is_split,
-      splits: r.transaction_splits,
-    })),
-  );
+  const days = spendingByDay(spendingRows);
 
   const summary = summarizeTransactions(transactionRows);
   const noSourceHref = `/transactions?${new URLSearchParams({

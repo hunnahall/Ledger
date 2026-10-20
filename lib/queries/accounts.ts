@@ -16,7 +16,7 @@ export async function getAccounts() {
 }
 
 // The latest transactions for each account (shown when its row is opened on
-// the Accounts page). One small query per account keeps a quiet account from
+// the Accounts page), as the bank reports them. One small query per account keeps a quiet account from
 // being crowded out by a busy one in a shared "latest N" window.
 export async function getRecentTransactionsByAccount(accountIds: string[], perAccount = 8) {
   const supabase = await createClient();
@@ -26,6 +26,8 @@ export async function getRecentTransactionsByAccount(accountIds: string[], perAc
         .from("transactions")
         .select("id, posted_date, description, amount")
         .eq("account_id", accountId)
+        // The bank's own rows: a split original shows whole, its pieces don't.
+        .is("split_parent_id", null)
         .order("posted_date", { ascending: false })
         .limit(perAccount);
       if (error) throw new Error(error.message);

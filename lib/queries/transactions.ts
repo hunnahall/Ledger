@@ -1,21 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { type TransactionFilters } from "@/lib/transactions/filters";
+import { buildSplitGroups } from "@/lib/transactions/splits";
 
 export async function getFilteredTransactions(filters: TransactionFilters) {
   const supabase = await createClient();
   let query = supabase
     .from("transactions")
-    // Splits come back embedded rather than as a follow-up `.in(ids)` query.
-    // That round trip couldn't start until this one had returned (it needed
-    // the ids), and building one filter out of every split transaction's id
-    // is what pushed the request URL past Supabase's gateway limit and 400'd
-    // the whole page — narrowing the id list to just is_split rows only moved
-    // the ceiling. An embed has no URL to outgrow. The CSV export shares this
-    // query and ignores the extra key; on a split-less account it costs an
-    // empty array per row.
-    .select(
-      "*, accounts(account_name, last4), categories(name), sources!source_id(name), transaction_splits(id, category_id, source_id, amount)",
-    )
+    .select("*, accounts(account_name, last4), categories(name), sources!source_id(name)")
+    // A split original isn't listed: its pieces are.
+    .eq("is_split", false)
     .order("posted_date", { ascending: false })
     .order("created_at", { ascending: false })
     // posted_date/created_at alone don't fully determine an order — rows
@@ -60,19 +53,61 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   return data;
 }
 
+// Every split, keyed by its original: the original's amount and its pieces
+// in order. Splits are rare, so this is one small read rather than an embed
+// on the main list (a piece's original is never listed itself).
+export async function getSplitGroups() {
+  const supabase = await createClient();
+  const [{ data: pieces, error: piecesError }, { data: originals, error: originalsError }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("id, amount, notes, source_id, category_id, exclude_from_budget, split_parent_id")
+      .not("split_parent_id", "is", null)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }),
+    supabase.from("transactions").select("id, amount").eq("is_split", true),
+  ]);
+  if (piecesError) throw new Error(piecesError.message);
+  if (originalsError) throw new Error(originalsError.message);
+  const originalAmount = new Map((originals ?? []).map((o) => [o.id, o.amount]));
+  return buildSplitGroups(
+    (pieces ?? []).map((r) => ({
+      id: r.id,
+      parentId: r.split_parent_id as string,
+      parentAmount: originalAmount.get(r.split_parent_id as string) ?? 0,
+      amount: r.amount,
+      sourceId: r.source_id,
+      categoryId: r.category_id,
+      excluded: r.exclude_from_budget,
+      notes: r.notes,
+    })),
+  );
+}
+
 // Feeds the Transactions page's spending-by-day chart. Deliberately ignores
 // the list's filters (clicking a day filters the list to it, and the chart
 // has to stay put so that click can be undone), so it's a lean read of the
-// handful of columns the chart needs.
+// rows outflows counts: no transfers, no Excluded rows, no split originals.
 export async function getSpendingRows() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transactions")
-    .select("posted_date, amount, is_transfer, is_income, exclude_from_budget, is_split, transaction_splits(amount)")
+    .select("posted_date, amount, is_income, category_id, source_id, sources!source_id(type)")
+    .eq("is_transfer", false)
+    .eq("exclude_from_budget", false)
+    .eq("is_split", false)
+    .lt("amount", 0)
     .order("posted_date", { ascending: false })
     .limit(2000);
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []).map((r) => ({
+    postedDate: r.posted_date,
+    amount: r.amount,
+    isIncome: r.is_income,
+    categoryId: r.category_id,
+    sourceId: r.source_id,
+    sourceType: (r.sources as { type: string } | null)?.type ?? null,
+  }));
 }
 
 export async function getFilterOptions() {
