@@ -14,11 +14,10 @@ export function revalidateLedgerPages() {
   revalidatePath("/budget");
 }
 
-// Bank connections live on both Accounts and Settings; a sync also lands
-// new transactions and moves balances.
+// Bank connections live on Accounts; a sync also lands new transactions and
+// moves balances.
 export function revalidateBankPages() {
   revalidatePath("/accounts");
-  revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
 }

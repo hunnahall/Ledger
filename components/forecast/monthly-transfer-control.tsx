@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 // Only rendered when the chosen Source has no real Source Transfer on the
 // Budgets page (see ForecastView) — this value is forecast-local (see
 // updateMonthlyTransferOverride) and never written back to
-// source_transfers. Same toggle-to-inline-input shape as
-// BalanceEditControl (components/sources/balance-edit-control.tsx).
+// source_transfers. Same toggle-to-inline-input shape as NameEditControl
+// (components/sources/name-edit-control.tsx).
 export function MonthlyTransferControl({
   forecastId,
   amount,

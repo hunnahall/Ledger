@@ -2,7 +2,6 @@
 
 import { useActionState } from "react";
 import { Button, type ButtonProps } from "./button";
-import { SpinnerIcon } from "./icons";
 
 type SimpleAction = (
   prevState: { error: string } | null,
@@ -17,10 +16,14 @@ type SimpleAction = (
 export function ActionButtonForm({
   action,
   children,
+  pendingLabel,
   errorClassName,
   ...buttonProps
 }: ButtonProps & {
   action: SimpleAction;
+  /** Shown while the action runs ("Syncing"). No spinners: the label
+   * changes and the button disables. */
+  pendingLabel?: string;
   errorClassName?: string;
 }) {
   const [state, formAction, isPending] = useActionState(action, null);
@@ -28,11 +31,10 @@ export function ActionButtonForm({
   return (
     <form action={formAction}>
       <Button {...buttonProps} type="submit" disabled={isPending || buttonProps.disabled}>
-        {isPending ? <SpinnerIcon className="animate-spin" /> : null}
-        {children}
+        {isPending && pendingLabel ? pendingLabel : children}
       </Button>
       {state?.error && (
-        <p className={errorClassName ?? "mt-1 text-xs text-negative"}>{state.error}</p>
+        <p className={errorClassName ?? "mt-1 text-xs text-danger"}>{state.error}</p>
       )}
     </form>
   );

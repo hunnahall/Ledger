@@ -26,11 +26,10 @@ export function TimezoneForm({ timezone }: { timezone: string }) {
   const zones = useMemo(() => zoneOptions(timezone), [timezone]);
 
   return (
-    <div>
-      <p className="text-sm font-medium">Time Zone</p>
+    <div className="flex flex-col items-end gap-1">
       <Select
         uiSize="sm"
-        className="mt-3 w-full"
+        className="w-56"
         value={value}
         disabled={pending}
         onChange={(next) => {
@@ -51,7 +50,7 @@ export function TimezoneForm({ timezone }: { timezone: string }) {
           </option>
         ))}
       </Select>
-      {error && <p className="mt-2 text-sm text-negative">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

@@ -5,18 +5,26 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 
+type ConfirmOptions = { confirmLabel?: string; destructive?: boolean };
+
 /**
  * Renders a Yes/No confirmation modal on demand. `confirm(message)` resolves
  * once the user answers — await it inline in a submit handler to gate an
  * action on their response. Render the returned `dialog` node anywhere in
  * the component tree.
+ *
+ * Pass `{ confirmLabel, destructive }` for a delete: the answer buttons read
+ * "Cancel" and the label, and the confirm button fills red (the only place
+ * a danger button ever fills).
  */
 export function useConfirm() {
   const [message, setMessage] = useState<string | null>(null);
+  const [options, setOptions] = useState<ConfirmOptions>({});
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
 
-  const confirm = useCallback((text: string) => {
+  const confirm = useCallback((text: string, opts: ConfirmOptions = {}) => {
     setMessage(text);
+    setOptions(opts);
     return new Promise<boolean>((resolve) => {
       resolveRef.current = resolve;
     });
@@ -38,10 +46,16 @@ export function useConfirm() {
           <p className="text-sm">{message}</p>
           <div className="mt-4 flex justify-end gap-2">
             <Button type="button" size="sm" onClick={() => respond(false)}>
-              No
+              {options.confirmLabel ? "Cancel" : "No"}
             </Button>
-            <Button type="button" variant="primary" size="sm" onClick={() => respond(true)}>
-              Yes
+            <Button
+              type="button"
+              variant="primary"
+              tone={options.destructive ? "danger" : "default"}
+              size="sm"
+              onClick={() => respond(true)}
+            >
+              {options.confirmLabel ?? "Yes"}
             </Button>
           </div>
         </DialogShell>,

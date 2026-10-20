@@ -1,24 +1,24 @@
-import {
-  PageHeaderSkeleton,
-  Skeleton,
-  SkeletonCard,
-} from "@/components/ui/skeleton";
+import { PageHeaderSkeleton, Skeleton, SkeletonCard } from "@/components/ui/skeleton";
+
+const PANELS = [2, 2, 4];
 
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeaderSkeleton title="Settings" subtitle={null} />
-      <SkeletonCard />
-      <div className="flex flex-wrap gap-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <SkeletonCard key={i} className="min-w-56 flex-1">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="mt-3 h-8 w-40" />
-          </SkeletonCard>
-        ))}
-      </div>
-      <SkeletonCard />
-      <SkeletonCard />
+    <div className="flex max-w-[720px] flex-col gap-6">
+      <PageHeaderSkeleton title="Settings" subtitle="Bank connections are on the Accounts page." />
+      {PANELS.map((rows, i) => (
+        <SkeletonCard key={i} className="p-0">
+          <div className="border-b border-border px-5 py-4">
+            <Skeleton className="h-3.5 w-24" />
+          </div>
+          {Array.from({ length: rows }, (_, j) => (
+            <div key={j} className="flex items-center justify-between border-b border-border px-5 py-4 last:border-0">
+              <Skeleton className="h-3.5 w-40" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+          ))}
+        </SkeletonCard>
+      ))}
     </div>
   );
 }

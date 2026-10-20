@@ -153,7 +153,7 @@ export async function syncAllBankConnections(
     .select("id");
   if (fetchError) return { error: fetchError.message };
   if (!connections || connections.length === 0) {
-    return { error: "No banks connected — add one on the Settings page." };
+    return { error: "No banks connected. Add one with Connect bank on the Accounts page." };
   }
 
   const results = await Promise.allSettled(connections.map((c) => invokeSync(c.id)));

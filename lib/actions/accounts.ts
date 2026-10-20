@@ -101,3 +101,43 @@ export async function deleteManualAccount(
   revalidatePath("/accounts");
   return null;
 }
+
+// Account type is the user's call (SimpleFin doesn't report it). Sync only
+// sets "checking" on an account it hasn't seen before, so this sticks.
+export async function setAccountType(
+  accountId: string,
+  accountType: string,
+): Promise<{ error: string } | null> {
+  if (!ACCOUNT_TYPES.includes(accountType as (typeof ACCOUNT_TYPES)[number])) {
+    return { error: "Not a valid account type." };
+  }
+  const { supabase, user } = await requireUser();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("accounts")
+    .select("account_name, account_type")
+    .eq("id", accountId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "Account not found." };
+  if (existing.account_type === accountType) return null;
+
+  const { error } = await supabase
+    .from("accounts")
+    .update({ account_type: accountType })
+    .eq("id", accountId);
+  if (error) return { error: error.message };
+
+  await logChange(
+    supabase,
+    user.id,
+    "Accounts",
+    `${existing.account_name} — Type`,
+    existing.account_type,
+    accountType,
+  );
+
+  revalidatePath("/accounts");
+  revalidatePath("/dashboard");
+  return null;
+}

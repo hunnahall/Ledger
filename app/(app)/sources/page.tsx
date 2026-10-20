@@ -1,92 +1,94 @@
 import Link from "next/link";
-import { getSourcesWithBalance } from "@/lib/queries/sources";
+import { getSourceMonthChange, getSourcesWithBalance } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
 import { ensureBudgetCurrent } from "@/lib/queries/budgets";
-import { CreateSourceForm } from "@/components/sources/create-source-form";
+import { currentMonthISO } from "@/lib/dates";
+import { formatMoney } from "@/lib/format";
+import { AddSourceButton } from "@/components/sources/create-source-form";
 import { SourceCard } from "@/components/sources/source-card";
+import { Money } from "@/components/ui/money";
+import { Stat, StatRow } from "@/components/ui/stat";
 import { groupSourcesByType } from "@/lib/sources/group-sources";
+
+// Budget group order: the Budget first, then the other system Sources.
+const BUDGET_GROUP_ORDER = ["budget", "float", "sinking_fund", "income"];
 
 export default async function SourcesPage() {
   // Awaited first, not in the Promise.all below: it resets the current
   // budget's linked source balance for the month if due, and
   // getSourcesWithBalance must see that write.
   await ensureBudgetCurrent();
-  const [sources, settings] = await Promise.all([
+  const settings = await getSettings();
+  const [sources, monthChange] = await Promise.all([
     getSourcesWithBalance(),
-    getSettings(),
+    getSourceMonthChange(currentMonthISO(settings.timezone)),
   ]);
   const decimalPlaces = settings.decimal_places;
+  const money = (n: number) => formatMoney(n, decimalPlaces);
   const grouped = groupSourcesByType(sources);
+  const budgetGroup = [...grouped.budget].sort(
+    (a, b) => BUDGET_GROUP_ORDER.indexOf(a.type) - BUDGET_GROUP_ORDER.indexOf(b.type),
+  );
+  const sum = (list: { balance: number }[]) => list.reduce((total, s) => total + s.balance, 0);
   const budgetSource = sources.find((s) => s.type === "budget");
-  const floatSource = sources.find((s) => s.type === "float");
-  const sinkingFundSource = sources.find((s) => s.type === "sinking_fund");
-  const incomeSource = sources.find((s) => s.type === "income");
+  const sinkingFund = sources.find((s) => s.type === "sinking_fund");
+
+  const groups = [
+    { key: "budget", label: "Budget", items: budgetGroup, empty: null },
+    { key: "reimbursement", label: "Reimbursements", items: grouped.reimbursement, empty: "No reimbursement sources yet." },
+    { key: "fund", label: "Funds", items: grouped.fund, empty: "No funds yet. Add one with Add source." },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1>Sources</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1>Sources</h1>
+          <p className="mt-1 text-sm text-muted">{sources.length} sources</p>
+        </div>
+        <AddSourceButton />
       </div>
 
-      <CreateSourceForm />
+      <StatRow>
+        <Stat label="Total held" value={money(sum(sources))} caption={`${sources.length} sources`} />
+        <Stat label="Budget left" value={budgetSource ? money(budgetSource.balance) : "None"} />
+        <Stat label="Sinking fund" value={sinkingFund ? money(sinkingFund.balance) : "None"} />
+        <Stat
+          label="Funds"
+          value={money(sum(grouped.fund))}
+          caption={grouped.fund.length === 1 ? "1 fund" : `${grouped.fund.length} funds`}
+        />
+      </StatRow>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold tracking-tight">Budget</h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {budgetSource && (
-            <SourceCard key={budgetSource.id} source={budgetSource} decimalPlaces={decimalPlaces} />
-          )}
-          {!budgetSource && (
-            <p className="text-sm text-muted">
-              No current budget set.{" "}
-              <Link href="/budget" className="underline">
-                Set one up
-              </Link>
-              .
-            </p>
-          )}
-          {floatSource && (
-            <SourceCard key={floatSource.id} source={floatSource} decimalPlaces={decimalPlaces} />
-          )}
-          {sinkingFundSource && (
-            <SourceCard
-              key={sinkingFundSource.id}
-              source={sinkingFundSource}
-              decimalPlaces={decimalPlaces}
-            />
-          )}
-          {incomeSource && (
-            <SourceCard key={incomeSource.id} source={incomeSource} decimalPlaces={decimalPlaces} />
-          )}
-        </div>
-      </section>
+      {!budgetSource && (
+        <p className="text-sm text-muted">
+          No current budget set.{" "}
+          <Link href="/budget" className="text-accent underline">
+            Set one up
+          </Link>
+          .
+        </p>
+      )}
 
-      <section className="flex flex-col gap-4 border-t-2 border-border pt-6">
-        <h2 className="text-xl font-semibold tracking-tight">Reimbursements</h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {grouped.reimbursement.map((source) => (
-            <SourceCard key={source.id} source={source} decimalPlaces={decimalPlaces} />
-          ))}
-          {grouped.reimbursement.length === 0 && (
-            <p className="text-sm text-muted">No reimbursement sources yet.</p>
-          )}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4 border-t-2 border-border pt-6">
-        <h2 className="text-xl font-semibold tracking-tight">Funds</h2>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          {grouped.fund.map((source) => (
-            <SourceCard key={source.id} source={source} decimalPlaces={decimalPlaces} />
-          ))}
-          {grouped.fund.length === 0 && (
-            <p className="text-sm text-muted">
-              No funds yet. Add one using the &ldquo;Fund&rdquo; type above.
-            </p>
-          )}
-        </div>
-      </section>
+      {groups.map((group) => (
+        <section key={group.key} className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+            <h2 className="font-mono text-[11px] font-medium">{group.label}</h2>
+            <Money amount={sum(group.items)} decimalPlaces={decimalPlaces} className="text-foreground-secondary" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {group.items.map((source) => (
+              <SourceCard
+                key={source.id}
+                source={source}
+                monthChange={monthChange.get(source.id) ?? 0}
+                decimalPlaces={decimalPlaces}
+              />
+            ))}
+            {group.items.length === 0 && group.empty && <p className="text-sm text-muted">{group.empty}</p>}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

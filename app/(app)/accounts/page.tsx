@@ -1,112 +1,81 @@
-import { getAccounts, getRecentTransactionsByAccount } from "@/lib/queries/accounts";
+import { getAccounts, getBankConnections, getRecentTransactionsByAccount } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
-import { deleteManualAccount } from "@/lib/actions/accounts";
-import { CreateManualAccountForm } from "@/components/accounts/create-manual-account-form";
-import { ActionButtonForm } from "@/components/ui/action-button-form";
-import { Money } from "@/components/ui/money";
-import { LocalTimestamp } from "@/components/ui/local-timestamp";
-import { ChevronDownIcon } from "@/components/ui/icons";
-import { ACCOUNT_TYPE_LABELS as TYPE_LABELS } from "@/lib/accounts/types";
-import { formatDate } from "@/lib/format";
+import { accountTotals } from "@/lib/accounts/totals";
+import { formatMoney } from "@/lib/format";
+import { AccountRow } from "@/components/accounts/account-row";
+import { BankConnectionPanel } from "@/components/accounts/bank-connection-panel";
+import { ConnectBankButton } from "@/components/accounts/connect-bank-connection-form";
+import { AddManualAccountButton } from "@/components/accounts/create-manual-account-form";
+import { Card } from "@/components/ui/card";
+import { Stat, StatRow } from "@/components/ui/stat";
 
 export default async function AccountsPage() {
-  const [accounts, settings] = await Promise.all([getAccounts(), getSettings()]);
+  const [accounts, connections, settings] = await Promise.all([
+    getAccounts(),
+    getBankConnections(),
+    getSettings(),
+  ]);
   const recent = await getRecentTransactionsByAccount(accounts.map((a) => a.id));
   const decimalPlaces = settings.decimal_places;
+  const money = (n: number) => formatMoney(n, decimalPlaces);
+  const totals = accountTotals(accounts);
+  const manual = accounts.filter((a) => a.is_manual);
+
+  const rows = (list: typeof accounts) =>
+    list.map((account) => (
+      <AccountRow
+        key={account.id}
+        account={account}
+        transactions={recent.get(account.id) ?? []}
+        decimalPlaces={decimalPlaces}
+      />
+    ));
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1>Accounts</h1>
-        <p className="mt-1 text-sm text-muted">Open an account to see its latest transactions.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1>Accounts</h1>
+          <p className="mt-1 text-sm text-muted">Open an account to see its latest transactions.</p>
+        </div>
+        <ConnectBankButton />
       </div>
 
-      <div className="flex flex-col gap-2">
-        {accounts.map((account) => {
-          const syncedAt = (account.bank_connections as { last_synced_at: string | null } | null)
-            ?.last_synced_at;
-          const transactions = recent.get(account.id) ?? [];
-          return (
-            <details key={account.id} className="group border border-border bg-surface">
-              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                <ChevronDownIcon
-                  size={16}
-                  className="shrink-0 -rotate-90 text-muted transition-transform duration-[200ms] group-open:rotate-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{account.account_name}</div>
-                  <div className="truncate text-xs text-muted">
-                    {[account.institution_name, TYPE_LABELS[account.account_type] ?? account.account_type]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </div>
-                </div>
-                <div className="text-xs text-muted">
-                  {account.is_manual ? (
-                    "Manual account"
-                  ) : syncedAt ? (
-                    <>
-                      Synced <LocalTimestamp iso={syncedAt} />
-                    </>
-                  ) : (
-                    "Never synced"
-                  )}
-                </div>
-                <Money
-                  amount={account.current_balance}
-                  decimalPlaces={decimalPlaces}
-                  className="w-28 text-right text-foreground"
-                />
-              </summary>
+      <StatRow>
+        <Stat label="Cash" value={money(totals.cash)} caption="Checking, savings and manual" />
+        <Stat label="Credit cards" value={money(totals.credit)} />
+        <Stat label="Net" value={money(totals.net)} caption={`${accounts.length} accounts`} />
+      </StatRow>
 
-              <div className="border-t border-border">
-                {transactions.length === 0 ? (
-                  <p className="px-4 py-4 text-sm text-muted">No transactions yet.</p>
-                ) : (
-                  <ul>
-                    {transactions.map((txn) => (
-                      <li
-                        key={txn.id}
-                        className="flex items-center gap-4 border-b border-border px-4 py-2 text-[13px] last:border-0"
-                      >
-                        <span className="w-28 shrink-0 font-mono text-xs text-muted">
-                          {formatDate(txn.posted_date)}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate">{txn.description}</span>
-                        <Money
-                          amount={txn.amount}
-                          decimalPlaces={decimalPlaces}
-                          className="shrink-0"
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {account.is_manual && (
-                  <div className="border-t border-border px-4 py-3">
-                    <ActionButtonForm
-                      action={deleteManualAccount.bind(null, account.id)}
-                      variant="secondary"
-                      tone="negative"
-                      size="sm"
-                      errorClassName="mt-1 text-xs text-negative"
-                    >
-                      Delete account
-                    </ActionButtonForm>
-                  </div>
-                )}
-              </div>
-            </details>
-          );
-        })}
-        {accounts.length === 0 && (
-          <p className="border border-dashed border-border-strong px-4 py-6 text-center text-muted">
-            No accounts yet. Connect a bank in Settings or create a manual account below.
+      {connections.map((connection) => {
+        const connectionAccounts = accounts.filter((a) => a.bank_connection_id === connection.id);
+        const bankName =
+          connectionAccounts.find((a) => a.institution_name)?.institution_name ??
+          (connectionAccounts.length > 0 ? connectionAccounts[0].account_name : "Bank connection");
+        return (
+          <BankConnectionPanel key={connection.id} connection={connection} bankName={bankName}>
+            {connectionAccounts.length > 0 ? (
+              rows(connectionAccounts)
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">No accounts yet. Sync to pull them in.</p>
+            )}
+          </BankConnectionPanel>
+        );
+      })}
+
+      <Card title="Manual Accounts" action={<AddManualAccountButton />}>
+        {manual.length > 0 ? (
+          rows(manual)
+        ) : (
+          <p className="px-5 py-4 text-sm text-muted">
+            For money no bank reports, like cash in a wallet.
           </p>
         )}
-      </div>
+      </Card>
 
-      <CreateManualAccountForm />
+      {connections.length === 0 && (
+        <p className="text-sm text-muted">No banks connected yet. Use Connect bank to add one through SimpleFin.</p>
+      )}
     </div>
   );
 }

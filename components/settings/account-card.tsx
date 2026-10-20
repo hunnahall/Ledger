@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useModal } from "@/components/ui/modal";
+import { SettingRow } from "@/components/settings/setting-row";
 
 const DELETE_CONFIRMATION = "DELETE";
 
@@ -15,7 +16,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
 
   return (
     <div>
-      <p className="font-medium">Change password</p>
+      <h2 className="text-xl font-semibold">Change Password</h2>
       <form action={formAction} className="mt-4 flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
           New password ({MIN_PASSWORD_LENGTH}+ characters)
@@ -37,16 +38,16 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
             required
           />
         </label>
-        <div className="flex gap-2">
-          <Button type="submit" variant="accent" size="sm">
+        {state && "error" in state && <p className="text-sm text-danger">{state.error}</p>}
+        {state && "notice" in state && <p className="text-sm text-foreground-secondary">{state.notice}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" size="sm" onClick={onDone}>
+            {state && "notice" in state ? "Done" : "Cancel"}
+          </Button>
+          <Button type="submit" variant="primary" size="sm">
             Change password
           </Button>
-          <Button type="button" variant="secondary" size="sm" onClick={onDone}>
-            Cancel
-          </Button>
         </div>
-        {state && "error" in state && <p className="text-sm text-negative">{state.error}</p>}
-        {state && "notice" in state && <p className="text-sm text-positive">{state.notice}</p>}
       </form>
     </div>
   );
@@ -63,16 +64,16 @@ function DeleteAccount() {
 
   if (!open) {
     return (
-      <Button type="button" variant="secondary" tone="negative" size="sm" onClick={() => setOpen(true)}>
+      <Button type="button" tone="negative" size="sm" onClick={() => setOpen(true)}>
         Delete account
       </Button>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm text-negative">
-        This permanently deletes your account and everything in it — transactions, sources,
+    <div className="flex max-w-sm flex-col gap-2">
+      <p className="text-sm text-danger">
+        This permanently deletes your account and everything in it: transactions, sources,
         categories, rules and forecasts. It can&apos;t be undone.
       </p>
       <label className="flex flex-col gap-1 text-sm">
@@ -82,8 +83,7 @@ function DeleteAccount() {
       <div className="flex gap-2">
         <Button
           type="button"
-          variant="secondary"
-          tone="negative"
+          tone="danger"
           size="sm"
           disabled={pending || typed.trim() !== DELETE_CONFIRMATION}
           onClick={() =>
@@ -93,42 +93,42 @@ function DeleteAccount() {
             })
           }
         >
-          {pending ? "Deleting…" : "Delete permanently"}
+          {pending ? "Deleting" : "Delete permanently"}
         </Button>
-        <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(false)}>
+        <Button type="button" size="sm" onClick={() => setOpen(false)}>
           Cancel
         </Button>
       </div>
-      {error && <p className="text-sm text-negative">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
 
+// The Settings page's Account panel: who's signed in, password, log out, and
+// account deletion.
 export function AccountCard({ email }: { email: string }) {
   const { open, close, modal } = useModal();
 
   return (
-    <Card className="p-5">
-      <p className="font-medium">Account</p>
-      <p className="mt-1 text-sm text-muted">Signed in as {email}</p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => open(<ChangePasswordForm onDone={close} />)}
-        >
+    <Card title="Account">
+      <SettingRow label="Email" description="The address you sign in with.">
+        <span className="font-mono text-sm text-foreground-secondary">{email}</span>
+      </SettingRow>
+      <SettingRow label="Password">
+        <Button type="button" size="sm" onClick={() => open(<ChangePasswordForm onDone={close} />)}>
           Change password
         </Button>
+      </SettingRow>
+      <SettingRow label="Log out" description="Sign out on this device.">
         <form action={signOut}>
-          <Button type="submit" variant="secondary" size="sm">
+          <Button type="submit" size="sm">
             Log out
           </Button>
         </form>
+      </SettingRow>
+      <SettingRow label="Delete account" description="Removes your account and all of its data.">
         <DeleteAccount />
-      </div>
-
+      </SettingRow>
       {modal}
     </Card>
   );

@@ -8,7 +8,7 @@ export async function getAccounts() {
   const { data, error } = await supabase
     .from("accounts")
     .select(
-      "id, account_name, account_type, institution_name, last4, current_balance, is_manual, status, updated_at, bank_connections(last_synced_at)",
+      "id, account_name, account_type, institution_name, last4, current_balance, is_manual, status, updated_at, bank_connection_id",
     )
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
@@ -39,7 +39,7 @@ export async function getBankConnections() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("bank_connections")
-    .select("id, status, last_synced_at, accounts(id, account_name)")
+    .select("id, status, last_synced_at")
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return data;

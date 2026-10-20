@@ -1,5 +1,5 @@
-// Syncs one SimpleFin bank connection on demand — the "Sync now" button on
-// Settings, the "Sync" button on Transactions (which fans out one call per
+// Syncs one SimpleFin bank connection on demand — a bank's "Sync" button on
+// Accounts, the "Sync" button on Transactions (which fans out one call per
 // connection), and the Import backfill on Accounts.
 //
 // Every invocation carries the caller's own JWT and a body { connection_id }.
@@ -52,6 +52,7 @@ type SimplefinAccount = {
   balance: string;
   "available-balance"?: string;
   "balance-date": number;
+  org?: { name?: string };
   transactions?: SimplefinTransaction[];
 };
 
@@ -100,6 +101,16 @@ async function syncConnection(
     const accounts: SimplefinAccount[] = payload.accounts ?? [];
     const errlist: unknown[] = payload.errlist ?? [];
 
+    // The account type (checking, savings, credit card) is the user's to set
+    // on the Accounts page; SimpleFin doesn't report it. New accounts start
+    // as checking, and a re-sync leaves an existing account's type alone.
+    const { data: existingAccounts, error: existingError } = await serviceClient
+      .from("accounts")
+      .select("provider_account_id")
+      .eq("bank_connection_id", connection.id);
+    if (existingError) throw new Error(existingError.message);
+    const known = new Set((existingAccounts ?? []).map((a) => a.provider_account_id));
+
     for (const acct of accounts) {
       const { data: accountRow, error: acctError } = await serviceClient
         .from("accounts")
@@ -109,7 +120,8 @@ async function syncConnection(
             bank_connection_id: connection.id,
             provider_account_id: acct.id,
             account_name: acct.name,
-            account_type: "checking",
+            ...(known.has(acct.id) ? {} : { account_type: "checking" }),
+            ...(acct.org?.name ? { institution_name: acct.org.name } : {}),
             is_manual: false,
             status: "active",
             current_balance: Number(acct.balance),

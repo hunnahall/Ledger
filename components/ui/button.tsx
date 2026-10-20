@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 type ButtonVariant = "primary" | "secondary" | "tertiary" | "accent";
-type ButtonTone = "default" | "negative";
+type ButtonTone = "default" | "negative" | "danger";
 type ButtonSize = "sm" | "md" | "icon";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -22,11 +22,13 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   accent: "border border-transparent bg-accent text-on-accent hover:bg-accent/85",
 };
 
-// Danger is outlined, never filled; it only fills red inside a confirm step.
+// Danger is outlined (`negative`) everywhere except inside a confirm step,
+// the one place it fills red (`danger`).
 const TONE_CLASSES: Record<ButtonTone, string> = {
   default: "",
   negative:
     "border-danger/50 bg-transparent text-danger hover:border-danger hover:bg-danger-soft",
+  danger: "border-transparent bg-danger text-[var(--on-fg)] hover:bg-danger/85",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
