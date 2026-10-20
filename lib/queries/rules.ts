@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 
-export async function getVendorRules() {
+export async function getRules() {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("vendor_category_rules")
+    .from("rules")
     .select(
       "id, merchant_normalized, category_id, source_id, is_income, is_exclude, use_count, last_used_at, categories(name), sources(name)",
     )

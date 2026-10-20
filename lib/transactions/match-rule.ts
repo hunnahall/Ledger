@@ -1,4 +1,4 @@
-type VendorRuleCandidate = { merchant_normalized: string };
+type RuleCandidate = { merchant_normalized: string };
 
 // A rule's pattern only has to appear somewhere in the transaction's
 // normalized description, not equal it outright — so a rule for "target"
@@ -6,7 +6,7 @@ type VendorRuleCandidate = { merchant_normalized: string };
 // merchant with terminal codes, locations, etc.). When more than one rule
 // matches, the longest pattern wins — a specific multi-word rule should
 // beat a shorter, more generic one covering the same transaction.
-export function findMatchingRule<T extends VendorRuleCandidate>(
+export function findMatchingRule<T extends RuleCandidate>(
   rules: T[],
   merchantNormalized: string,
 ): T | null {

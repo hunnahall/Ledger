@@ -34,7 +34,7 @@ export function ForecastPicker({
 
   useEffect(() => {
     if (createState && "id" in createState && createState.id) {
-      router.push(`/forecast?id=${createState.id}`);
+      router.push(`/forecasts?id=${createState.id}`);
     }
   }, [createState, router]);
 
@@ -60,7 +60,7 @@ export function ForecastPicker({
             key={f.id}
             className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-0"
           >
-            <a href={`/forecast?id=${f.id}`} className="min-w-0 flex-1">
+            <a href={`/forecasts?id=${f.id}`} className="min-w-0 flex-1">
               <p className="font-medium">{f.name}</p>
               <p className="text-xs text-muted">
                 {f.sourceName} &middot; updated {formatDate(f.updatedAt.slice(0, 10))}

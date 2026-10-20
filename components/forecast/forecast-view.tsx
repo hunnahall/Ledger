@@ -119,7 +119,7 @@ function ForecastDetailView({
     if (!ok) return;
     startDeleteTransition(async () => {
       await deleteForecast(forecast.id, null, new FormData());
-      router.push("/forecast");
+      router.push("/forecasts");
     });
   }
 
@@ -127,7 +127,7 @@ function ForecastDetailView({
     <div className="flex flex-col gap-6">
       {dialog}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <button type="button" onClick={() => router.push("/forecast")} className="text-sm text-muted hover:underline">
+        <button type="button" onClick={() => router.push("/forecasts")} className="text-sm text-muted hover:underline">
           ← All forecasts
         </button>
         <Button

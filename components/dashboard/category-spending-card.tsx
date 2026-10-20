@@ -33,15 +33,15 @@ export function CategorySpendingCard({
   const pacePct = Math.round(monthProgress * 100);
 
   return (
-    <section className="flex min-w-0 flex-[999_1_560px] flex-col rounded-lg border border-card-border bg-surface p-6 shadow-card">
+    <section className="flex min-w-0 flex-[999_1_560px] flex-col border border-border bg-surface p-5">
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold">Spending by Category</h2>
         <div className="flex flex-wrap gap-3.5 text-xs text-foreground-secondary">
           <Key swatch="h-3 w-0.5 bg-foreground">Today&apos;s pace ({pacePct}%)</Key>
-          <Key swatch="size-2.5 rounded-[3px] bg-accent">Below pace</Key>
-          <Key swatch="size-2.5 rounded-[3px] bg-warning">Ahead of pace</Key>
-          <Key swatch="size-2.5 rounded-[3px] bg-negative">Over</Key>
-          <Key swatch="size-2.5 rounded-[3px] bg-chart-neutral">Fully spent</Key>
+          <Key swatch="size-2.5 bg-accent">Below pace</Key>
+          <Key swatch="size-2.5 bg-warning">Ahead of pace</Key>
+          <Key swatch="size-2.5 bg-negative">Over</Key>
+          <Key swatch="size-2.5 bg-chart-neutral">Fully spent</Key>
         </div>
       </div>
 
@@ -59,14 +59,14 @@ export function CategorySpendingCard({
                 onClick={() => openTile(c.name, { type: "category", categoryId: c.id })}
                 className={cn(
                   "grid min-h-11 grid-cols-[minmax(110px,150px)_minmax(0,1fr)_132px] items-center gap-4 py-2.5 text-left text-sm",
-                  "transition-colors duration-[120ms] ease-standard hover:bg-paper-a1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35",
-                  i < categories.length - 1 && "border-b border-paper-4",
+                  "transition-colors duration-[120ms] ease-standard hover:bg-paper-a1",
+                  i < categories.length - 1 && "border-b border-border",
                 )}
               >
                 <span className={cn("truncate font-medium", status === "full" && "text-foreground-secondary")}>
                   {c.name}
                 </span>
-                <span aria-hidden="true" className="relative h-2 rounded bg-paper-3">
+                <span aria-hidden="true" className="relative h-2 bg-fill-active">
                   <span className={cn("absolute inset-y-0 left-0 rounded", BAR[status])} style={{ width: `${width * 100}%` }} />
                   <span
                     className="absolute -top-1 h-4 w-0.5 bg-foreground opacity-55"

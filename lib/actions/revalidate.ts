@@ -26,12 +26,12 @@ export function revalidateBankPages() {
 // Settings has its own cached route, unaffected by the ledger revalidations
 // above — without this a rule created or reinforced elsewhere sits
 // invisible there until something else happens to refetch that page.
-export function revalidateVendorRulePages() {
+export function revalidateRulePages() {
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
   revalidatePath("/settings");
 }
 
 export function revalidateForecastPages() {
-  revalidatePath("/forecast");
+  revalidatePath("/forecasts");
 }

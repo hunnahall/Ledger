@@ -1,10 +1,21 @@
-export function formatMoney(amount: number, decimalPlaces: number = 2) {
+const MINUS = "\u2212";
+
+function currencyParts(amount: number, decimalPlaces: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: decimalPlaces,
     maximumFractionDigits: decimalPlaces,
-  }).format(amount);
+  })
+    .formatToParts(amount)
+    .map((p) => ({ type: p.type, value: p.type === "minusSign" ? MINUS : p.value }));
+}
+
+// Negatives use a true minus sign, never a hyphen or parentheses.
+export function formatMoney(amount: number, decimalPlaces: number = 2) {
+  return currencyParts(amount, decimalPlaces)
+    .map((p) => p.value)
+    .join("");
 }
 
 // Splits a formatted currency string into the whole-dollar part and the
@@ -12,12 +23,7 @@ export function formatMoney(amount: number, decimalPlaces: number = 2) {
 // (e.g. <Money>) — the fintech "$5,216,471.18" pattern where cents render
 // smaller than the whole-dollar amount.
 export function formatMoneyParts(amount: number, decimalPlaces: number = 2) {
-  const parts = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: decimalPlaces,
-    maximumFractionDigits: decimalPlaces,
-  }).formatToParts(amount);
+  const parts = currencyParts(amount, decimalPlaces);
 
   const fractionIndex = parts.findIndex((p) => p.type === "decimal");
   if (decimalPlaces === 0 || fractionIndex === -1) {

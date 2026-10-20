@@ -60,6 +60,21 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   return data;
 }
 
+// Feeds the Transactions page's spending-by-day chart. Deliberately ignores
+// the list's filters (clicking a day filters the list to it, and the chart
+// has to stay put so that click can be undone), so it's a lean read of the
+// handful of columns the chart needs.
+export async function getSpendingRows() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("posted_date, amount, is_transfer, is_income, exclude_from_budget, is_split, transaction_splits(amount)")
+    .order("posted_date", { ascending: false })
+    .limit(2000);
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 export async function getFilterOptions() {
   const supabase = await createClient();
   // One `sources` read covering both uses. The reserved Budget-type Source —

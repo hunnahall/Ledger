@@ -11,9 +11,9 @@ import type { DashboardTileKind } from "@/lib/actions/dashboard-transactions";
 export function useTilePopup(monthISO: string, decimalPlaces: number) {
   const { open, modal } = useModal();
   const openTile = useCallback(
-    (title: string, kind: DashboardTileKind) =>
+    (title: string, kind: DashboardTileKind, month: string = monthISO) =>
       open(
-        <TransactionsPopupList title={title} kind={kind} monthISO={monthISO} decimalPlaces={decimalPlaces} />,
+        <TransactionsPopupList title={title} kind={kind} monthISO={month} decimalPlaces={decimalPlaces} />,
       ),
     [open, monthISO, decimalPlaces],
   );

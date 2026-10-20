@@ -16,55 +16,55 @@ const MIN_SEGMENT = 4;
 // inflows - outflows, so the marker always sits where the segments net out.
 export function CashFlowCard({
   income,
-  otherInflow,
-  budgetedOutflow,
-  otherOutflow,
+  otherInflows,
+  expense,
+  otherOutflows,
   cashFlow,
   monthISO,
   decimalPlaces,
 }: {
   income: number;
-  otherInflow: number;
-  budgetedOutflow: number;
-  otherOutflow: number;
+  otherInflows: number;
+  expense: number;
+  otherOutflows: number;
   cashFlow: number;
   monthISO: string;
   decimalPlaces: number;
 }) {
   const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
 
-  const total = income + otherInflow + budgetedOutflow + otherOutflow;
+  const total = income + otherInflows + expense + otherOutflows;
   const px = (amount: number) =>
     amount <= 0 || total <= 0 ? 0 : Math.max(MIN_SEGMENT, (amount / total) * BAR_HEIGHT);
   const segments = {
-    otherInflow: px(otherInflow),
+    otherInflows: px(otherInflows),
     income: px(income),
-    budgetedOutflow: px(budgetedOutflow),
-    otherOutflow: px(otherOutflow),
+    expense: px(expense),
+    otherOutflows: px(otherOutflows),
   };
-  const zeroY = segments.otherInflow + segments.income;
+  const zeroY = segments.otherInflows + segments.income;
   const scale = total > 0 ? BAR_HEIGHT / total : 0;
   const netY = Math.min(BAR_HEIGHT, Math.max(0, zeroY - cashFlow * scale));
-  const barHeight = zeroY + segments.budgetedOutflow + segments.otherOutflow;
+  const barHeight = zeroY + segments.expense + segments.otherOutflows;
 
   const rows: { label: string; amount: number; sign: "+" | "−"; tone: string; kind: DashboardTileKind }[] = [
-    { label: "Other inflows", amount: otherInflow, sign: "+", tone: "bg-positive-soft", kind: { type: "other_inflow" } },
-    { label: "Income", amount: income, sign: "+", tone: "bg-positive", kind: { type: "income" } },
-    { label: "Expenses", amount: budgetedOutflow, sign: "−", tone: "bg-negative", kind: { type: "budgeted_outflow" } },
-    { label: "Other outflows", amount: otherOutflow, sign: "−", tone: "bg-negative-soft", kind: { type: "other_outflow" } },
+    { label: "Other inflows", amount: otherInflows, sign: "+", tone: "bg-chart-1/50", kind: { type: "other_inflows" } },
+    { label: "Income", amount: income, sign: "+", tone: "bg-chart-1", kind: { type: "income" } },
+    { label: "Expenses", amount: expense, sign: "−", tone: "bg-foreground/75", kind: { type: "expense" } },
+    { label: "Other outflows", amount: otherOutflows, sign: "−", tone: "bg-foreground/35", kind: { type: "other_outflows" } },
   ];
 
   return (
-    <section className="flex min-w-0 flex-[1_1_380px] flex-col rounded-lg border border-card-border bg-surface p-6 shadow-card">
+    <section className="flex min-w-0 flex-[1_1_380px] flex-col border border-border bg-surface p-5">
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-base font-semibold">Cash Flow</h2>
         <button
           type="button"
           onClick={() => openTile("Net Cash Flow", { type: "cash_flow" })}
-          className="rounded-md px-1.5 text-sm text-foreground-secondary transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+          className="rounded-md px-1.5 text-sm text-foreground-secondary transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
         >
           Net{" "}
-          <span className={cn("font-heading text-xl font-semibold", cashFlow < 0 ? "text-negative" : "text-positive")}>
+          <span className={cn("text-xl font-semibold", cashFlow < 0 && "text-negative")}>
             {cashFlow > 0 && "+"}
             <Money amount={cashFlow} decimalPlaces={decimalPlaces} />
           </span>
@@ -78,10 +78,10 @@ export function CashFlowCard({
           className="relative ml-3 w-16 flex-none"
           style={{ height: Math.max(barHeight, 2) }}
         >
-          <Segment top={0} height={segments.otherInflow} className="rounded-t bg-positive-soft" />
-          <Segment top={segments.otherInflow} height={segments.income} className={cn("bg-positive", !segments.otherInflow && "rounded-t")} />
-          <Segment top={zeroY} height={segments.budgetedOutflow} className={cn("bg-negative", !segments.otherOutflow && "rounded-b")} />
-          <Segment top={zeroY + segments.budgetedOutflow} height={segments.otherOutflow} className="rounded-b bg-negative-soft" />
+          <Segment top={0} height={segments.otherInflows} className="bg-chart-1/50" />
+          <Segment top={segments.otherInflows} height={segments.income} className="bg-chart-1" />
+          <Segment top={zeroY} height={segments.expense} className="bg-foreground/75" />
+          <Segment top={zeroY + segments.expense} height={segments.otherOutflows} className="bg-foreground/35" />
           <div aria-hidden="true" className="absolute -inset-x-3 h-0.5 bg-foreground" style={{ top: zeroY - 1 }} />
           {total > 0 && (
             <div aria-hidden="true" className="absolute -inset-x-2 border-t-2 border-dashed border-foreground" style={{ top: netY - 1 }} />
@@ -92,14 +92,14 @@ export function CashFlowCard({
           {rows.slice(0, 2).map((r) => (
             <Row key={r.label} {...r} decimalPlaces={decimalPlaces} onClick={() => openTile(r.label, r.kind)} />
           ))}
-          <div className="flex items-center gap-2 text-[11px] text-paper-7">
+          <div className="flex items-center gap-2 text-[11px] text-muted">
             <span aria-hidden="true" className="h-0.5 w-2.5 bg-foreground" />
             $0
           </div>
           {rows.slice(2).map((r) => (
             <Row key={r.label} {...r} decimalPlaces={decimalPlaces} onClick={() => openTile(r.label, r.kind)} />
           ))}
-          <div className="flex items-center gap-2 border-t border-paper-4 pt-2.5 text-foreground-secondary">
+          <div className="flex items-center gap-2 border-t border-border pt-2.5 text-foreground-secondary">
             <span aria-hidden="true" className="w-2.5 flex-none border-t-2 border-dashed border-foreground-secondary" />
             <span className="flex-1 whitespace-nowrap">Net cash flow</span>
             <span className="font-semibold text-foreground">
@@ -138,11 +138,11 @@ function Row({
     <button
       type="button"
       onClick={onClick}
-      className="-mx-1.5 flex min-h-8 items-center gap-2 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+      className="-mx-1.5 flex min-h-8 items-center gap-2 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
     >
-      <span aria-hidden="true" className={cn("size-2.5 flex-none rounded-[3px]", tone)} />
+      <span aria-hidden="true" className={cn("size-2.5 flex-none", tone)} />
       <span className="flex-1 whitespace-nowrap">{label}</span>
-      <span className={cn("font-semibold", sign === "−" && amount > 0 && "text-negative")}>
+      <span className="font-semibold">
         {amount > 0 ? sign : ""}
         <Money amount={amount} decimalPlaces={decimalPlaces} />
       </span>

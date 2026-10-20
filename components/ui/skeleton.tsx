@@ -10,7 +10,7 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       aria-hidden
-      className={cn("animate-pulse rounded-md bg-paper-a3", className)}
+      className={cn("skeleton bg-fill-active", className)}
     />
   );
 }
@@ -51,7 +51,7 @@ export function PageHeaderSkeleton({
 }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1>{title}</h1>
       {subtitle === undefined && <Skeleton className="mt-2 h-4 w-56" />}
       {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
     </div>
@@ -69,7 +69,7 @@ export function SkeletonCard({
   return (
     <div
       className={cn(
-        "rounded-lg border border-card-border bg-surface p-6 shadow-card",
+        "border border-border bg-surface p-5",
         className,
       )}
     >
@@ -81,8 +81,8 @@ export function SkeletonCard({
 /** Stands in for a bordered list or table: header strip plus n rows. */
 export function SkeletonTable({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
-      <div className="border-b border-border bg-surface-subtle px-4 py-3">
+    <div className="overflow-hidden border border-border bg-surface">
+      <div className="border-b border-rule px-4 py-3">
         <Skeleton className="h-3 w-32" />
       </div>
       {Array.from({ length: rows }, (_, i) => (

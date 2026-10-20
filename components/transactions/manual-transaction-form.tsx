@@ -23,7 +23,7 @@ export function ManualTransactionForm({
   sources,
   defaultSourceId,
   defaultAccountId,
-  monthAhead,
+  advanced,
 }: {
   categories: Option[];
   sources: Option[];
@@ -34,7 +34,7 @@ export function ManualTransactionForm({
   // page), same as the row-level Account tooltip in TransactionList reads
   // off txn.accounts, just decided once here instead of picked per row.
   defaultAccountId: string | null;
-  monthAhead: boolean;
+  advanced: boolean;
 }) {
   const [typeChoice, setTypeChoice] = useState<TypeChoice>("expense");
   const [incomeAction, setIncomeAction] = useState<IncomeAction>("include_in_budget");
@@ -79,9 +79,9 @@ export function ManualTransactionForm({
     const form = e.currentTarget;
     const formData = new FormData(form);
     // The gold "+" adds the transaction outright — it no longer pauses to
-    // confirm saving a vendor rule the way a fresh manual category pick
+    // confirm saving a rule the way a fresh manual category pick
     // used to (that confirm() prompt broke the "click + and you're done"
-    // flow this form is for). Vendor rules still get managed their own
+    // flow this form is for). Rules still get managed their own
     // way: Settings, or the rule-builder toggle on an already-posted row
     // in the table below.
     formData.set("rule_action", "skip");
@@ -216,14 +216,14 @@ export function ManualTransactionForm({
         </label>
       )}
 
-      {typeChoice === "income" && monthAhead && (
+      {typeChoice === "income" && advanced && (
         <p className="max-w-xs pb-2 text-xs text-muted">
           Tracked to the Income source — swept into the budget at the start
           of next month.
         </p>
       )}
 
-      {typeChoice === "income" && !monthAhead && (
+      {typeChoice === "income" && !advanced && (
         <>
           <fieldset className={fieldLabel}>
             <legend className="mb-1">Income</legend>

@@ -1,4 +1,4 @@
-import { getFilteredTransactions, getFilterOptions } from "@/lib/queries/transactions";
+import { getFilteredTransactions, getFilterOptions, getSpendingRows } from "@/lib/queries/transactions";
 import {
   resolveCategoryFilter,
   resolveSourceFilter,
@@ -9,6 +9,8 @@ import { TransactionList, type TransactionRowData } from "@/components/transacti
 import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
 import { ExportMenu } from "@/components/transactions/export-menu";
 import { SyncButton } from "@/components/transactions/sync-button";
+import { SpendingByDayChart } from "@/components/transactions/spending-by-day-chart";
+import { spendingByDay } from "@/lib/transactions/spending-by-day";
 
 type SearchParams = {
   date_from?: string;
@@ -35,10 +37,11 @@ export default async function TransactionsPage({
     ...resolveSourceFilter(params.source_id),
   };
 
-  const [transactions, filterOptions, settings] = await Promise.all([
+  const [transactions, filterOptions, settings, spendingRows] = await Promise.all([
     getFilteredTransactions(filters),
     getFilterOptions(),
     getSettings(),
+    getSpendingRows(),
   ]);
   const decimalPlaces = settings.decimal_places;
 
@@ -67,11 +70,23 @@ export default async function TransactionsPage({
     })),
   }));
 
+  const days = spendingByDay(
+    spendingRows.map((r) => ({
+      postedDate: r.posted_date,
+      amount: r.amount,
+      isTransfer: r.is_transfer,
+      isIncome: r.is_income,
+      excludeFromBudget: r.exclude_from_budget,
+      isSplit: r.is_split,
+      splits: r.transaction_splits,
+    })),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-baseline justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
+          <h1>Transactions</h1>
         </div>
         <div className="flex items-center gap-2">
           <SyncButton />
@@ -79,8 +94,10 @@ export default async function TransactionsPage({
         </div>
       </div>
 
+      <SpendingByDayChart days={days} decimalPlaces={decimalPlaces} />
+
       <section className="flex flex-col gap-3">
-        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
           Manual transactions
         </p>
         <ManualTransactionForm
@@ -88,12 +105,12 @@ export default async function TransactionsPage({
           sources={filterOptions.sources}
           defaultSourceId={filterOptions.defaultSourceId}
           defaultAccountId={filterOptions.defaultAccountId}
-          monthAhead={settings.month_ahead}
+          advanced={settings.budget_type === "advanced"}
         />
       </section>
 
-      <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
+      <section className="flex flex-col gap-3 border-t border-border pt-6">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Transactions</p>
         <TransactionList
           transactions={transactionRows}
           categories={filterOptions.categories}

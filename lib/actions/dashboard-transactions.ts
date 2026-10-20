@@ -3,13 +3,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/auth";
 import { nextMonthISO } from "@/lib/dates";
+import { getLegs } from "@/lib/queries/legs";
+import {
+  isCategorizedIncome,
+  isExpense,
+  isIncome,
+  isInflow,
+  isOtherInflow,
+  isOtherOutflow,
+  isOutflow,
+  type Leg,
+} from "@/lib/transactions/legs";
 
 export type DashboardTileKind =
   | { type: "category"; categoryId: string }
   | { type: "income" }
-  | { type: "other_inflow" }
-  | { type: "budgeted_outflow" }
-  | { type: "other_outflow" }
+  | { type: "other_inflows" }
+  | { type: "inflows" }
+  | { type: "expense" }
+  | { type: "other_outflows" }
+  | { type: "outflows" }
   | { type: "budget_net" }
   | { type: "cash_flow" }
   | { type: "float" }
@@ -126,85 +139,35 @@ export async function getDashboardTileTransactions(
     return [...plainRows, ...splitRows].sort((a, b) => b.postedDate.localeCompare(a.postedDate));
   }
 
-  let query = supabase
-    .from("transactions")
-    .select("id, posted_date, description, amount, is_income, category_id, sources!source_id(type)")
-    .gte("posted_date", month)
-    .lt("posted_date", nextMonth)
-    .eq("is_transfer", false)
-    .eq("exclude_from_budget", false)
-    .order("posted_date", { ascending: false });
+  // Every other kind reads the same legs the dashboard views count, so a
+  // popup always sums to the figure it explains (split legs included).
+  const legs = await getLegs(supabase, month, nextMonth);
+  const matches: Record<Exclude<DashboardTileKind["type"], "float" | "source" | "category">, (l: Leg) => boolean> = {
+    income: isIncome,
+    other_inflows: isOtherInflow,
+    inflows: isInflow,
+    expense: isExpense,
+    other_outflows: isOtherOutflow,
+    outflows: isOutflow,
+    // budgetNet = allocation - expense + categorizedIncome. Allocation is the
+    // budget's commitments, not money that moved, so only the other two terms
+    // have transactions to list.
+    budget_net: (l) => isExpense(l) || isCategorizedIncome(l),
+    // cashFlow = inflows - outflows.
+    cash_flow: (l) => isInflow(l) || isOutflow(l),
+  };
 
-  switch (kind.type) {
-    case "category":
-      query = query.eq("category_id", kind.categoryId);
-      break;
-    case "income":
-      query = query.eq("is_income", true).gt("amount", 0).not("source_id", "is", null);
-      break;
-    case "other_inflow":
-      // Mirrors v_inflow_outflow.other_inflow: unsourced money isn't counted.
-      query = query.eq("is_income", false).gt("amount", 0).not("source_id", "is", null);
-      break;
-    case "budgeted_outflow":
-    case "other_outflow":
-      query = query.lt("amount", 0);
-      break;
-    // budget_net (income - budgeted outflows) and cash_flow (every inflow
-    // minus every outflow) don't need an amount-sign filter at the DB level
-    // — they're unioning multiple of the kinds above, filtered in JS below
-    // instead so one query covers all of it.
-    case "budget_net":
-    case "cash_flow":
-      break;
-  }
+  // v_spending_by_category scopes to the Budget source, so a category only
+  // counts while the leg is sourced from it.
+  const keep =
+    kind.type === "category"
+      ? (l: Leg) => l.categoryId === kind.categoryId && l.sourceType === "budget"
+      : matches[kind.type];
 
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-
-  let rows = data ?? [];
-  if (kind.type === "category") {
-    // Mirrors v_spending_by_category, which scopes to the reserved Budget
-    // source — a category only applies while a row's Source is Budget (see
-    // transaction-list.tsx), so a category_id surviving on a row whose
-    // Source has since moved off Budget (stale pre-fix data, or a future
-    // regression) shouldn't leak into this popup even though it's excluded
-    // from the tile's own total already.
-    rows = rows.filter((r) => (r.sources as { type: string } | null)?.type === "budget");
-  } else if (kind.type === "budgeted_outflow" || kind.type === "other_outflow") {
-    const wantBudget = kind.type === "budgeted_outflow";
-    rows = rows.filter((r) => {
-      const isBudget = (r.sources as { type: string } | null)?.type === "budget";
-      return isBudget === wantBudget;
-    });
-  } else if (kind.type === "budget_net") {
-    // budgetNet = totalAllocation - budgetedOutflow + categorizedIncome (see
-    // computeDashboardTotals) — totalAllocation is the budget's category
-    // targets, not money that moved, so it has no transactions to list here.
-    // The two components that are transactions are budget-sourced expenses
-    // and budget-sourced positive transactions carrying a category (income
-    // filed under a category instead of flagged Income; see
-    // v_budget_category_income) — true Income transactions no longer factor
-    // into budgetNet at all, so they're left out of this popup too.
-    rows = rows.filter((r) => {
-      const isBudget = (r.sources as { type: string } | null)?.type === "budget";
-      if (!isBudget) return false;
-      return r.amount < 0 || r.category_id !== null;
-    });
-  } else if (kind.type === "cash_flow") {
-    // cashFlow = inflows - outflows, and unsourced money counts on neither
-    // side (v_outflow_by_bucket and v_inflow_outflow both require a source;
-    // Income rows carry the Income source). Mirror that here so this sums to
-    // the exact figure the tile shows.
-    rows = rows.filter((r) => r.sources !== null);
-  }
-
-  return rows.map((r) => ({
-    id: r.id,
-    postedDate: r.posted_date,
-    description: r.description,
-    amount: r.amount,
-  }));
+  return legs
+    .filter(keep)
+    .sort((a, b) => b.postedDate.localeCompare(a.postedDate))
+    .map((l) => ({ id: l.id, postedDate: l.postedDate, description: l.description, amount: l.amount }));
 }
 
 // All-time transaction list for the Float source's running balance — every

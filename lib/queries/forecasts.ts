@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { sumTransferAmounts } from "@/lib/forecast/transfers";
 
 export async function getForecasts() {
   const supabase = await createClient();
@@ -16,17 +17,18 @@ export async function getForecasts() {
   }));
 }
 
-// Live lookup, not a cached amount on the forecast row — a forecast must
-// never drift from whatever's actually configured on the Budgets page.
+// Live lookup, not a cached amount: a forecast must never drift from
+// whatever's actually configured on the Budget page. Nothing stops two Source
+// Transfers from pointing at the same Source, so the monthly amount is their
+// sum (null when there are none).
 async function getSourceTransferAmount(sourceId: string): Promise<number | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("source_transfers")
     .select("amount")
-    .eq("source_id", sourceId)
-    .maybeSingle();
+    .eq("source_id", sourceId);
   if (error) throw new Error(error.message);
-  return data?.amount ?? null;
+  return sumTransferAmounts((data ?? []).map((t) => t.amount));
 }
 
 export async function getForecast(id: string) {

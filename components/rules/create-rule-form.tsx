@@ -1,17 +1,17 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { createVendorRule } from "@/lib/actions/vendor-rules";
+import { createRule } from "@/lib/actions/rules";
 import {
   EXCLUDE_RULE_TARGET,
   INCOME_RULE_TARGET,
   SOURCE_RULE_TARGET_PREFIX,
-} from "@/lib/transactions/vendor-rule-target";
+} from "@/lib/transactions/rule-target";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
-export function CreateVendorRuleForm({
+export function CreateRuleForm({
   categories,
   sources,
   onDone,
@@ -20,7 +20,7 @@ export function CreateVendorRuleForm({
   sources: { id: string; name: string }[];
   onDone?: () => void;
 }) {
-  const [state, formAction] = useActionState(createVendorRule, null);
+  const [state, formAction] = useActionState(createRule, null);
   const submittedRef = useRef(false);
 
   // useActionState's `state` is `null` both before the first submit and

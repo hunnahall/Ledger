@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { setTheme } from "@/components/ui/theme-toggle";
-import { NAV_LINKS } from "@/components/ui/nav-links";
+import { ALL_LINKS } from "@/components/ui/nav-links";
 import {
   BudgetsIcon,
   SearchIcon,
@@ -74,7 +74,7 @@ export function CommandPalette({ targets }: { targets: PaletteTargets }) {
   const actions = useMemo<Action[]>(() => {
     const go = (href: string) => () => router.push(href);
     return [
-      ...NAV_LINKS.map((link) => ({
+      ...ALL_LINKS.map((link) => ({
         id: `nav:${link.href}`,
         group: "Go to",
         label: link.label,

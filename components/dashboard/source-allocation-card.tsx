@@ -12,6 +12,7 @@ const FILL: Record<NonNullable<PieSlice["tone"]> | "none", string> = {
   2: "fill-chart-2",
   3: "fill-chart-3",
   4: "fill-chart-4",
+  5: "fill-chart-5",
   none: "fill-chart-neutral",
 };
 const DOT: Record<NonNullable<PieSlice["tone"]> | "none", string> = {
@@ -19,6 +20,7 @@ const DOT: Record<NonNullable<PieSlice["tone"]> | "none", string> = {
   2: "bg-chart-2",
   3: "bg-chart-3",
   4: "bg-chart-4",
+  5: "bg-chart-5",
   none: "bg-chart-neutral",
 };
 
@@ -41,7 +43,7 @@ export function SourceAllocationCard({
   const pct = (share: number) => `${Math.round(share * 100)}%`;
 
   return (
-    <section className="flex min-w-0 flex-[1_1_380px] flex-col rounded-lg border border-card-border bg-surface p-6 shadow-card">
+    <section className="flex min-w-0 flex-[1_1_380px] flex-col border border-border bg-surface p-5">
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <h2 className="whitespace-nowrap text-base font-semibold">Source Allocation</h2>
         <span className="whitespace-nowrap text-xs text-muted">
@@ -81,9 +83,9 @@ export function SourceAllocationCard({
                 key={r.id}
                 type="button"
                 onClick={() => openTile(r.name, { type: "source", sourceId: r.id })}
-                className="-mx-1.5 flex min-h-7 items-center gap-2 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                className="-mx-1.5 flex min-h-7 items-center gap-2 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
               >
-                <span aria-hidden="true" className={cn("size-2.5 flex-none rounded-full", DOT[r.tone ?? "none"])} />
+                <span aria-hidden="true" className={cn("size-2.5 flex-none", DOT[r.tone ?? "none"])} />
                 <span className="flex-1 truncate">{r.name}</span>
                 <span className="text-muted">{pct(r.share)}</span>
                 <span className="w-16 text-right font-semibold">
@@ -92,7 +94,7 @@ export function SourceAllocationCard({
               </button>
             ))}
             {idle.length > 0 && (
-              <p className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 border-t border-paper-4 pt-1.5 text-xs text-paper-7">
+              <p className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 border-t border-border pt-1.5 text-xs text-muted">
                 {idle.map((r) => (
                   <span key={r.id} className="whitespace-nowrap">
                     {r.name} <Money amount={0} decimalPlaces={decimalPlaces} />

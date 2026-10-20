@@ -5,7 +5,7 @@ import {
   SOURCE_RULE_TARGET_PREFIX,
   resolveRuleTarget,
   ruleTargetValue,
-} from "./vendor-rule-target";
+} from "./rule-target";
 
 function formData(categoryId: string | null) {
   const data = new FormData();
@@ -15,7 +15,7 @@ function formData(categoryId: string | null) {
 
 const none = { categoryId: null, isIncome: false, isExclude: false, sourceId: null };
 
-// vendor_category_rules_target_check requires exactly one of (category_id,
+// rules_target_check requires exactly one of (category_id,
 // is_income, is_exclude), or none of them plus a source_id — this is what
 // keeps the targets mutually exclusive.
 describe("resolveRuleTarget", () => {

@@ -23,14 +23,14 @@ const TONE = {
 // days still to come show as an empty track.
 export function DailySpendingCard({
   actualByDay,
-  totalAllocation,
+  allocation,
   daysInMonth,
   currentDay,
   monthISO,
   decimalPlaces,
 }: {
   actualByDay: number[];
-  totalAllocation: number;
+  allocation: number;
   daysInMonth: number;
   currentDay: number;
   monthISO: string;
@@ -39,7 +39,7 @@ export function DailySpendingCard({
   const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
 
   const daily = dailyFromCumulative(actualByDay);
-  const pacePerDay = totalAllocation / daysInMonth;
+  const pacePerDay = allocation / daysInMonth;
   const maxY = Math.max(
     1,
     Math.min(Math.max(pacePerDay, ...daily) * 1.1, pacePerDay > 0 ? pacePerDay * CAP_MULTIPLE : Infinity),
@@ -50,18 +50,18 @@ export function DailySpendingCard({
   const month = shortMonthLabel(monthISO);
 
   return (
-    <section className="flex min-w-0 flex-[999_1_560px] flex-col rounded-lg border border-card-border bg-surface p-6 shadow-card">
+    <section className="flex min-w-0 flex-[999_1_560px] flex-col border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-base font-semibold">Daily Spending</h2>
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-foreground-secondary">
-          <span aria-hidden="true" className="w-4 border-t-2 border-dashed border-paper-7" />
+          <span aria-hidden="true" className="w-4 border-t-2 border-dashed border-muted" />
           Even pace
         </span>
       </div>
       <button
         type="button"
-        onClick={() => openTile("Daily Spending", { type: "budgeted_outflow" })}
-        className="block w-full flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+        onClick={() => openTile("Daily Spending", { type: "expense" })}
+        className="block w-full flex-1 rounded-md"
         aria-label={`Daily spending for ${currentDay} days: ${aboveCount} above the even pace. Show transactions.`}
       >
         <svg viewBox={`0 0 ${width} ${H}`} preserveAspectRatio="none" className="block h-full min-h-36 w-full" aria-hidden="true">
@@ -71,7 +71,7 @@ export function DailySpendingCard({
               x2={width}
               y1={y(pacePerDay)}
               y2={y(pacePerDay)}
-              className="stroke-paper-7"
+              className="stroke-muted"
               strokeDasharray="4 4"
               vectorEffect="non-scaling-stroke"
             />
@@ -98,12 +98,12 @@ export function DailySpendingCard({
               width={(daysInMonth - currentDay) * SLOT - (SLOT - BAR)}
               height={3}
               rx={1.5}
-              className="fill-paper-4"
+              className="fill-border-strong"
             />
           )}
         </svg>
       </button>
-      <div className="mt-2 flex justify-between text-[11px] tabular-nums text-paper-7">
+      <div className="mt-2 flex justify-between text-[11px] tabular-nums text-muted">
         <span>{month} 1</span>
         {currentDay < daysInMonth && (
           <span>

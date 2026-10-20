@@ -9,7 +9,7 @@ import {
   INCOME_RULE_TARGET,
   SOURCE_RULE_TARGET_PREFIX,
   ruleTargetValue,
-} from "@/lib/transactions/vendor-rule-target";
+} from "@/lib/transactions/rule-target";
 import { useInlineEdit } from "@/components/ui/inline-edit";
 import { FIELD_BASE, Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -23,7 +23,7 @@ type DeleteRuleAction = (prevState: ActionResult, formData: FormData) => Promise
 // category) so it needs an explicit Save rather than committing on blur —
 // tabbing from the text input into the category select would otherwise
 // fire a premature save.
-export function VendorRuleRow({
+export function RuleRow({
   rule,
   categories,
   sources,

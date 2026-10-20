@@ -20,7 +20,7 @@ export function MonthSegments({
   const setParams = useSetSearchParams();
 
   return (
-    <div role="group" aria-label="Month" className="flex gap-0.5 rounded-lg border border-border bg-surface-subtle p-[3px]">
+    <div role="group" aria-label="Month" className="flex gap-px border border-border-strong bg-surface p-px">
       {months.map((monthISO) => {
         const active = monthISO === selected;
         return (
@@ -30,11 +30,11 @@ export function MonthSegments({
             aria-pressed={active}
             onClick={() => setParams({ month: monthISO === currentMonthISO ? null : monthISO })}
             className={cn(
-              "min-h-9 rounded-md px-3.5 text-sm transition-colors duration-[120ms] ease-standard",
+              "h-[var(--control-md)] px-3.5 text-[13px] transition-colors duration-[120ms] ease-standard",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35",
               active
-                ? "bg-surface font-medium text-foreground shadow-xs"
-                : "text-foreground-secondary hover:bg-paper-a2",
+                ? "bg-fill-active font-medium text-foreground"
+                : "text-foreground-secondary hover:bg-fill-hover",
             )}
           >
             {shortMonthLabel(monthISO)}

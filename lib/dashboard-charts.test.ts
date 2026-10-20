@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applySavedAllocations,
   buildSourcePie,
   categoryStatus,
   dailyFromCumulative,
@@ -59,8 +60,13 @@ describe("buildSourcePie", () => {
     expect(pie.slices.reduce((a, s) => a + s.share, 0)).toBeCloseTo(1, 10);
   });
 
-  it("gives the top 4 their own tones and groups the rest into Other", () => {
+  it("gives the top 5 their own tones", () => {
     const pie = buildSourcePie(sources);
+    expect(pie.slices.map((s) => s.tone)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("groups the rest into Other past maxSlices", () => {
+    const pie = buildSourcePie(sources, { maxSlices: 4 });
     expect(pie.slices.map((s) => s.label)).toEqual(["Budget", "Float", "Car Fund", "Travel Fund", "Other"]);
     expect(pie.slices.map((s) => s.tone)).toEqual([1, 2, 3, 4, null]);
     expect(pie.slices[4].amount).toBe(50);
@@ -97,13 +103,24 @@ describe("trendPair", () => {
     month: "2026-10-01",
     income: 7600,
     inflows: 7940,
-    budgetedOutflow: 2785,
+    expense: 2785,
     outflows: 3905,
-    totalAllocation: 8260,
+    allocation: 8260,
   };
   it("picks the two series each mode compares", () => {
     expect(trendPair(m, "income_expenses")).toEqual([7600, 2785]);
     expect(trendPair(m, "inflows_outflows")).toEqual([7940, 3905]);
     expect(trendPair(m, "budget_spending")).toEqual([8260, 2785]);
+  });
+});
+
+describe("applySavedAllocations", () => {
+  it("uses the saved allocation for a month and today's for the rest", () => {
+    const out = applySavedAllocations(
+      [{ month: "2026-09-01" }, { month: "2026-10-01" }],
+      new Map([["2026-09-01", 7900]]),
+      8260,
+    );
+    expect(out.map((m) => m.allocation)).toEqual([7900, 8260]);
   });
 });

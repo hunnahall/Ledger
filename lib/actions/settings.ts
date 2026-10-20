@@ -25,17 +25,20 @@ export async function updateDecimalPlaces(
   return null;
 }
 
-export async function updateMonthAhead(
+export async function updateBudgetType(
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
-  const monthAhead = formData.get("month_ahead") === "on";
+  const budgetType = formData.get("budget_type");
+  if (budgetType !== "rolling" && budgetType !== "advanced") {
+    return { error: "Choose Rolling or Advanced." };
+  }
 
   const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("settings")
-    .update({ month_ahead: monthAhead })
+    .update({ budget_type: budgetType })
     .eq("user_id", user.id);
   if (error) return { error: error.message };
 
@@ -74,6 +77,6 @@ export async function updateTimezone(timeZone: string): Promise<{ error: string 
 
   revalidateLedgerPages();
   revalidatePath("/settings");
-  revalidatePath("/forecast");
+  revalidatePath("/forecasts");
   return null;
 }

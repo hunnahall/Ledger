@@ -12,23 +12,23 @@ const C = 2 * Math.PI * R;
 // next month's allocation; with it off, against this month's.
 export function BudgetFundingCard({
   income,
-  totalAllocation,
+  allocation,
   fundsNextMonth,
   monthISO,
   decimalPlaces,
 }: {
   income: number;
-  totalAllocation: number;
+  allocation: number;
   fundsNextMonth: boolean;
   monthISO: string;
   decimalPlaces: number;
 }) {
   const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
-  const ratio = totalAllocation > 0 ? income / totalAllocation : null;
+  const ratio = allocation > 0 ? income / allocation : null;
   const filled = ratio === null ? 0 : Math.min(ratio, 1);
 
   return (
-    <section className="rounded-lg border border-card-border bg-surface px-6 py-5 shadow-card">
+    <section className="border border-border bg-surface p-5">
       <h2 className="mb-3.5 whitespace-nowrap text-base font-semibold">Budget Funding</h2>
       <div className="flex items-center gap-6">
         <svg
@@ -39,7 +39,7 @@ export function BudgetFundingCard({
           role="img"
           aria-label={ratio === null ? "No budget allocation" : `${Math.round(ratio * 100)}% of the budget allocation funded`}
         >
-          <circle cx={70} cy={70} r={R} fill="none" strokeWidth={16} className="stroke-paper-3" />
+          <circle cx={70} cy={70} r={R} fill="none" strokeWidth={16} className="stroke-fill-active" />
           {filled > 0 && (
             <circle
               cx={70}
@@ -47,10 +47,9 @@ export function BudgetFundingCard({
               r={R}
               fill="none"
               strokeWidth={16}
-              strokeLinecap="round"
-              strokeDasharray={`${filled * C} ${C}`}
+                            strokeDasharray={`${filled * C} ${C}`}
               transform="rotate(-90 70 70)"
-              className="stroke-positive"
+              className="stroke-accent"
             />
           )}
           <text x={70} y={72} textAnchor="middle" className="fill-foreground font-heading text-[28px] font-semibold">
@@ -64,10 +63,10 @@ export function BudgetFundingCard({
           <button
             type="button"
             onClick={() => openTile("Income", { type: "income" })}
-            className="-mx-1.5 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+            className="-mx-1.5 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
           >
             <span className="block text-xs text-muted">Income received</span>
-            <span className="text-lg font-semibold text-positive">
+            <span className="text-lg font-semibold">
               <Money amount={income} decimalPlaces={decimalPlaces} />
             </span>
           </button>
@@ -76,7 +75,7 @@ export function BudgetFundingCard({
               {fundsNextMonth ? "Next month's allocation" : "Budget allocation"}
             </span>
             <span className="text-lg font-semibold">
-              <Money amount={totalAllocation} decimalPlaces={decimalPlaces} />
+              <Money amount={allocation} decimalPlaces={decimalPlaces} />
             </span>
           </div>
         </div>
@@ -102,10 +101,10 @@ export function FloatCard({
       <button
         type="button"
         onClick={() => openTile("Float", { type: "float" })}
-        className="rounded-lg border border-card-border bg-surface px-6 py-4 text-left shadow-card transition-colors duration-[120ms] ease-standard hover:bg-paper-a1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+        className="border border-border bg-surface p-5 transition-colors duration-[120ms] ease-standard hover:bg-paper-a1"
       >
         <span className="block text-sm text-muted">Float</span>
-        <span className={cn("mt-0.5 block font-heading text-2xl font-semibold", balance < 0 && "text-negative")}>
+        <span className={cn("mt-0.5 block text-2xl font-semibold")}>
           <Money amount={balance} decimalPlaces={decimalPlaces} />
         </span>
       </button>

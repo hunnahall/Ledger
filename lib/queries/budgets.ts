@@ -2,6 +2,8 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getOptionalUser } from "@/lib/supabase/auth";
 import { getSettings } from "@/lib/queries/settings";
+import { getLegs } from "@/lib/queries/legs";
+import { cumulativeExpenseByDay } from "@/lib/transactions/legs";
 import {
   currentMonthISO,
   currentDayOfMonth,
@@ -199,58 +201,46 @@ export async function getBudgetRateData(monthISO: string, timeZone: string) {
   const [
     { data: categories, error: categoriesError },
     sinkingAndTransferTotal,
-    // Same "did this transaction pay out of the Budget source" filter as
-    // v_spending_by_category (supabase/migrations/20260829010000_...) — kept
-    // as a plain query here instead of a view since this is a one-off
-    // day-bucketed shape nothing else needs. Splits aren't broken out (same
-    // simplification as the dashboard tile popups): a single user's monthly
-    // transaction volume is small enough that this stays a reasonable read
-    // for a pace chart, not a ledger of record.
-    { data: spending, error },
+    legs,
     { data: inflowOutflow, error: inflowOutflowError },
   ] = await Promise.all([
     supabase.from("categories").select("monthly_amount").eq("user_id", user.id).is("archived_at", null),
     getSinkingAndTransferMonthlyTotal(user.id, month),
-    supabase
-      .from("transactions")
-      .select("posted_date, amount, sources!source_id(type)")
-      .eq("user_id", user.id)
-      .gte("posted_date", month)
-      .lt("posted_date", nextMonthISO(month))
-      .eq("is_transfer", false)
-      .eq("exclude_from_budget", false)
-      .eq("is_split", false)
-      .lt("amount", 0),
+    // Same legs (split legs included) and the same expense definition as
+    // v_outflows, so the pace line ends where Expense does.
+    getLegs(supabase, month, nextMonthISO(month)),
     supabase.from("v_inflow_outflow").select("income").eq("month", month).maybeSingle(),
   ]);
   if (categoriesError) throw new Error(categoriesError.message);
-  if (error) throw new Error(error.message);
   // Previously unchecked, which silently reported $0 income on the Budget
   // Fill stat whenever this query failed.
   if (inflowOutflowError) throw new Error(inflowOutflowError.message);
 
   const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
-  const totalAllocation = categoriesTotal + sinkingAndTransferTotal;
+  const allocation = categoriesTotal + sinkingAndTransferTotal;
 
-  const spendByDay = new Map<number, number>();
-  for (const row of spending ?? []) {
-    if ((row.sources as { type: string } | null)?.type !== "budget") continue;
-    const day = Number(row.posted_date.slice(8, 10));
-    spendByDay.set(day, (spendByDay.get(day) ?? 0) + Math.abs(row.amount));
-  }
-
-  let cumulative = 0;
-  const actualByDay: number[] = [];
-  for (let day = 1; day <= currentDay; day++) {
-    cumulative += spendByDay.get(day) ?? 0;
-    actualByDay.push(cumulative);
-  }
+  const actualByDay = cumulativeExpenseByDay(legs, currentDay);
 
   return {
     income: inflowOutflow?.income ?? 0,
-    totalAllocation,
+    allocation,
     daysInMonth,
     currentDay,
     actualByDay,
   };
+}
+
+// This month's spending per Category (a positive magnitude), for the Budget
+// page's spending-by-category bars. Same view the Dashboard's category bars
+// read, so the two always agree.
+export async function getCategorySpending(monthISO: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_spending_by_category")
+    .select("category_id, amount")
+    .eq("month", monthISO);
+  if (error) throw new Error(error.message);
+  return new Map(
+    (data ?? []).flatMap((r) => (r.category_id ? [[r.category_id, spentFromRawAmount(r.amount)] as const] : [])),
+  );
 }

@@ -163,12 +163,12 @@ async function syncConnection(
     await serviceClient.rpc("match_transfer_pairs", { p_user_id: connection.user_id });
 
     // Auto-categorize anything still uncategorized using this user's learned
-    // vendor rules (also retroactively covers older uncategorized rows if a
+    // rules (also retroactively covers older uncategorized rows if a
     // rule was learned since the last sync). This was a fetch-then-loop
     // issuing one UPDATE per transaction, with its own copy of the
-    // longest-pattern-wins matching logic; apply_vendor_rules does it as one
+    // longest-pattern-wins matching logic; apply_rules does it as one
     // set-based statement and is shared with the app's "Run rules now".
-    const { error: rulesError } = await serviceClient.rpc("apply_vendor_rules", {
+    const { error: rulesError } = await serviceClient.rpc("apply_rules", {
       p_user_id: connection.user_id,
     });
     if (rulesError) throw new Error(rulesError.message);

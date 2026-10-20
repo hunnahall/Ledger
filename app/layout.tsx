@@ -1,18 +1,17 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, Inter } from "next/font/google";
+import { Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-// Loaded without a `weight` so both arrive as variable fonts — the display
-// weight can then sit between the named steps (see the h1/h2 sizing in
-// app/(app)/*) instead of snapping to 600.
 const hankenGrotesk = Hanken_Grotesk({
   variable: "--font-hanken-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -24,7 +23,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${hankenGrotesk.variable} ${inter.variable} h-full antialiased`}
+      data-accent="slate-blue"
+      className={`${hankenGrotesk.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
         <script

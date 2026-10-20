@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findMatchingRule } from "./match-vendor-rule";
+import { findMatchingRule } from "./match-rule";
 
 describe("findMatchingRule", () => {
   it("matches a rule whose pattern is a substring of the description, not just an exact match", () => {

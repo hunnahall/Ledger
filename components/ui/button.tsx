@@ -11,31 +11,28 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
 }
 
-// Hover and press are carried by colour and elevation, never by movement — a
-// button that lifts off the page draws the eye to the chrome instead of to
-// what changed.
+// Covenant Works v2 buttons. Primary is an ink fill; accent (Slate Blue) is
+// for the single most frequent action on a screen; secondary is a surface
+// with a strong hairline. Press drops the button 1px, nothing scales.
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary:
-    "bg-foreground text-surface shadow-xs hover:bg-paper-11 active:bg-paper-10",
+  primary: "border border-transparent bg-foreground text-[var(--on-fg)] hover:bg-foreground/85",
   secondary:
-    "border border-border bg-surface shadow-xs hover:border-border-strong hover:bg-paper-a1 active:bg-paper-a2",
-  tertiary: "px-0 py-0 h-auto hover:underline underline-offset-4",
-  accent:
-    "bg-mark text-mark-foreground shadow-xs hover:brightness-[0.96] active:brightness-[0.92]",
+    "border border-border-strong bg-surface hover:border-muted hover:bg-fill-hover",
+  tertiary: "h-auto px-0 text-foreground-secondary hover:text-foreground hover:underline underline-offset-4",
+  accent: "border border-transparent bg-accent text-on-accent hover:bg-accent/85",
 };
 
-// A destructive action reads as destructive on its own surface, not only in
-// its label — so the border and fill move with the text.
+// Danger is outlined, never filled; it only fills red inside a confirm step.
 const TONE_CLASSES: Record<ButtonTone, string> = {
   default: "",
   negative:
-    "text-negative border-negative/30 hover:border-negative/50 hover:bg-negative/8 active:bg-negative/12",
+    "border-danger/50 bg-transparent text-danger hover:border-danger hover:bg-danger-soft",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5",
-  md: "px-3 py-2",
-  icon: "p-2",
+  sm: "h-[var(--control-sm)] px-2.5",
+  md: "h-[var(--control-md)] px-3",
+  icon: "size-[var(--control-md)] p-0",
 };
 
 export function Button({
@@ -48,10 +45,11 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium",
-        "transition-[background-color,border-color,box-shadow,color,filter] duration-[120ms] ease-standard",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35",
-        "disabled:pointer-events-none disabled:opacity-60",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium",
+        "transition-[background-color,border-color,color,transform] duration-[120ms] ease-standard",
+        "active:translate-y-px",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+        "disabled:pointer-events-none disabled:opacity-40",
         variant !== "tertiary" && SIZE_CLASSES[size],
         VARIANT_CLASSES[variant],
         TONE_CLASSES[tone],

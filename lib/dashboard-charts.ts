@@ -40,13 +40,15 @@ export function categoryStatus({
   return share > monthProgress ? "ahead" : "below";
 }
 
+export type PieTone = 1 | 2 | 3 | 4 | 5;
+
 export type PieSlice = {
   key: string;
   label: string;
   amount: number;
   share: number;
-  /** 1-4 index into the chart-1..4 ramp, or null for the grouped remainder. */
-  tone: 1 | 2 | 3 | 4 | null;
+  /** 1-5 index into the chart-1..5 series, or null for the grouped remainder (Other, in --fg-3). */
+  tone: PieTone | null;
   /** SVG path for this slice in a 0..size box, or null when it has no area. */
   path: string | null;
 };
@@ -56,7 +58,7 @@ export type PieLegendRow = {
   name: string;
   amount: number;
   share: number;
-  tone: 1 | 2 | 3 | 4 | null;
+  tone: PieTone | null;
 };
 
 /**
@@ -67,7 +69,7 @@ export type PieLegendRow = {
  */
 export function buildSourcePie(
   sources: { id: string; name: string; spent: number }[],
-  { maxSlices = 4, size = 140 }: { maxSlices?: number; size?: number } = {},
+  { maxSlices = 5, size = 140 }: { maxSlices?: number; size?: number } = {},
 ): { total: number; slices: PieSlice[]; legend: PieLegendRow[] } {
   const spending = sources.filter((s) => s.spent > 0).sort((a, b) => b.spent - a.spent);
   const idle = sources.filter((s) => s.spent <= 0).sort((a, b) => a.name.localeCompare(b.name));
@@ -76,7 +78,7 @@ export function buildSourcePie(
 
   const own = spending.slice(0, maxSlices);
   const rest = spending.slice(maxSlices);
-  const toneFor = (i: number) => (i + 1) as 1 | 2 | 3 | 4;
+  const toneFor = (i: number) => (i + 1) as PieTone;
 
   const raw: Omit<PieSlice, "path">[] = own.map((s, i) => ({
     key: s.id,
@@ -144,19 +146,32 @@ export type TrendMonth = {
   month: string;
   income: number;
   inflows: number;
-  budgetedOutflow: number;
+  expense: number;
   outflows: number;
-  totalAllocation: number;
+  allocation: number;
 };
 
 /** The two series one Last 4 Months mode compares, per month. */
 export function trendPair(m: TrendMonth, mode: TrendMode): [number, number] {
   switch (mode) {
     case "income_expenses":
-      return [m.income, m.budgetedOutflow];
+      return [m.income, m.expense];
     case "inflows_outflows":
       return [m.inflows, m.outflows];
     case "budget_spending":
-      return [m.totalAllocation, m.budgetedOutflow];
+      return [m.allocation, m.expense];
   }
+}
+
+/**
+ * Fills each trend month's allocation from the saved monthly figures
+ * (`monthly_totals`, kind allocation), falling back to today's allocation for
+ * months saved before that table existed.
+ */
+export function applySavedAllocations<T extends { month: string }>(
+  months: T[],
+  saved: Map<string, number>,
+  currentAllocation: number,
+): (T & { allocation: number })[] {
+  return months.map((m) => ({ ...m, allocation: saved.get(m.month) ?? currentAllocation }));
 }

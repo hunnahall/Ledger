@@ -7,10 +7,32 @@ export async function getAccounts() {
   // and read by nothing in the app.
   const { data, error } = await supabase
     .from("accounts")
-    .select("id, account_name, account_type, institution_name, last4, current_balance, is_manual, status")
+    .select(
+      "id, account_name, account_type, institution_name, last4, current_balance, is_manual, status, updated_at, bank_connections(last_synced_at)",
+    )
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return data;
+}
+
+// The latest transactions for each account (shown when its row is opened on
+// the Accounts page). One small query per account keeps a quiet account from
+// being crowded out by a busy one in a shared "latest N" window.
+export async function getRecentTransactionsByAccount(accountIds: string[], perAccount = 8) {
+  const supabase = await createClient();
+  const results = await Promise.all(
+    accountIds.map(async (accountId) => {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("id, posted_date, description, amount")
+        .eq("account_id", accountId)
+        .order("posted_date", { ascending: false })
+        .limit(perAccount);
+      if (error) throw new Error(error.message);
+      return [accountId, data ?? []] as const;
+    }),
+  );
+  return new Map(results);
 }
 
 export async function getBankConnections() {

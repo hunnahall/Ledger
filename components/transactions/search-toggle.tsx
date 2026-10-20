@@ -50,7 +50,7 @@ export function SearchToggle() {
         <SearchIcon size={24} />
         {currentSearch && (
           <span
-            className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-mark"
+            className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-accent"
             aria-hidden="true"
           />
         )}

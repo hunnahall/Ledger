@@ -265,7 +265,7 @@ export type Database = {
         Row: {
           created_at: string
           decimal_places: number
-          month_ahead: boolean
+          budget_type: string
           timezone: string
           updated_at: string
           user_id: string
@@ -273,7 +273,7 @@ export type Database = {
         Insert: {
           created_at?: string
           decimal_places?: number
-          month_ahead?: boolean
+          budget_type?: string
           timezone?: string
           updated_at?: string
           user_id: string
@@ -281,7 +281,7 @@ export type Database = {
         Update: {
           created_at?: string
           decimal_places?: number
-          month_ahead?: boolean
+          budget_type?: string
           timezone?: string
           updated_at?: string
           user_id?: string
@@ -617,7 +617,43 @@ export type Database = {
           },
         ]
       }
-      vendor_category_rules: {
+      monthly_totals: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          kind: string
+          month: string
+          ref_id: string | null
+          ref_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          kind: string
+          month: string
+          ref_id?: string | null
+          ref_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          month?: string
+          ref_id?: string | null
+          ref_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rules: {
         Row: {
           category_id: string | null
           created_at: string
@@ -695,16 +731,16 @@ export type Database = {
         Row: {
           income: number | null
           month: string | null
-          other_inflow: number | null
+          other_inflows: number | null
           user_id: string | null
         }
         Relationships: []
       }
-      v_outflow_by_bucket: {
+      v_outflows: {
         Row: {
-          amount: number | null
-          bucket: string | null
+          expense: number | null
           month: string | null
+          other_outflows: number | null
           user_id: string | null
         }
         Relationships: []
@@ -756,7 +792,7 @@ export type Database = {
       }
     }
     Functions: {
-      apply_vendor_rules: {
+      apply_rules: {
         Args: { p_user_id?: string }
         Returns: number
       }
@@ -770,7 +806,7 @@ export type Database = {
         Args: { p_connection_id: string; p_user_id: string }
         Returns: string
       }
-      learn_vendor_rule: {
+      learn_rule: {
         Args: {
           p_category_id: string | null
           p_is_exclude?: boolean

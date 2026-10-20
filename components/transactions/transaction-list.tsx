@@ -251,7 +251,7 @@ export function TransactionList({
     <div className="flex flex-col gap-3">
       {selectedIds.size > 0 && (
         <div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
-          <div className="pointer-events-auto flex max-w-full items-center gap-3 rounded-full border border-border bg-surface px-4 py-2 text-sm shadow-elevated">
+          <div className="pointer-events-auto flex max-w-full items-center gap-3 border border-border bg-surface px-4 py-2 text-sm shadow-elevated">
             <span className="font-medium whitespace-nowrap">
               {selectedIds.size} selected
             </span>
@@ -521,7 +521,7 @@ const TransactionRow = memo(function TransactionRow({
     setRowError(result?.error ?? null);
   }
 
-  // "Add Rule": whether this category pick should also teach a vendor rule,
+  // "Add Rule": whether this category pick should also teach a rule,
   // and the prompt that asks. See use-rule-builder.ts.
   const { resolveRuleAction, isFreshPick } = useRuleBuilder({
     description: txn.description,
@@ -832,7 +832,7 @@ const TransactionRow = memo(function TransactionRow({
                   type="button"
                   onClick={() => setEditingDate(true)}
                   title={`Account: ${accountDisplay}`}
-                  className="w-full rounded-sm px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                  className="w-full rounded-sm px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
                 >
                   {formatShortDate(postedDate)}
                 </button>
@@ -910,11 +910,11 @@ const TransactionRow = memo(function TransactionRow({
                 type="button"
                 onClick={() => setEditingDescription(true)}
                 title={notes ? `${description} — ${notes}` : description}
-                className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 md:max-w-[260px] md:flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 md:max-w-[260px] md:flex-1"
               >
                 {description}
                 {typeLabel && (
-                  <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
+                  <span className="ml-2 border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
                     {typeLabel}
                   </span>
                 )}
@@ -998,7 +998,7 @@ const TransactionRow = memo(function TransactionRow({
               </Select>
               {isBudgetSource && txn.categorySource === "rule" && (
                 <span
-                  className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
+                  className="shrink-0 border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
                   title="Auto-categorized from a learned rule"
                 >
                   auto
@@ -1020,7 +1020,7 @@ const TransactionRow = memo(function TransactionRow({
                     : "Rule-building off for this row"
                 }
                 title="Prompt to save a rule when this row's category, source, Income or Exclude changes"
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-[120ms] ease-standard ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center border transition-colors duration-[120ms] ease-standard ${
                   buildRule
                     ? "border-mark bg-mark text-mark-foreground"
                     : "border-border text-muted hover:bg-background hover:text-foreground"

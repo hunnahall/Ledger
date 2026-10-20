@@ -6,9 +6,9 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 // change" pages (Budgets/Sources/Accounts/Rules) — a transaction's own
 // edits are its record, so Transactions only calls this when it creates a
 // source or deletes a rule. Automatic month-start moves and new rules are
-// logged in the database instead (ensure_month_current, learn_vendor_rule). Called
+// logged in the database instead (ensure_month_current, learn_rule). Called
 // inline from the mutating action after it succeeds, the same way
-// learnVendorRule is (lib/actions/transactions.ts) — an already-created
+// learnRule is (lib/actions/transactions.ts) — an already-created
 // client + userId passed in, not its own "use server" action.
 export async function logChange(
   supabase: SupabaseServerClient,

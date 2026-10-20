@@ -1,19 +1,19 @@
 "use server";
 
 import { requireUser, type SupabaseServerClient } from "@/lib/supabase/auth";
-import { revalidateLedgerPages, revalidateVendorRulePages } from "@/lib/actions/revalidate";
+import { revalidateLedgerPages, revalidateRulePages } from "@/lib/actions/revalidate";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
-import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
+import { findMatchingRule } from "@/lib/transactions/match-rule";
 import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
-import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
+import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/rule-target";
 import { logMoney, parseMoney } from "@/lib/format";
 import { logChange } from "@/lib/actions/log";
 
-export async function learnVendorRule(
+export async function learnRule(
   supabase: SupabaseServerClient,
   merchantNormalized: string,
   // Exactly one of these is the rule's target (see the
-  // vendor_category_rules_target_check constraint) — a real category, or a
+  // rules_target_check constraint) — a real category, or a
   // flag that marks matching transactions as Income or Excluded instead.
   categoryId: string | null,
   isIncome: boolean,
@@ -26,7 +26,7 @@ export async function learnVendorRule(
   // hand-written 23505 recovery path for the race between them — and it
   // incremented use_count by reading it into JS and writing it back, so two
   // concurrent categorizations of the same merchant lost an increment.
-  const { error } = await supabase.rpc("learn_vendor_rule", {
+  const { error } = await supabase.rpc("learn_rule", {
     p_merchant_normalized: merchantNormalized,
     p_category_id: categoryId,
     p_is_income: isIncome,
@@ -36,7 +36,7 @@ export async function learnVendorRule(
 
   // A failed rule write shouldn't block or crash the categorization it was
   // reinforcing — same reasoning as logChange's own error handling.
-  if (error) console.error("learnVendorRule failed:", error.message);
+  if (error) console.error("learnRule failed:", error.message);
 }
 
 export async function createManualTransaction(
@@ -48,8 +48,8 @@ export async function createManualTransaction(
   const description = String(formData.get("description") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const categoryFieldSource = String(formData.get("category_source") ?? "");
-  // Set by the form when the user was prompted to save a new vendor rule and
-  // declined — "skip" means don't touch vendor_category_rules this time.
+  // Set by the form when the user was prompted to save a new rule and
+  // declined — "skip" means don't touch rules this time.
   // Left unset (defaults to writing) when accepting an auto-fill or when a
   // rule already covers this merchant, since that's reinforcement, not the
   // one-off-merchant noise the prompt exists to avoid.
@@ -127,7 +127,7 @@ export async function createManualTransaction(
 
   if (!isExcluded && !resolvedCategoryId && merchantNormalized) {
     const { data: rules } = await supabase
-      .from("vendor_category_rules")
+      .from("rules")
       .select("merchant_normalized, category_id, source_id")
       .eq("user_id", user.id);
     const rule = findMatchingRule(rules ?? [], merchantNormalized);
@@ -161,18 +161,18 @@ export async function createManualTransaction(
 
   let learnedRule = false;
   if (resolvedCategoryId && ruleAction !== "skip") {
-    await learnVendorRule(supabase, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
+    await learnRule(supabase, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
     learnedRule = true;
   }
 
   // A rule written here also has to show up on Settings, which has its own
   // cached route the ledger revalidation above doesn't touch.
-  if (learnedRule) revalidateVendorRulePages();
+  if (learnedRule) revalidateRulePages();
   revalidateLedgerPages();
   return null;
 }
 
-// Looks up whether a description would match a learned vendor rule, so the
+// Looks up whether a description would match a learned rule, so the
 // manual-entry form can auto-fill the category select as the user types —
 // same lookup createManualTransaction falls back to server-side if the
 // client-set category_id didn't make it into the submitted form.
@@ -185,7 +185,7 @@ export async function suggestCategoryForDescription(
   const { supabase, user } = await requireUser();
 
   const { data: rules } = await supabase
-    .from("vendor_category_rules")
+    .from("rules")
     .select("merchant_normalized, category_id, source_id, categories(name)")
     .eq("user_id", user.id);
 
@@ -211,7 +211,7 @@ export async function ruleExistsForDescription(description: string): Promise<boo
   const { supabase, user } = await requireUser();
 
   const { data: rules } = await supabase
-    .from("vendor_category_rules")
+    .from("rules")
     .select("merchant_normalized")
     .eq("user_id", user.id);
 
@@ -236,7 +236,7 @@ export async function assignTransaction(
       ? rawCategoryId
       : null;
   // See createManualTransaction — "skip" means the user was prompted to
-  // save a new vendor rule for this merchant and declined.
+  // save a new rule for this merchant and declined.
   const ruleAction = String(formData.get("rule_action") ?? "");
   // Same stripping as categoryId above, and for the same reason: the Source
   // select's hidden input carries this row's own Exclude/Income sentinel
@@ -264,7 +264,7 @@ export async function assignTransaction(
 
   const { supabase } = await requireUser();
 
-  // Editing the description changes what future syncs/vendor rules match
+  // Editing the description changes what future syncs/rules match
   // against, so re-derive merchant_normalized from it the same way a new
   // manual transaction does — otherwise it would keep matching the old text.
   // When the description isn't being edited the row's existing value is what
@@ -336,11 +336,11 @@ export async function assignTransaction(
     (((categoryId || isIncome || isExcludeTarget) && ruleAction !== "skip") ||
       (isSourceTarget && ruleAction === "write"))
   ) {
-    await learnVendorRule(supabase, merchantNormalized, categoryId, isIncome, sourceId, isExcludeTarget);
+    await learnRule(supabase, merchantNormalized, categoryId, isIncome, sourceId, isExcludeTarget);
     learnedRule = true;
   }
 
-  if (learnedRule) revalidateVendorRulePages();
+  if (learnedRule) revalidateRulePages();
   revalidateLedgerPages();
   return null;
 }
@@ -507,7 +507,7 @@ export async function bulkUpdateTransactions(
         .in("id", transactionIds)
         .eq("is_transfer", false)
         .not("merchant_normalized", "is", null),
-      supabase.from("vendor_category_rules").select("merchant_normalized").eq("user_id", user.id),
+      supabase.from("rules").select("merchant_normalized").eq("user_id", user.id),
     ]);
     const seen = new Set<string>();
     for (const txn of affected ?? []) {
@@ -515,11 +515,11 @@ export async function bulkUpdateTransactions(
       if (!merchant || seen.has(merchant)) continue;
       seen.add(merchant);
       if (!findMatchingRule(rules ?? [], merchant)) continue;
-      await learnVendorRule(supabase, merchant, patch.category_id, false, txn.source_id);
+      await learnRule(supabase, merchant, patch.category_id, false, txn.source_id);
     }
   }
 
-  if (patch.category_id) revalidateVendorRulePages();
+  if (patch.category_id) revalidateRulePages();
   revalidateLedgerPages();
   return null;
 }

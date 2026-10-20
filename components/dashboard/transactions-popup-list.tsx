@@ -51,14 +51,14 @@ export function TransactionsPopupList({
       <div className="mb-3 flex items-baseline justify-between">
         <p className="font-medium">{title}</p>
         {transactions && (
-          <span className={`text-sm font-semibold ${total < 0 ? "text-negative" : "text-positive"}`}>
+          <span className={"text-sm font-semibold"}>
             <Money amount={total} decimalPlaces={decimalPlaces} />
           </span>
         )}
       </div>
 
       {error && <p className="text-sm text-negative">{error}</p>}
-      {!error && !transactions && <p className="text-sm text-muted">Loading…</p>}
+      {!error && !transactions && <p className="text-sm text-muted">Loading</p>}
       {transactions && transactions.length === 0 && (
         <p className="text-sm text-muted">No transactions found.</p>
       )}
@@ -70,7 +70,7 @@ export function TransactionsPopupList({
               <span className="shrink-0 text-xs text-muted">{formatDate(t.postedDate)}</span>
               <span className="min-w-0 flex-1 truncate">{t.description}</span>
               <span
-                className={`shrink-0 font-medium ${t.amount < 0 ? "text-negative" : "text-positive"}`}
+                className={"shrink-0 font-medium"}
               >
                 <Money amount={t.amount} decimalPlaces={decimalPlaces} />
               </span>

@@ -1,15 +1,9 @@
 import { getSettings } from "@/lib/queries/settings";
 import { getOptionalUser } from "@/lib/supabase/auth";
-import { getVendorRules } from "@/lib/queries/vendor-rules";
-import { getFilterOptions } from "@/lib/queries/transactions";
 import { getBankConnections } from "@/lib/queries/accounts";
-import { deleteVendorRule, updateVendorRule } from "@/lib/actions/vendor-rules";
 import { disconnectBankConnection, syncBankConnection } from "@/lib/actions/simplefin";
 import { DecimalPlacesForm } from "@/components/settings/decimal-places-form";
-import { MonthAheadForm } from "@/components/settings/month-ahead-form";
-import { RunRulesButton } from "@/components/settings/run-rules-button";
-import { AddVendorRuleButton } from "@/components/settings/add-vendor-rule-button";
-import { VendorRuleRow } from "@/components/settings/vendor-rule-row";
+import { BudgetTypeForm } from "@/components/settings/budget-type-form";
 import { ImportTransactionsForm } from "@/components/accounts/import-transactions-form";
 import { ConnectBankConnectionForm } from "@/components/accounts/connect-bank-connection-form";
 import { Card } from "@/components/ui/card";
@@ -21,10 +15,8 @@ import { TimezoneForm } from "@/components/settings/timezone-form";
 import { AccountCard } from "@/components/settings/account-card";
 
 export default async function SettingsPage() {
-  const [settings, vendorRules, { categories, sources }, connections, { user }] = await Promise.all([
+  const [settings, connections, { user }] = await Promise.all([
     getSettings(),
-    getVendorRules(),
-    getFilterOptions(),
     getBankConnections(),
     getOptionalUser(),
   ]);
@@ -32,7 +24,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1>Settings</h1>
       </div>
 
       <div className="flex flex-wrap gap-4">
@@ -46,65 +38,13 @@ export default async function SettingsPage() {
         </Card>
 
         <Card className="min-w-56 flex-1 p-5">
-          <MonthAheadForm monthAhead={settings.month_ahead} />
+          <BudgetTypeForm budgetType={settings.budget_type} />
         </Card>
 
         <Card className="min-w-56 flex-1 p-5">
           <TimezoneForm timezone={settings.timezone} />
         </Card>
       </div>
-
-      <Card className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="font-medium">Categorization rules</p>
-            <p className="mt-1 text-sm text-muted">
-              Rules you&apos;ve established to automatically categorize transactions.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <AddVendorRuleButton categories={categories} sources={sources} />
-            <RunRulesButton />
-          </div>
-        </div>
-
-        {vendorRules.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">No rules yet.</p>
-        ) : (
-          <details className="mt-3 group">
-            <summary className="cursor-pointer text-sm text-muted select-none hover:text-foreground">
-              Rules ({vendorRules.length})
-            </summary>
-            <ul className="mt-3 flex flex-col gap-1.5">
-              {vendorRules.map((rule) => (
-                <VendorRuleRow
-                  key={rule.id}
-                  rule={{
-                    id: rule.id,
-                    merchantNormalized: rule.merchant_normalized,
-                    categoryId: rule.category_id,
-                    sourceId: rule.source_id,
-                    isIncome: rule.is_income,
-                    isExclude: rule.is_exclude,
-                    categoryName: rule.is_income
-                      ? "Income"
-                      : rule.is_exclude
-                        ? "Excluded"
-                        : rule.category_id
-                          ? ((rule.categories as { name: string } | null)?.name ?? "—")
-                          : `Source: ${(rule.sources as { name: string } | null)?.name ?? "—"}`,
-                    useCount: rule.use_count,
-                  }}
-                  categories={categories}
-                  sources={sources}
-                  updateAction={updateVendorRule.bind(null, rule.id)}
-                  deleteAction={deleteVendorRule.bind(null, rule.id)}
-                />
-              ))}
-            </ul>
-          </details>
-        )}
-      </Card>
 
       <Card className="p-5">
         <p className="font-medium">Connected banks (SimpleFin)</p>

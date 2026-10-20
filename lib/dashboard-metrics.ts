@@ -2,46 +2,46 @@ import { spentFromRawAmount } from "@/lib/progress";
 
 export function computeDashboardTotals({
   income,
-  otherInflow,
-  budgetedOutflowRaw,
-  otherOutflowRaw,
+  otherInflows,
+  expenseRaw,
+  otherOutflowsRaw,
   categorizedIncome,
-  totalAllocation,
+  allocation,
 }: {
   income: number;
-  otherInflow: number;
-  budgetedOutflowRaw: number | null;
-  otherOutflowRaw: number | null;
+  otherInflows: number;
+  expenseRaw: number | null;
+  otherOutflowsRaw: number | null;
   // Positive-amount, Budget-sourced transactions carrying a category
   // instead of the is_income flag (v_budget_category_income) — a paycheck
   // or reimbursement filed under a category rather than marked Income.
-  // Already raw-positive (unlike budgetedOutflowRaw/otherOutflowRaw), so
+  // Already raw-positive (unlike expenseRaw/otherOutflowsRaw), so
   // it's added directly rather than run through spentFromRawAmount.
   categorizedIncome: number;
   // The month's total budget commitment (categories + sinking expenses +
   // source transfers — see getBudgetRateData's identical calc) — what
   // Budget Net measures spending against isn't what actually came in as
   // income this month, it's what the budget itself allocated.
-  totalAllocation: number;
+  allocation: number;
 }) {
-  const budgetedOutflow = spentFromRawAmount(budgetedOutflowRaw);
-  const otherOutflow = spentFromRawAmount(otherOutflowRaw);
-  const budgetNet = totalAllocation - budgetedOutflow + categorizedIncome;
-  // otherInflow already contains categorizedIncome (v_inflow_outflow counts
+  const expense = spentFromRawAmount(expenseRaw);
+  const otherOutflows = spentFromRawAmount(otherOutflowsRaw);
+  const budgetNet = allocation - expense + categorizedIncome;
+  // otherInflows already contains categorizedIncome (v_inflow_outflow counts
   // every positive, non-Income amount, split legs included), so it is never
   // added a second time here — categorizedIncome only feeds budgetNet.
-  const inflows = income + otherInflow;
-  const outflows = budgetedOutflow + otherOutflow;
+  const inflows = income + otherInflows;
+  const outflows = expense + otherOutflows;
   const cashFlow = inflows - outflows;
   return {
     income,
-    otherInflow,
+    otherInflows,
     inflows,
-    budgetedOutflow,
-    otherOutflow,
+    expense,
+    otherOutflows,
     outflows,
     categorizedIncome,
-    totalAllocation,
+    allocation,
     budgetNet,
     cashFlow,
   };

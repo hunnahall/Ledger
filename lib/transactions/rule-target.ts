@@ -2,7 +2,7 @@
 // INCOME sentinel in the Transactions table's own Category select — let a
 // rule mark matching transactions as Income, or as Excluded, instead of
 // picking a real category (mutually exclusive — exactly one of category_id/
-// is_income/is_exclude, see the vendor_category_rules_target_check
+// is_income/is_exclude, see the rules_target_check
 // constraint). Shared between the server actions that persist a rule and
 // the client forms that pick its target — a "use server" file can only
 // export async functions, so this plain constant/helper live here instead.

@@ -7,7 +7,7 @@ type InlineEditAction = (prevState: ActionResult, formData: FormData) => Promise
 
 // Shared state machine behind every "toggle button -> inline editor,
 // commit via a server action, Escape/Cancel to back out" control in this
-// app (BalanceEditControl, VendorRuleRow's edit branch). The editors
+// app (BalanceEditControl, RuleRow's edit branch). The editors
 // themselves differ enough (field count, commit-on-blur vs. explicit Save)
 // that only the editing/pending/error/commit orchestration is shared here
 // — each caller still owns its own markup.

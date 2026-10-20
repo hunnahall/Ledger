@@ -3,6 +3,7 @@ import { getDashboardData, getMonthlyTrend } from "@/lib/queries/dashboard";
 import { getBudgetRateData } from "@/lib/queries/budgets";
 import { getSettings } from "@/lib/queries/settings";
 import { currentMonthISO, previousMonthISO, monthLabel } from "@/lib/dates";
+import { applySavedAllocations } from "@/lib/dashboard-charts";
 import { MonthSegments } from "@/components/dashboard/month-segments";
 import { PaceCard } from "@/components/dashboard/pace-card";
 import { CashFlowCard } from "@/components/dashboard/cash-flow-card";
@@ -12,13 +13,13 @@ import { CategorySpendingCard } from "@/components/dashboard/category-spending-c
 import { BudgetFundingCard, FloatCard } from "@/components/dashboard/funding-and-float";
 import { LastMonthsCard } from "@/components/dashboard/last-months-card";
 
-// Current month plus the 3 full calendar months before it — the same
-// window purge_expired_data() keeps (see
-// supabase/migrations/20260901010000_hardcode_three_month_retention.sql),
+// Current month plus the 4 full calendar months before it: the same window
+// purge_expired_data() keeps (see
+// supabase/migrations/20261019130000_retention_four_months_monthly_totals.sql),
 // so every month offered here still has data.
 function selectableMonths(timeZone: string): string[] {
   const months = [currentMonthISO(timeZone)];
-  for (let i = 0; i < 3; i++) months.push(previousMonthISO(months[months.length - 1]));
+  for (let i = 0; i < 4; i++) months.push(previousMonthISO(months[months.length - 1]));
   return months;
 }
 
@@ -34,13 +35,13 @@ export default async function DashboardPage({
   const months = selectableMonths(settings.timezone);
   const monthISO = month && months.includes(month) ? month : currentMonthISO(settings.timezone);
 
-  const [data, rateData, trendTotals] = await Promise.all([
+  const [data, rateData, monthlyTrend] = await Promise.all([
     getDashboardData(monthISO),
     getBudgetRateData(monthISO, settings.timezone),
     getMonthlyTrend(months),
   ]);
-  const totalAllocation = rateData?.totalAllocation ?? data.totalAllocation;
-  const trend = trendTotals.map((m) => ({ ...m, totalAllocation }));
+  const allocation = rateData?.allocation ?? data.allocation;
+  const trend = applySavedAllocations(monthlyTrend.trend, monthlyTrend.savedAllocations, allocation);
   const decimalPlaces = settings.decimal_places;
 
   const daysInMonth = rateData?.daysInMonth ?? 30;
@@ -52,8 +53,8 @@ export default async function DashboardPage({
     <div className="flex flex-col gap-4">
       <div className="mb-1 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1>Dashboard</h1>
+          <p className="mt-1 font-mono text-xs text-muted">
             {monthLabel(monthISO)}
             {monthISO === months[0] && ` · Day ${currentDay} of ${daysInMonth}`}
             {!data.hasBudget && " · No current budget set"}
@@ -65,8 +66,8 @@ export default async function DashboardPage({
       <div className="flex flex-wrap gap-4">
         <PaceCard
           budgetNet={data.budgetNet}
-          totalAllocation={totalAllocation}
-          budgetedOutflow={data.budgetedOutflow}
+          allocation={allocation}
+          expense={data.expense}
           daysInMonth={daysInMonth}
           currentDay={currentDay}
           actualByDay={actualByDay}
@@ -74,9 +75,9 @@ export default async function DashboardPage({
         />
         <CashFlowCard
           income={data.income}
-          otherInflow={data.otherInflow}
-          budgetedOutflow={data.budgetedOutflow}
-          otherOutflow={data.otherOutflow}
+          otherInflows={data.otherInflows}
+          expense={data.expense}
+          otherOutflows={data.otherOutflows}
           cashFlow={data.cashFlow}
           {...common}
         />
@@ -85,7 +86,7 @@ export default async function DashboardPage({
       <div className="flex flex-wrap gap-4">
         <DailySpendingCard
           actualByDay={actualByDay}
-          totalAllocation={totalAllocation}
+          allocation={allocation}
           daysInMonth={daysInMonth}
           currentDay={currentDay}
           {...common}
@@ -111,12 +112,12 @@ export default async function DashboardPage({
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
           <BudgetFundingCard
             income={data.income}
-            totalAllocation={settings.month_ahead ? data.nextMonthAllocation : totalAllocation}
-            fundsNextMonth={settings.month_ahead}
+            allocation={(settings.budget_type === "advanced") ? data.nextMonthAllocation : allocation}
+            fundsNextMonth={(settings.budget_type === "advanced")}
             {...common}
           />
           <FloatCard balance={data.floatBalance} {...common} />
-          <LastMonthsCard months={trend} currentMonthISO={months[0]} decimalPlaces={decimalPlaces} />
+          <LastMonthsCard months={trend.slice(-4)} currentMonthISO={months[0]} decimalPlaces={decimalPlaces} />
         </div>
       </div>
     </div>
