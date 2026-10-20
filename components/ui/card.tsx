@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   /** Opts into the lift-and-darken hover. Only for cards that are themselves
    * a click target (a source, an account); a card that just holds content
    * should not react to the pointer. */

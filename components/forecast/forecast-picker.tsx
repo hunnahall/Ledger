@@ -51,7 +51,7 @@ export function ForecastPicker({
   return (
     <div className="flex flex-col gap-4">
       {dialog}
-      <div className="rounded-lg border border-border bg-surface">
+      <div className="border border-border bg-surface">
         {forecasts.length === 0 && !showCreate && (
           <p className="p-5 text-sm text-muted">No saved forecasts yet.</p>
         )}
@@ -111,7 +111,7 @@ export function ForecastPicker({
             >
               Cancel
             </button>
-            {createState?.error && <p className="w-full text-xs text-negative">{createState.error}</p>}
+            {createState?.error && <p className="w-full text-xs text-danger">{createState.error}</p>}
           </form>
         )}
       </div>

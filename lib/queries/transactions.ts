@@ -33,7 +33,7 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   // source_id is also null for an Excluded row (see EXCLUDE_SOURCE in
   // transaction-list.tsx), which shows as Exclude, not "No source", in its
   // own Source select. Income rows always carry the Income source now (see
-  // route_income_to_fund); is_income stays in the filter as a guard. A
+  // route_income_to_source); is_income stays in the filter as a guard. A
   // still-unresolved Transfer *does* show "No source" in that same select
   // (it has no sentinel of its own), so it stays included here.
   // Keep in step with getUnsourcedCount below and needsSource.
@@ -164,7 +164,7 @@ export async function getFilterOptions() {
     (accounts ?? []).find((a) => a.is_manual)?.id ?? (accounts ?? [])[0]?.id ?? null;
   const defaultSourceId = (sourceData ?? []).find((s) => s.type === "budget")?.id ?? null;
   // The system Income source. Picking it in a Source select is how a row is
-  // marked Income (route_income_to_fund keeps is_income and this source in
+  // marked Income (route_income_to_source keeps is_income and this source in
   // lockstep), so the selects need to recognize it.
   const incomeSourceId = (sourceData ?? []).find((s) => s.type === "income")?.id ?? null;
   const sources = (sourceData ?? [])

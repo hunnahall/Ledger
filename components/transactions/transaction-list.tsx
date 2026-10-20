@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
-import { AddIcon, SplitIcon, SpinnerIcon } from "@/components/ui/icons";
+import { AddIcon, SplitIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ClearFiltersButton, DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 import { SearchToggle } from "./search-toggle";
@@ -37,7 +37,7 @@ export type TransactionRowData = {
   sourceId: string | null;
   // Still read-only here (the "Transfer" badge) — set by match_transfer_pairs
   // during sync, not by anything in this row anymore. No transfer_from/to
-  // bucket fields: Source Transfers on the Budgets page own that now.
+  // bucket fields: Source Transfers on the Budget page own that now.
   isTransfer: boolean;
   isIncome: boolean;
   excludeFromBudget: boolean;
@@ -58,12 +58,12 @@ const ADD_SOURCE = "__add_source__";
 // checkbox that used to live in the row's (now-removed) expandable detail
 // panel. Clears source_id/category_id the same way leaving Budget already
 // did; see handleSourceChange. There's no Transfer equivalent — Source
-// Transfers on the Budgets page cover that now.
+// Transfers on the Budget page cover that now.
 const EXCLUDE_SOURCE = "__exclude__";
 
 // Income is not a sentinel: it's the real system Income source (its id
 // arrives as incomeSourceId). Picking it marks the row Income and clears
-// the category; route_income_to_fund keeps is_income and source_id in
+// the category; route_income_to_source keeps is_income and source_id in
 // lockstep in the database, whichever one a save sets. The Category select
 // is disabled whenever a row is Income (see isBudgetSource below).
 
@@ -330,7 +330,7 @@ export function TransactionList({
             <span className="hidden text-xs text-muted sm:inline">
               Change a category or source on any selected row to apply it to all
             </span>
-            {isPending && <SpinnerIcon className="animate-spin shrink-0" size={14} />}
+            {isPending && <span className="text-xs text-muted">Saving</span>}
             {bulkError && <span className="text-xs text-danger">{bulkError}</span>}
             <button
               type="button"
@@ -872,7 +872,7 @@ const TransactionRow = memo(function TransactionRow({
   // What the Source select currently shows — a real source id (the Income
   // source for an Income row) or the Exclude sentinel (see
   // handleSourceChange). An Income row always carries the Income source in
-  // the database (route_income_to_fund); the fallback only covers the
+  // the database (route_income_to_source); the fallback only covers the
   // moment between picking Income and the save returning.
   const sourceSelectValue = excludeFromBudget
     ? EXCLUDE_SOURCE
@@ -935,7 +935,7 @@ const TransactionRow = memo(function TransactionRow({
                   type="button"
                   onClick={() => setEditingDate(true)}
                   title={`Account: ${accountDisplay}`}
-                  className="w-full rounded-sm px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-active"
+                  className="w-full px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-active"
                 >
                   {formatShortDate(postedDate)}
                 </button>
@@ -1013,7 +1013,7 @@ const TransactionRow = memo(function TransactionRow({
                 type="button"
                 onClick={() => setEditingDescription(true)}
                 title={notes ? `${description} — ${notes}` : description}
-                className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-fill-active md:max-w-[260px] md:flex-1"
+                className="min-w-0 truncate px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-fill-active md:max-w-[260px] md:flex-1"
               >
                 {description}
                 {splitLabel && (
@@ -1129,7 +1129,7 @@ const TransactionRow = memo(function TransactionRow({
                 title="Prompt to save a rule when this row's category, source, Income or Exclude changes"
                 className={`flex h-6 w-6 shrink-0 items-center justify-center border transition-colors duration-[120ms] ease-standard ${
                   buildRule
-                    ? "border-mark bg-mark text-mark-foreground"
+                    ? "border-accent bg-accent text-on-accent"
                     : "border-border text-muted hover:bg-background hover:text-foreground"
                 }`}
               >
@@ -1146,7 +1146,7 @@ const TransactionRow = memo(function TransactionRow({
               aria-pressed={splitOpen}
               aria-label={splitOpen ? "Hide split" : txn.split ? "Edit split" : "Split this transaction"}
               title={isTransfer ? "Transfers can't be split" : txn.split ? "Edit the split" : "Split into several transactions"}
-              className={`rounded-sm p-1 transition-colors duration-[120ms] ease-standard disabled:pointer-events-none disabled:opacity-40 md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
+              className={`p-1 transition-colors duration-[120ms] ease-standard disabled:pointer-events-none disabled:opacity-40 md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
                 splitOpen ? "text-accent" : "text-muted hover:bg-fill-active hover:text-foreground"
               }`}
             >
@@ -1158,7 +1158,7 @@ const TransactionRow = memo(function TransactionRow({
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="rounded p-1.5 text-danger hover:bg-background"
+                  className="p-1.5 text-danger hover:bg-background"
                   aria-label="Delete transaction"
                   title="Delete"
                 >
@@ -1201,7 +1201,7 @@ const TransactionRow = memo(function TransactionRow({
               </label>
               <button
                 type="submit"
-                className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
+                className="w-fit border border-border px-3 py-1.5 text-xs hover:bg-background"
               >
                 Create source ({formatMoney(txn.amount, decimalPlaces)})
               </button>

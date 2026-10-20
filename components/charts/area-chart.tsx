@@ -3,7 +3,7 @@
 import { compactMoney, niceCeiling } from "@/components/dashboard/format";
 import { cn } from "@/lib/cn";
 
-export type AreaPoint = { key: string; label: string; value: number };
+type AreaPoint = { key: string; label: string; value: number };
 
 const W = 600;
 const H = 140;

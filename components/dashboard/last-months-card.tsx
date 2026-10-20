@@ -112,7 +112,7 @@ export function LastMonthsCard({
           return (
             <span key={p.month}>
               <span className="block whitespace-nowrap text-muted">{label(p.month)}</span>
-              <span className={cn("font-semibold", net < 0 && "text-negative")}>
+              <span className={cn("font-semibold", net < 0 && "text-danger")}>
                 {net > 0 && "+"}
                 <Money amount={net} decimalPlaces={decimalPlaces} />
               </span>

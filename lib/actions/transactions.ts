@@ -58,7 +58,7 @@ export async function createManualTransaction(
   // One dropdown picks the sign and the routing all at once. "exclude"
   // disregards category/source/budget entirely, not just the budget total.
   // No "transfer" choice — see ManualTransactionForm: Source Transfers on
-  // the Budgets page own moving money between a user's own sources now.
+  // the Budget page own moving money between a user's own sources now.
   const typeChoice = String(formData.get("type_choice") ?? "expense");
   const isIncome = typeChoice === "income";
   const isExcluded = typeChoice === "exclude";
@@ -85,7 +85,7 @@ export async function createManualTransaction(
   const amount = isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
 
   if (isIncome && incomeAction === "include_in_budget") {
-    // route_income_to_fund sets the Income source on insert.
+    // route_income_to_source sets the Income source on insert.
     resolvedSourceId = null;
   } else if (isIncome && incomeAction === "create_source") {
     if (newSourceType !== "reimbursement") {
@@ -294,7 +294,7 @@ export async function assignTransaction(
         ? { description, merchant_normalized: normalizeMerchant(description) }
         : {}),
       // is_transfer itself is read back unchanged here — there's no row UI
-      // that can flip it (Source Transfers on the Budgets page replaced
+      // that can flip it (Source Transfers on the Budget page replaced
       // that; a transaction only becomes one via match_transfer_pairs
       // during sync, or the manual-entry form's own Transfer type). Not
       // writing transfer_from_source_id/transfer_to_source_id at all is
@@ -430,7 +430,7 @@ export async function bulkUpdateTransactions(
 
   // Picking the Income source is marking Income — route it through the
   // isIncome branch below. Sending it as a plain source pick (is_income
-  // false + source = Income) would read to route_income_to_fund as
+  // false + source = Income) would read to route_income_to_source as
   // "un-mark Income" on rows that already are, and clear their source.
   if (updates.sourceId && !updates.isIncome) {
     const { data: incomeSource, error: incomeSourceError } = await supabase
@@ -462,7 +462,7 @@ export async function bulkUpdateTransactions(
     patch.category_source = null;
     patch.is_income = false;
   } else if (updates.isIncome) {
-    // source_id is left to route_income_to_fund, which sets the Income
+    // source_id is left to route_income_to_source, which sets the Income
     // source on every row this marks Income.
     patch.is_income = true;
     patch.category_id = null;

@@ -44,7 +44,7 @@ export function resolveSourceFilter(
 // "Needs a Source": no Source, and neither Excluded nor Income (Income always
 // carries the Income source). The same rule the "No source" filter applies
 // in getFilteredTransactions, so the summary count and the filter agree.
-export function needsSource(t: { sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean }) {
+function needsSource(t: { sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean }) {
   return t.sourceId === null && !t.excludeFromBudget && !t.isIncome;
 }
 

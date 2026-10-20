@@ -83,7 +83,7 @@ export function SourceAllocationCard({
                 key={r.id}
                 type="button"
                 onClick={() => openTile(r.name, { type: "source", sourceId: r.id })}
-                className="-mx-1.5 flex min-h-7 items-center gap-2 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
+                className="-mx-1.5 flex min-h-7 items-center gap-2 px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
               >
                 <span aria-hidden="true" className={cn("size-2.5 flex-none", DOT[r.tone ?? "none"])} />
                 <span className="flex-1 truncate">{r.name}</span>

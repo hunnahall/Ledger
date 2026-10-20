@@ -39,7 +39,7 @@ export function CreateRuleForm({
       onSubmit={() => {
         submittedRef.current = true;
       }}
-      className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border p-3"
+      className="mb-4 flex flex-wrap items-end gap-3 border border-dashed border-border p-3"
     >
       <label className="flex flex-col gap-1 text-xs text-muted">
         If description contains
@@ -71,7 +71,7 @@ export function CreateRuleForm({
       <Button type="submit" variant="accent" size="sm">
         Add rule
       </Button>
-      {state?.error && <p className="w-full text-xs text-negative">{state.error}</p>}
+      {state?.error && <p className="w-full text-xs text-danger">{state.error}</p>}
     </form>
   );
 }

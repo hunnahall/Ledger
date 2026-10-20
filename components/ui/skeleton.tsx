@@ -16,7 +16,7 @@ export function Skeleton({ className }: { className?: string }) {
 }
 
 /** A run of text-height bars, for standing in for a paragraph or a cell. */
-export function SkeletonText({
+function SkeletonText({
   lines = 1,
   className,
 }: {

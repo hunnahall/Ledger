@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { createSourceTransfer } from "@/lib/actions/source-transfers";
-import { SourceTransferRow } from "@/components/budgets/source-transfer-row";
+import { SourceTransferRow } from "@/components/budget/source-transfer-row";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";

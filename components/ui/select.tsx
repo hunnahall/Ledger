@@ -169,7 +169,7 @@ export function Select({
                 onClick={() => commit(option.value)}
                 className={cn(
                   "flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5 truncate",
-                  index === highlighted ? "bg-paper-a2" : "",
+                  index === highlighted ? "bg-fill-hover" : "",
                   option.value === selected ? "font-medium" : "",
                 )}
               >

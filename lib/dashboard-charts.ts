@@ -8,9 +8,9 @@ export function dailyFromCumulative(actualByDay: number[]): number[] {
 }
 
 /** A day "well above" pace spent more than this multiple of the even daily pace. */
-export const WELL_ABOVE_PACE_MULTIPLE = 1.5;
+const WELL_ABOVE_PACE_MULTIPLE = 1.5;
 
-export type DailyPaceStatus = "below" | "slightly_above" | "well_above";
+type DailyPaceStatus = "below" | "slightly_above" | "well_above";
 
 export function dailyPaceStatus(amount: number, pacePerDay: number): DailyPaceStatus {
   if (amount <= pacePerDay) return "below";
@@ -53,7 +53,7 @@ export type PieSlice = {
   path: string | null;
 };
 
-export type PieLegendRow = {
+type PieLegendRow = {
   id: string;
   name: string;
   amount: number;

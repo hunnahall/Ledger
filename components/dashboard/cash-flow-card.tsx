@@ -61,10 +61,10 @@ export function CashFlowCard({
         <button
           type="button"
           onClick={() => openTile("Net Cash Flow", { type: "cash_flow" })}
-          className="rounded-md px-1.5 text-sm text-foreground-secondary transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
+          className="px-1.5 text-sm text-foreground-secondary transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
         >
           Net{" "}
-          <span className={cn("text-xl font-semibold", cashFlow < 0 && "text-negative")}>
+          <span className={cn("text-xl font-semibold", cashFlow < 0 && "text-danger")}>
             {cashFlow > 0 && "+"}
             <Money amount={cashFlow} decimalPlaces={decimalPlaces} />
           </span>
@@ -138,7 +138,7 @@ function Row({
     <button
       type="button"
       onClick={onClick}
-      className="-mx-1.5 flex min-h-8 items-center gap-2 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
+      className="-mx-1.5 flex min-h-8 items-center gap-2 px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
     >
       <span aria-hidden="true" className={cn("size-2.5 flex-none", tone)} />
       <span className="flex-1 whitespace-nowrap">{label}</span>

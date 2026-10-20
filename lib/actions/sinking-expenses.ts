@@ -8,7 +8,7 @@ import {
   SINKING_FREQUENCIES,
   type SinkingContributionType,
   type SinkingFrequency,
-} from "@/lib/budgets/sinking";
+} from "@/lib/budget/sinking";
 
 function parseFrequency(value: FormDataEntryValue | null): SinkingFrequency {
   const frequency = String(value ?? "annual");

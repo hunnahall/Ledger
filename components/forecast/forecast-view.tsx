@@ -171,7 +171,7 @@ function ForecastDetailView({
           <p className="text-sm text-muted">
             Monthly transfer: {formatMoney(forecast.effectiveMonthlyTransfer, decimalPlaces)}/mo — set on the{" "}
             <a href="/budget" className="underline">
-              Budgets page
+              Budget page
             </a>
           </p>
         ) : (

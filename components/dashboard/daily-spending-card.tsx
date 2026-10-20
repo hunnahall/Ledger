@@ -15,7 +15,7 @@ const CAP_MULTIPLE = 2.5;
 const TONE = {
   below: "fill-accent",
   slightly_above: "fill-warning",
-  well_above: "fill-negative",
+  well_above: "fill-danger",
 } as const;
 
 // Budget spending per day against the even daily pace (allocation / days).
@@ -61,7 +61,7 @@ export function DailySpendingCard({
       <button
         type="button"
         onClick={() => openTile("Daily Spending", { type: "expense" })}
-        className="block w-full flex-1 rounded-md"
+        className="block w-full flex-1"
         aria-label={`Daily spending for ${currentDay} days: ${aboveCount} above the even pace. Show transactions.`}
       >
         <svg viewBox={`0 0 ${width} ${H}`} preserveAspectRatio="none" className="block h-full min-h-36 w-full" aria-hidden="true">

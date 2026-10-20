@@ -9,7 +9,7 @@ import { Money } from "@/components/ui/money";
 import { Input } from "@/components/ui/input";
 
 // Only rendered when the chosen Source has no real Source Transfer on the
-// Budgets page (see ForecastView) — this value is forecast-local (see
+// Budget page (see ForecastView) — this value is forecast-local (see
 // updateMonthlyTransferOverride) and never written back to
 // source_transfers. Same toggle-to-inline-input shape as NameEditControl
 // (components/sources/name-edit-control.tsx).
@@ -77,7 +77,7 @@ export function MonthlyTransferControl({
         className="w-28"
       />
       <span className="text-sm text-muted">/mo</span>
-      {error && <p className="text-xs text-negative">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

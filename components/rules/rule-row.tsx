@@ -3,7 +3,6 @@
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButtonForm } from "@/components/ui/action-button-form";
-import { SpinnerIcon } from "@/components/ui/icons";
 import {
   EXCLUDE_RULE_TARGET,
   INCOME_RULE_TARGET,
@@ -58,7 +57,7 @@ export function RuleRow({
 
   if (editing) {
     return (
-      <li className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+      <li className="flex flex-wrap items-center gap-2 border border-border px-3 py-2 text-sm">
         <span className="text-muted">If</span>
         <Input
           uiSize="sm"
@@ -96,8 +95,7 @@ export function RuleRow({
           onClick={handleSave}
           disabled={isPending}
         >
-          {isPending ? <SpinnerIcon className="animate-spin" /> : null}
-          Save
+          {isPending ? "Saving" : "Save"}
         </Button>
         <Button
           type="button"
@@ -109,13 +107,13 @@ export function RuleRow({
         >
           Cancel
         </Button>
-        {error && <p className="w-full text-xs text-negative">{error}</p>}
+        {error && <p className="w-full text-xs text-danger">{error}</p>}
       </li>
     );
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
+    <li className="flex flex-wrap items-center justify-between gap-2 border border-border px-3 py-2 text-sm">
       <span>
         If <span className="font-medium">{rule.merchantNormalized}</span>, then{" "}
         <span className="font-medium">{rule.categoryName}</span>

@@ -57,7 +57,7 @@ export function TransactionsPopupList({
         )}
       </div>
 
-      {error && <p className="text-sm text-negative">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       {!error && !transactions && <p className="text-sm text-muted">Loading</p>}
       {transactions && transactions.length === 0 && (
         <p className="text-sm text-muted">No transactions found.</p>

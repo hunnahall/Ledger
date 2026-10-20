@@ -43,7 +43,7 @@ export async function updateBudgetType(
   if (error) return { error: error.message };
 
   // No catch-up needed when switching modes: income tracks to the Income
-  // source either way (route_income_to_fund). The switch only changes what
+  // source either way (route_income_to_source). The switch only changes what
   // ensure_month_current does with that balance when the next month starts.
 
   revalidateLedgerPages();

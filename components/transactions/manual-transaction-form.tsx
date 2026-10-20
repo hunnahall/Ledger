@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
 
 type Option = { id: string; name: string };
-// No "transfer" choice here — Source Transfers on the Budgets page cover
+// No "transfer" choice here — Source Transfers on the Budget page cover
 // moving money between a user's own sources now; recording one as a manual
 // transaction would just double it.
 type TypeChoice = "expense" | "income" | "exclude";

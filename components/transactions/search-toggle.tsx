@@ -45,7 +45,7 @@ export function SearchToggle() {
         onClick={() => setOpen((o) => !o)}
         aria-label="Search transactions"
         aria-expanded={open}
-        className="relative flex items-center justify-center rounded-md p-2 text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground"
+        className="relative flex items-center justify-center p-2 text-muted transition-colors duration-[120ms] ease-standard hover:bg-fill-hover hover:text-foreground"
       >
         <SearchIcon size={24} />
         {currentSearch && (
@@ -80,7 +80,7 @@ export function SearchToggle() {
                 setParams({ search: null });
               }}
               aria-label="Clear search"
-              className="rounded-md p-1 text-muted hover:text-foreground"
+              className="p-1 text-muted hover:text-foreground"
             >
               ×
             </button>

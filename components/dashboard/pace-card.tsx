@@ -58,12 +58,12 @@ export function PaceCard({
             <button
               type="button"
               onClick={() => openTile("Budget Net", { type: "budget_net" })}
-              className="-mx-1.5 mt-1 flex flex-col items-start rounded-md px-1.5 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
+              className="-mx-1.5 mt-1 flex flex-col items-start px-1.5 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
             >
               <span
                 className={cn(
                   "font-sans text-[44px] font-semibold leading-none tracking-[-0.025em]",
-                  budgetNet < 0 && "text-negative",
+                  budgetNet < 0 && "text-danger",
                 )}
               >
                 {budgetNet > 0 && "+"}
@@ -78,7 +78,7 @@ export function PaceCard({
           {monthRunning && (
             <div className="flex flex-col gap-1 whitespace-nowrap text-xs text-muted">
               <span>Pace today</span>
-              <span className={cn("text-lg font-semibold", underPace < 0 && "text-negative")}>
+              <span className={cn("text-lg font-semibold", underPace < 0 && "text-danger")}>
                 <Money amount={Math.abs(underPace)} decimalPlaces={decimalPlaces} /> {underPace >= 0 ? "under" : "over"}
               </span>
               <span>

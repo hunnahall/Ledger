@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 
 // Same look as a small secondary Button — these navigate, so they're links.
 const PAGE_LINK =
-  "rounded-md border border-border bg-surface px-3 py-1.5 text-sm shadow-xs hover:border-border-strong hover:bg-paper-a1";
+  "border border-border bg-surface px-3 py-1.5 text-sm shadow-xs hover:border-border-strong hover:bg-fill-hover";
 
 export default async function LogPage({
   searchParams,
@@ -36,7 +36,7 @@ export default async function LogPage({
         // Same responsive-row approach as Transactions/Accounts: stacked
         // below md, reflows into one line at md+ via `contents` so it's a
         // single row layout rather than two copies to keep in sync.
-        <div className="rounded-lg border border-border text-sm">
+        <div className="border border-border text-sm">
           <div className="hidden items-center gap-3 border-b border-border bg-surface-subtle px-4 py-2 text-left text-xs text-muted md:flex">
             <span className="w-40 shrink-0 font-medium">Timestamp</span>
             <span className="w-24 shrink-0 font-medium">Page</span>

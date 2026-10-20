@@ -16,7 +16,7 @@ import {
   goalMonthlyAmount,
   monthlySinkingAmount,
   type SinkingFrequency,
-} from "@/lib/budgets/sinking";
+} from "@/lib/budget/sinking";
 
 // Every user has exactly one budget bucket — the reserved `budget`-type
 // Source, always named "Budget", auto-provisioned at signup (see

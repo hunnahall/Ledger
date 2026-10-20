@@ -106,7 +106,7 @@ export function logMoney(amount: number, suffix: string = "") {
   return `${formatMoney(amount)}${suffix}`;
 }
 
-export type ParseMoneyOptions = {
+type ParseMoneyOptions = {
   // Reject zero and negatives — for fields where an amount must be a real
   // positive figure (a source transfer, a forecast entry, a transfer leg).
   positive?: boolean;

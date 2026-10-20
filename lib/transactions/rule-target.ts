@@ -12,7 +12,7 @@ export const EXCLUDE_RULE_TARGET = "__exclude__";
 // this prefix plus the source id, kept apart from category ids that way.
 export const SOURCE_RULE_TARGET_PREFIX = "source:";
 
-export type RuleTarget = {
+type RuleTarget = {
   categoryId: string | null;
   isIncome: boolean;
   isExclude: boolean;

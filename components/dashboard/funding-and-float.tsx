@@ -62,7 +62,7 @@ export function BudgetFundingCard({
           <button
             type="button"
             onClick={() => openTile("Income", { type: "income" })}
-            className="-mx-1.5 rounded-md px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
+            className="-mx-1.5 px-1.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
           >
             <span className="block text-xs text-muted">Income received</span>
             <span className="text-lg font-semibold">

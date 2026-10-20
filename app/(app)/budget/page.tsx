@@ -4,14 +4,14 @@ import { getSourceOptions } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
 import { currentDayOfMonth, currentMonthISO, daysInMonthISO, monthLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
-import { categoryLines } from "@/lib/budgets/category-status";
+import { categoryLines } from "@/lib/budget/category-status";
 import { Stat, StatRow } from "@/components/ui/stat";
-import { BudgetCharts } from "@/components/budgets/budget-charts";
-import { CategoriesTable } from "@/components/budgets/categories-table";
-import { SinkingExpensesTable } from "@/components/budgets/sinking-expenses-table";
-import { SourceTransfersTable } from "@/components/budgets/source-transfers-table";
+import { BudgetCharts } from "@/components/budget/budget-charts";
+import { CategoriesTable } from "@/components/budget/categories-table";
+import { SinkingExpensesTable } from "@/components/budget/sinking-expenses-table";
+import { SourceTransfersTable } from "@/components/budget/source-transfers-table";
 
-export default async function BudgetsPage() {
+export default async function BudgetPage() {
   const settings = await getSettings();
   const monthISO = currentMonthISO(settings.timezone);
   const [data, sourceOptions] = await Promise.all([getBudgetData(), getSourceOptions()]);

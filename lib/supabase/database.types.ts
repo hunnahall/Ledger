@@ -643,21 +643,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "vendor_category_rules_category_id_fkey"
+            foreignKeyName: "rules_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "vendor_category_rules_source_id_fkey"
+            foreignKeyName: "rules_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "sources"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "vendor_category_rules_source_id_fkey"
+            foreignKeyName: "rules_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "v_source_balances"

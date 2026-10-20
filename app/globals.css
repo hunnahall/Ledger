@@ -25,23 +25,18 @@
   --color-muted: var(--fg-3);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
-  --color-card-border: var(--border);
   --color-rule: var(--rule);
   --color-fill-hover: var(--fill-hover);
   --color-fill-active: var(--fill-active);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
-  --color-positive: var(--success);
-  --color-negative: var(--danger);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
-  --color-positive-soft: var(--success-soft);
-  --color-negative-soft: var(--danger-soft);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -49,19 +44,6 @@
   --color-chart-5: var(--chart-5);
   --color-chart-6: var(--chart-6);
   --color-chart-neutral: var(--fg-3);
-  --color-mark: var(--accent);
-  --color-mark-foreground: var(--on-accent);
-
-  /* Pre-v2 ramp names still used by older call sites, folded onto the v2 tokens. */
-  --color-paper-a1: var(--fill-hover);
-  --color-paper-a2: var(--fill-hover);
-  --color-paper-a3: var(--fill-active);
-  --color-paper-a4: var(--fill-active);
-  --color-paper-3: var(--fill-active);
-  --color-paper-4: var(--border-strong);
-  --color-paper-7: var(--fg-3);
-  --color-paper-10: var(--fg-2);
-  --color-paper-11: var(--fg);
 
   /* Square corners everywhere. Circles (rounded-full) stay for radios,
      avatars and status dots. */
@@ -77,7 +59,6 @@
   --shadow-sm: none;
   --shadow-md: var(--shadow-overlay);
   --shadow-lg: var(--shadow-overlay);
-  --shadow-card: none;
   --shadow-popover: var(--shadow-overlay);
   --shadow-modal: var(--shadow-overlay);
   --shadow-elevated: var(--shadow-overlay);

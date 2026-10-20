@@ -15,7 +15,7 @@ import { useModal } from "@/components/ui/modal";
 
 
 // The "Add source" dialog's form. Closes itself once the create succeeds.
-export function CreateSourceForm({ onDone }: { onDone: () => void }) {
+function CreateSourceForm({ onDone }: { onDone: () => void }) {
   const [type, setType] = useState("reimbursement");
   const [state, formAction, pending] = useActionState(
     async (prev: { error: string } | null, formData: FormData) => {

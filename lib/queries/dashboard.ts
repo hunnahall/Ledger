@@ -4,7 +4,7 @@ import { computeDashboardTotals } from "@/lib/dashboard-metrics";
 import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/queries/budgets";
 import { nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
-import { TRANSFERS_CATEGORY_NAME } from "@/lib/budgets/category-status";
+import { TRANSFERS_CATEGORY_NAME } from "@/lib/budget/category-status";
 import { safeToSpend, unassignedCash } from "@/lib/accounts/unassigned-cash";
 
 export async function getDashboardData(monthISO: string) {

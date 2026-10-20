@@ -168,14 +168,14 @@ export function ForecastEntryRow({
               Cancel
             </Button>
           </div>
-          {error && <p className="mt-1 text-xs text-negative">{error}</p>}
+          {error && <p className="mt-1 text-xs text-danger">{error}</p>}
         </td>
       </tr>
     );
   }
 
   return (
-    <tr className="border-b border-border align-middle transition-colors duration-[120ms] ease-standard last:border-0 hover:bg-paper-a1">
+    <tr className="border-b border-border align-middle transition-colors duration-[120ms] ease-standard last:border-0 hover:bg-fill-hover">
       <td
         className="cursor-pointer px-4 py-3 focus-visible:ring-inset"
         onClick={startEditing}
@@ -204,7 +204,7 @@ export function ForecastEntryRow({
         role="button"
         aria-label={`Edit ${entry.description} entry amount`}
       >
-        <span className={entry.isExpense ? "text-negative" : "text-positive"}>
+        <span>
           {entry.isExpense ? "−" : "+"}
           <Money amount={entry.amount} decimalPlaces={decimalPlaces} />
         </span>

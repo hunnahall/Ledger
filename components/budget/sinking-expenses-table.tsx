@@ -7,9 +7,9 @@ import {
   SINKING_FREQUENCY_LABELS,
   type SinkingContributionType,
   type SinkingFrequency,
-} from "@/lib/budgets/sinking";
+} from "@/lib/budget/sinking";
 import { stepAmountByDollar } from "@/lib/dollar-step";
-import { SinkingExpenseRow } from "@/components/budgets/sinking-expense-row";
+import { SinkingExpenseRow } from "@/components/budget/sinking-expense-row";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";

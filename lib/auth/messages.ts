@@ -3,7 +3,7 @@
 // told anyone with the signup form which addresses have accounts, and a
 // free-text ?error= let anyone hand out a link that renders arbitrary text
 // on our login page.
-export const AUTH_MESSAGES = {
+const AUTH_MESSAGES = {
   invalid_credentials: "That email and password don't match an account.",
   signup_unavailable:
     "That address can't be signed up right now. Ledger is invite only — check the address on your invite.",
@@ -15,15 +15,15 @@ export const AUTH_MESSAGES = {
   unavailable: "Something went wrong. Try again in a moment.",
 } as const;
 
-export type AuthMessageCode = keyof typeof AUTH_MESSAGES;
+type AuthMessageCode = keyof typeof AUTH_MESSAGES;
 
-export const AUTH_NOTICES = {
+const AUTH_NOTICES = {
   check_email: "Check your email to confirm your account.",
   check_email_reset: "If that address has an account, a password reset link is on its way.",
   password_updated: "Password updated. Log in with your new password.",
 } as const;
 
-export type AuthNoticeCode = keyof typeof AUTH_NOTICES;
+type AuthNoticeCode = keyof typeof AUTH_NOTICES;
 
 export function authMessage(code: string | undefined): string | null {
   if (!code) return null;

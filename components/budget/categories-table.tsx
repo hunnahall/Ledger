@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { createCategory } from "@/lib/actions/categories";
-import type { CategoryLine } from "@/lib/budgets/category-status";
-import { CategoryRow, type EditableCategory } from "@/components/budgets/category-row";
+import type { CategoryLine } from "@/lib/budget/category-status";
+import { CategoryRow, type EditableCategory } from "@/components/budget/category-row";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

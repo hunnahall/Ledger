@@ -2,7 +2,7 @@ import {
   DashboardIcon,
   TransactionsIcon,
   AccountsIcon,
-  BudgetsIcon,
+  BudgetIcon,
   SourcesIcon,
   ForecastIcon,
   LogIcon,
@@ -14,7 +14,7 @@ export const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
   // badge: shows how many transactions still need a Source.
   { href: "/transactions", label: "Transactions", icon: TransactionsIcon, badge: "review" },
-  { href: "/budget", label: "Budget", icon: BudgetsIcon },
+  { href: "/budget", label: "Budget", icon: BudgetIcon },
   { href: "/sources", label: "Sources", icon: SourcesIcon },
   { href: "/accounts", label: "Accounts", icon: AccountsIcon },
   { href: "/forecasts", label: "Forecasts", icon: ForecastIcon },

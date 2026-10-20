@@ -13,7 +13,7 @@ export function RunRulesButton() {
         {isPending ? "Running" : "Run rules now"}
       </Button>
       {state?.error ? (
-        <p className="text-xs text-negative">{state.error}</p>
+        <p className="text-xs text-danger">{state.error}</p>
       ) : state ? (
         <p className="text-xs text-muted">
           {state.count === 0

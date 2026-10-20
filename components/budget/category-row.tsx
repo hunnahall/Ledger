@@ -6,12 +6,12 @@ import {
   CATEGORY_STATUS_LABELS,
   type CategoryLine,
   type CategoryStatus,
-} from "@/lib/budgets/category-status";
+} from "@/lib/budget/category-status";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Badge } from "@/components/ui/badge";
 import { Money } from "@/components/ui/money";
 import { Input } from "@/components/ui/input";
-import { ExpandableRow } from "@/components/budgets/expandable-row";
+import { ExpandableRow } from "@/components/budget/expandable-row";
 import { cn } from "@/lib/cn";
 
 const STATUS_TONE: Record<CategoryStatus, "neutral" | "success" | "warning" | "danger"> = {

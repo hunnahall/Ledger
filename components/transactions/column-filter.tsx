@@ -73,7 +73,7 @@ function FilterSummary({
       }`}
     >
       {label}
-      {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-mark" aria-hidden="true" />}
+      {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />}
       <ChevronDownIcon size={10} className="shrink-0" />
     </summary>
   );
@@ -108,7 +108,7 @@ export function SelectColumnFilter({
               setParams({ [paramKey]: null });
               closeDetails(e.currentTarget);
             }}
-            className={`block w-full px-3 py-1.5 text-left hover:bg-paper-a2 ${current === "" ? "font-medium" : ""}`}
+            className={`block w-full px-3 py-1.5 text-left hover:bg-fill-hover ${current === "" ? "font-medium" : ""}`}
           >
             All
           </button>
@@ -121,7 +121,7 @@ export function SelectColumnFilter({
                 setParams({ [paramKey]: o.value });
                 closeDetails(e.currentTarget);
               }}
-              className={`block w-full truncate px-3 py-1.5 text-left hover:bg-paper-a2 ${current === o.value ? "font-medium" : ""}`}
+              className={`block w-full truncate px-3 py-1.5 text-left hover:bg-fill-hover ${current === o.value ? "font-medium" : ""}`}
             >
               {o.label}
             </button>
@@ -162,7 +162,7 @@ export function DateRangeColumnFilter({ label, className }: { label: string; cla
           <Input type="date" name="date_to" defaultValue={to} />
         </label>
         <div className="flex items-center justify-between">
-          <button type="submit" className="rounded-md border border-border px-2 py-1 hover:bg-background">
+          <button type="submit" className="border border-border px-2 py-1 hover:bg-background">
             Apply
           </button>
           {(from || to) && (

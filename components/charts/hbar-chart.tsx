@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/cn";
 
-export type HBarRow = {
+type HBarRow = {
   key: string;
   label: string;
   value: number;

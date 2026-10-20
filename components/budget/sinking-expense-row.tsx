@@ -10,12 +10,12 @@ import {
   SINKING_FREQUENCY_LABELS,
   type SinkingContributionType,
   type SinkingFrequency,
-} from "@/lib/budgets/sinking";
+} from "@/lib/budget/sinking";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { Tag } from "@/components/ui/badge";
-import { ExpandableRow } from "@/components/budgets/expandable-row";
+import { ExpandableRow } from "@/components/budget/expandable-row";
 import { Input } from "@/components/ui/input";
 
 type SinkingExpense = {

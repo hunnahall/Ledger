@@ -4,7 +4,7 @@ import { DEFAULT_TIME_ZONE } from "@/lib/dates";
 
 export type BudgetType = "rolling" | "advanced";
 
-export type Settings = {
+type Settings = {
   decimal_places: number;
   budget_type: BudgetType;
   timezone: string;

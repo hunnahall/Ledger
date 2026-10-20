@@ -1,6 +1,5 @@
 import {
   Plus,
-  Calendar,
   ChevronDown,
   Check,
   Share2,
@@ -34,14 +33,13 @@ function make(Icon: React.ComponentType<LucideProps>) {
 }
 
 export const AddIcon = make(Plus);
-export const CalendarIcon = make(Calendar);
 export const ChevronDownIcon = make(ChevronDown);
 export const CheckIcon = make(Check);
 export const ShareIcon = make(Share2);
 export const DashboardIcon = make(LayoutDashboard);
 export const TransactionsIcon = make(ArrowLeftRight);
 export const AccountsIcon = make(Landmark);
-export const BudgetsIcon = make(PieChart);
+export const BudgetIcon = make(PieChart);
 export const SourcesIcon = make(Layers);
 export const SettingsIcon = make(Settings);
 export const LogOutIcon = make(LogOut);
@@ -54,10 +52,3 @@ export const RulesIcon = make(ListFilter);
 export const MoreIcon = make(Ellipsis);
 export const MenuIcon = make(Menu);
 export const CloseIcon = make(X);
-
-// The design system uses no spinners: a pending button changes its label
-// instead. Kept as a no-op so older call sites render nothing while pending.
-export function SpinnerIcon(props: IconProps) {
-  void props;
-  return null;
-}

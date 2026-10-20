@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/select";
 // Synced accounts pick from these; "Manual" stays for manual accounts only.
 const SYNCED_TYPES = ["checking", "savings", "credit_card"];
 
-export type AccountRowData = {
+type AccountRowData = {
   id: string;
   account_name: string;
   account_type: string;
@@ -23,7 +23,7 @@ export type AccountRowData = {
   include_in_cash: boolean;
 };
 
-export type RecentTransaction = { id: string; posted_date: string; description: string; amount: number };
+type RecentTransaction = { id: string; posted_date: string; description: string; amount: number };
 
 // One account inside its bank's (or the manual) panel: name, type tag,
 // last 4 and balance, opening to its latest transactions and its type.

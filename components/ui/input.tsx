@@ -19,25 +19,17 @@ export const FIELD_BASE =
   "focus-visible:outline-none focus-visible:border-accent focus-visible:shadow-[inset_0_0_0_1px_var(--accent)] " +
   "disabled:cursor-not-allowed disabled:bg-fill-hover disabled:text-muted";
 
-export function fieldClasses(uiSize: FieldSize = "md", className?: string) {
+function fieldClasses(uiSize: FieldSize = "md", className?: string) {
   return cn(FIELD_BASE, SIZE_CLASSES[uiSize], className);
 }
 
 // ComponentPropsWithRef (not InputHTMLAttributes) so callers that need the
 // DOM node — the inline edit controls, which focus and select on mount — can
 // pass `ref` straight through as the ordinary prop it is under React 19.
-export interface InputProps extends Omit<ComponentPropsWithRef<"input">, "size"> {
+interface InputProps extends Omit<ComponentPropsWithRef<"input">, "size"> {
   uiSize?: FieldSize;
 }
 
 export function Input({ uiSize = "md", className, ...props }: InputProps) {
   return <input className={fieldClasses(uiSize, className)} {...props} />;
-}
-
-export interface TextareaProps extends ComponentPropsWithRef<"textarea"> {
-  uiSize?: FieldSize;
-}
-
-export function Textarea({ uiSize = "md", className, ...props }: TextareaProps) {
-  return <textarea className={fieldClasses(uiSize, cn("h-auto py-1.5", className))} {...props} />;
 }
