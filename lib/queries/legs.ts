@@ -8,7 +8,14 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 // out too, since a split's pieces are transactions of their own. Source
 // types come from one small lookup so each row can be classified without a
 // join per row.
-export async function getLegs(supabase: Supabase, fromISO: string, toISO: string): Promise<Leg[]> {
+// Pass `sources` when the caller already has every Source's type, to skip
+// reading them again.
+export async function getLegs(
+  supabase: Supabase,
+  fromISO: string,
+  toISO: string,
+  sources?: { id: string; type: string | null }[],
+): Promise<Leg[]> {
   const [rows, sourceRes] = await Promise.all([
     fetchAllPages((from, to) =>
       supabase
@@ -22,7 +29,7 @@ export async function getLegs(supabase: Supabase, fromISO: string, toISO: string
         .order("id")
         .range(from, to),
     ),
-    supabase.from("sources").select("id, type"),
+    sources ? { data: sources, error: null } : supabase.from("sources").select("id, type"),
   ]);
   if (sourceRes.error) throw new Error(sourceRes.error.message);
 

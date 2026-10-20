@@ -3,7 +3,9 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTilePopup } from "@/components/dashboard/use-tile-popup";
 import { compactMoney, shortMonthLabel } from "@/components/dashboard/format";
-import { buildHeatmap, type DaySpent, type HeatCell, type HeatLevel } from "@/lib/charts/heatmap";
+import { addDays, buildHeatmap, type DaySpent, type HeatCell, type HeatLevel } from "@/lib/charts/heatmap";
+import { nextMonthISO } from "@/lib/dates";
+import { ChartTitle } from "@/components/charts/chart-title";
 import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -20,30 +22,37 @@ const LEVEL: Record<HeatLevel, string> = {
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const CELL = "size-6 pointer-coarse:size-10";
 
-// Money spent per day (getDailySpending: the same rule as Outflows) from the
-// first month Ledger keeps through today. Weeks run as columns from Sunday.
+// Money spent per day (the same rule as Outflows) across the selected months,
+// through today. Weeks run as columns from Sunday; months in between that
+// aren't selected stay blank.
 // The grid is one tab stop: arrow keys move a day (up and down) or a week
 // (left and right), Enter opens that day's transactions.
 export function HeatmapCard({
   days,
-  from,
+  months,
   today,
   decimalPlaces,
 }: {
   days: DaySpent[];
-  /** First day shown (the first retained month), YYYY-MM-DD. */
-  from: string;
-  /** Last day shown, in the user's timezone. */
+  /** The selected months, oldest first (YYYY-MM-01). */
+  months: string[];
+  /** Today, in the user's timezone: no square is drawn past it. */
   today: string;
   decimalPlaces: number;
 }) {
-  const { weeks, cells, thresholds } = useMemo(() => buildHeatmap(days, { from, to: today }), [days, from, today]);
-  const { openTile, modal } = useTilePopup(`${today.slice(0, 7)}-01`, decimalPlaces);
+  const from = months[0];
+  const lastDay = addDays(nextMonthISO(months[months.length - 1]), -1);
+  const to = lastDay < today ? lastDay : today;
+  const { weeks, cells, thresholds } = useMemo(
+    () => buildHeatmap(days, { from, to, include: (date) => months.includes(`${date.slice(0, 7)}-01`) }),
+    [days, from, to, months],
+  );
+  const { openTile, modal } = useTilePopup(months, decimalPlaces);
   const [focused, setFocused] = useState(cells.length - 1);
   const [tip, setTip] = useState<{ cell: HeatCell; x: number; y: number } | null>(null);
   const idFor = (date: string) => `heat-${date}`;
 
-  const open = (cell: HeatCell) => openTile(formatDate(cell.date), { type: "day", date: cell.date }, `${cell.date.slice(0, 7)}-01`);
+  const open = (cell: HeatCell) => openTile(formatDate(cell.date), { type: "day", date: cell.date }, [`${cell.date.slice(0, 7)}-01`]);
 
   function showTip(cell: HeatCell, el: Element | null) {
     if (!el) return;
@@ -77,10 +86,10 @@ export function HeatmapCard({
 
   return (
     <section className="flex min-w-0 flex-col border border-border bg-surface p-5">
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold">Spending by Day</h2>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <ChartTitle>Spending by Day</ChartTitle>
         <span className="font-mono text-xs text-muted">
-          {formatDate(from)} to {formatDate(today)}
+          {formatDate(from)} to {formatDate(to)}
         </span>
       </div>
 
@@ -108,7 +117,7 @@ export function HeatmapCard({
                 <div
                   role="grid"
                   tabIndex={0}
-                  aria-label={`Spending by day, ${formatDate(from)} to ${formatDate(today)}: ${formatMoney(total, decimalPlaces)} over ${nonzero} days with spending. Use the arrow keys to move between days and Enter to show a day's transactions.`}
+                  aria-label={`Spending by day, ${formatDate(from)} to ${formatDate(to)}: ${formatMoney(total, decimalPlaces)} over ${nonzero} days with spending. Use the arrow keys to move between days and Enter to show a day's transactions.`}
                   aria-activedescendant={cells[focused] ? idFor(cells[focused].date) : undefined}
                   onKeyDown={onKeyDown}
                   onFocus={() => cells[focused] && showTip(cells[focused], document.getElementById(idFor(cells[focused].date)))}

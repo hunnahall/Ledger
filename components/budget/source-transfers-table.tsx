@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useAddForm } from "@/components/ui/use-add-form";
 import { createSourceTransfer } from "@/lib/actions/source-transfers";
 import { SourceTransferRow } from "@/components/budget/source-transfer-row";
 import { stepAmountByDollar } from "@/lib/dollar-step";
@@ -30,8 +30,9 @@ export function SourceTransfersTable({
   sourceOptions: { id: string; name: string }[];
   decimalPlaces: number;
 }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [, createAction] = useActionState(createSourceTransfer, null);
+  const { open: showAdd, setOpen: setShowAdd, error: addError, formAction: createAction, pending: adding } = useAddForm(
+    createSourceTransfer,
+  );
 
   return (
     <Card
@@ -82,7 +83,6 @@ export function SourceTransfersTable({
             <td colSpan={4} className="px-4 py-3">
               <form
                 action={createAction}
-                onSubmit={() => setShowAdd(false)}
                 className="flex flex-wrap items-end gap-3"
               >
                 <label className="flex flex-col gap-1 text-sm">
@@ -118,12 +118,13 @@ export function SourceTransfersTable({
                     className="w-24"
                   />
                 </label>
-                <Button type="submit" variant="primary" size="sm">
-                  Add
+                <Button type="submit" variant="primary" size="sm" disabled={adding}>
+                  {adding ? "Adding" : "Add"}
                 </Button>
                 <Button type="button" variant="tertiary" size="sm" onClick={() => setShowAdd(false)}>
                   Cancel
                 </Button>
+                {addError && <p className="w-full text-xs text-danger">{addError}</p>}
               </form>
             </td>
           </tr>

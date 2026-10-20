@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { PieChart } from "@/components/charts/pie-chart";
 import { HBarChart } from "@/components/charts/hbar-chart";
 import { formatMoney } from "@/lib/format";
+import { ChartTitle } from "@/components/charts/chart-title";
 
 const SINKING_ID = "block:sinking-expenses";
 const TRANSFERS_ID = "block:source-transfers";
@@ -52,8 +53,8 @@ export function BudgetCharts({
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="border border-border bg-surface p-5">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-          <h2>Allocation</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <ChartTitle>Allocation</ChartTitle>
           <span className="font-mono text-xs text-muted">{formatMoney(total, decimalPlaces)} per month</span>
         </div>
         <PieChart
@@ -65,8 +66,8 @@ export function BudgetCharts({
       </section>
 
       <section className="border border-border bg-surface p-5">
-        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
-          <h2>Spending by Category</h2>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <ChartTitle>Spending by Category</ChartTitle>
           <span className="font-mono text-xs text-muted">Dashed line is the monthly amount</span>
         </div>
         {categories.length === 0 ? (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
+import { useAddForm } from "@/components/ui/use-add-form";
 import { createSinkingExpense } from "@/lib/actions/sinking-expenses";
 import {
   SINKING_FREQUENCIES,
@@ -37,9 +38,9 @@ export function SinkingExpensesTable({
   sinkingExpenses: SinkingExpense[];
   decimalPlaces: number;
 }) {
-  const [showAdd, setShowAdd] = useState(false);
+  const { open: showAdd, setOpen: setShowAdd, error: addError, formAction: createAction, pending: adding } =
+    useAddForm(createSinkingExpense);
   const [mode, setMode] = useState<SinkingContributionType>("frequency");
-  const [, createAction] = useActionState(createSinkingExpense, null);
 
   return (
     <Card
@@ -89,10 +90,6 @@ export function SinkingExpensesTable({
             <td colSpan={4} className="px-4 py-3">
               <form
                 action={createAction}
-                onSubmit={() => {
-                  setShowAdd(false);
-                  setMode("frequency");
-                }}
                 className="flex flex-wrap items-end gap-3"
               >
                 <label className="flex flex-col gap-1 text-sm">
@@ -171,12 +168,13 @@ export function SinkingExpensesTable({
                   </>
                 )}
 
-                <Button type="submit" variant="primary" size="sm">
-                  Add
+                <Button type="submit" variant="primary" size="sm" disabled={adding}>
+                  {adding ? "Adding" : "Add"}
                 </Button>
                 <Button type="button" variant="tertiary" size="sm" onClick={() => setShowAdd(false)}>
                   Cancel
                 </Button>
+                {addError && <p className="w-full text-xs text-danger">{addError}</p>}
               </form>
             </td>
           </tr>

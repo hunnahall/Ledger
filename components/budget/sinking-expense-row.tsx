@@ -60,6 +60,7 @@ export function SinkingExpenseRow({
       collapseLabel="Collapse details"
       updateAction={updateSinkingExpense.bind(null, expense.id)}
       deleteAction={deleteSinkingExpense.bind(null, expense.id)}
+      deleteMessage={`Delete ${expense.name}? What it already put in the Sinking Fund stays there; only future monthly contributions stop.`}
       compactCells={
         <>
           <td className="px-4 font-medium">{expense.name}</td>

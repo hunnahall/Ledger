@@ -47,6 +47,7 @@ export function CategoryRow({
       collapseLabel="Collapse details"
       updateAction={updateCategory.bind(null, category.id)}
       deleteAction={deleteCategory.bind(null, category.id)}
+      deleteMessage={`Delete the ${category.name} category? Its transactions become uncategorized, and any rules that file into it are deleted too.`}
       compactCells={
         <>
           <td className="px-4 font-medium">{line.name}</td>

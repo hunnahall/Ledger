@@ -19,7 +19,7 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
     // different order and visibly jump. id never changes, so it's a stable
     // final tiebreaker even though its own ordering is arbitrary.
     .order("id", { ascending: false })
-    // Safety cap, not real pagination — the fixed 3-month retention window
+    // Safety cap, not real pagination — the 4-month retention window
     // (purge_expired_data) already keeps normal usage well under this; just
     // guards against an unbounded fetch (3 joined relations) for an outlier
     // account.
@@ -32,13 +32,17 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   if (filters.sourceId) query = query.eq("source_id", filters.sourceId);
   // source_id is also null for an Excluded row (see EXCLUDE_SOURCE in
   // transaction-list.tsx), which shows as Exclude, not "No source", in its
-  // own Source select. Income rows always carry the Income source now (see
-  // route_income_to_source); is_income stays in the filter as a guard. A
-  // still-unresolved Transfer *does* show "No source" in that same select
-  // (it has no sentinel of its own), so it stays included here.
-  // Keep in step with getUnsourcedCount below and needsSource.
+  // own Source select. Income rows always carry the Income source (see
+  // route_income_to_source); is_income stays in the filter as a guard.
+  // Transfers never take a Source (picking one ends the transfer), so they
+  // aren't waiting for one either. Keep in step with getUnsourcedCount below
+  // and needsSource.
   if (filters.sourceIsNull) {
-    query = query.is("source_id", null).eq("exclude_from_budget", false).eq("is_income", false);
+    query = query
+      .is("source_id", null)
+      .eq("exclude_from_budget", false)
+      .eq("is_income", false)
+      .eq("is_transfer", false);
   }
   if (filters.uncategorizedOnly) {
     query = query.is("category_id", null).eq("is_transfer", false);
@@ -202,6 +206,7 @@ export const getUnsourcedCount = cache(async function getUnsourcedCount(): Promi
     .is("source_id", null)
     .eq("exclude_from_budget", false)
     .eq("is_income", false)
+    .eq("is_transfer", false)
     .eq("is_split", false);
   if (error) throw new Error(error.message);
   return count ?? 0;

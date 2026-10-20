@@ -1,65 +1,40 @@
-// Ring geometry for the pie charts. Slices are separated by real gaps (the
-// panel shows through) instead of a stroke in the surface color, which drew
-// a heavy outline around every slice in dark mode.
+// Ring geometry for the pie charts. Each slice is a stretch of one circle's
+// stroke (stroke-dasharray), so the ring is a true circle with smooth edges
+// and no outline or gap between slices.
 
-/** Ring thickness as a share of the outer radius. */
-export const DONUT_THICKNESS = 0.34;
-/** Gap between slices, in viewBox units measured at the outer edge. */
-export const DONUT_GAP = 2;
+/** Ring radius and stroke width in a 140 x 140 viewBox. */
+export const RING = { size: 140, radius: 62, stroke: 12, activeStroke: 16 } as const;
 
 /**
- * One ring segment from fraction `from` to `to` (0-1, clockwise from 12
- * o'clock) in a `size` box. Each side gives up half the gap. A segment that
- * covers the whole ring is two half rings, since an SVG arc can't start and
- * end on the same point. Returns null when the segment is narrower than the gap.
+ * Each slice's own arc carries a hair past its end, under the next slice, so
+ * antialiasing can't open a visible seam where two slices meet.
  */
-export function donutSegmentPath(
-  from: number,
-  to: number,
-  size: number,
-  { thickness = DONUT_THICKNESS, gap = DONUT_GAP }: { thickness?: number; gap?: number } = {},
-): string | null {
-  const c = size / 2;
-  const r = size / 2;
-  const inner = r * (1 - thickness);
+const SEAM = 0.15;
 
-  if (to - from >= 0.9999) {
-    return [
-      `M${c},${c - r}`,
-      `A${r},${r} 0 1 1 ${c},${c + r}`,
-      `A${r},${r} 0 1 1 ${c},${c - r}`,
-      `M${c},${c - inner}`,
-      `A${inner},${inner} 0 1 0 ${c},${c + inner}`,
-      `A${inner},${inner} 0 1 0 ${c},${c - inner}`,
-      "Z",
-    ].join(" ");
-  }
+export type RingArc = {
+  /** Where the slice starts, 0-100, clockwise from 12 o'clock. */
+  offset: number;
+  /** How much of the ring it covers, 0-100. */
+  length: number;
+};
 
-  const start = from * 2 * Math.PI;
-  const end = to * 2 * Math.PI;
-  // The same gap width at both radii, so the gap's sides stay parallel.
-  const padOuter = gap / 2 / r;
-  const padInner = gap / 2 / inner;
-  if (end - start <= padInner * 2) return null;
+/** Arcs for slices in order, from their shares (0-1). */
+export function ringArcs(shares: number[]): RingArc[] {
+  let start = 0;
+  return shares.map((share, i) => {
+    const length = share * 100;
+    const last = i === shares.length - 1;
+    const arc = { offset: start, length: last ? length : Math.min(length + SEAM, 100 - start) };
+    start += length;
+    return arc;
+  });
+}
 
-  const point = (radius: number, a: number) =>
-    `${round(c + radius * Math.sin(a))},${round(c - radius * Math.cos(a))}`;
-  const outerStart = start + padOuter;
-  const outerEnd = end - padOuter;
-  const innerStart = start + padInner;
-  const innerEnd = end - padInner;
-  const largeOuter = outerEnd - outerStart > Math.PI ? 1 : 0;
-  const largeInner = innerEnd - innerStart > Math.PI ? 1 : 0;
-
-  return [
-    `M${point(r, outerStart)}`,
-    `A${r},${r} 0 ${largeOuter} 1 ${point(r, outerEnd)}`,
-    `L${point(inner, innerEnd)}`,
-    `A${inner},${inner} 0 ${largeInner} 0 ${point(inner, innerStart)}`,
-    "Z",
-  ].join(" ");
+/** stroke-dasharray / stroke-dashoffset for an arc on a circle with pathLength 100. */
+export function arcDash({ offset, length }: RingArc): { strokeDasharray: string; strokeDashoffset: number } {
+  return { strokeDasharray: `${round(length)} ${round(100 - length)}`, strokeDashoffset: round(-offset) };
 }
 
 function round(n: number): number {
-  return Math.round(n * 100) / 100;
+  return Math.round(n * 1000) / 1000;
 }

@@ -19,7 +19,7 @@ export function computeDashboardTotals({
   // it's added directly rather than run through spentFromRawAmount.
   categorizedIncome: number;
   // The month's total budget commitment (categories + sinking expenses +
-  // source transfers — see getBudgetRateData's identical calc) — what
+  // source transfers — see allocationFor in getDashboardData) — what
   // Budget Net measures spending against isn't what actually came in as
   // income this month, it's what the budget itself allocated.
   allocation: number;

@@ -8,6 +8,7 @@ import type { MoneyMap } from "@/lib/charts/money-map";
 import { NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { ChartTitle } from "@/components/charts/chart-title";
 
 // Where the cash in your accounts sits: one bar split by the Sources holding
 // it, in each Source's stable color (the same as Source Allocation). Cash no
@@ -22,7 +23,7 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
   if (map.empty) {
     return (
       <section className="border border-border bg-surface p-5">
-        <h2 className="mb-2 text-base font-semibold">Money Map</h2>
+        <ChartTitle className="mb-3">Money Map</ChartTitle>
         <p className="text-sm text-muted">
           Connect a bank to see where your cash sits.{" "}
           <Link href="/accounts" className="underline">
@@ -44,8 +45,8 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
 
   return (
     <section className="flex min-w-0 flex-col border border-border bg-surface p-5">
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold">Money Map</h2>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <ChartTitle>Money Map</ChartTitle>
         <span className="font-mono text-xs text-muted">
           Cash <Money amount={map.cash} decimalPlaces={decimalPlaces} />
         </span>

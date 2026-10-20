@@ -1,69 +1,73 @@
 import { createClient } from "@/lib/supabase/server";
 import { spentFromRawAmount } from "@/lib/progress";
 import { computeDashboardTotals } from "@/lib/dashboard-metrics";
-import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/queries/budgets";
-import { nextMonthISO } from "@/lib/dates";
+import { ensureBudgetCurrent, getCommitmentRows, sinkingAndTransferTotal } from "@/lib/queries/budgets";
+import { daysInMonthISO, nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
+import { cumulativeExpenseByDay } from "@/lib/transactions/legs";
 import { TRANSFERS_CATEGORY_NAME } from "@/lib/budget/category-status";
 import { safeToSpend, unassignedCash } from "@/lib/accounts/unassigned-cash";
 import { dailySpending } from "@/lib/charts/daily-spending";
-import type { DaySpent } from "@/lib/charts/heatmap";
-import { earlierMonthLines, earlierMonths, type PaceLine } from "@/lib/charts/pace";
 import { computeMoneyMap } from "@/lib/charts/money-map";
 import { sourceTones, type ChartTone } from "@/lib/charts/source-tones";
+import { daysElapsed } from "@/lib/dashboard-months";
 
-export async function getDashboardData(monthISO: string) {
+/** One selected month's own figures, for the charts that draw months side by side. */
+export type MonthFigures = {
+  month: string;
+  daysInMonth: number;
+  /** Days of the month that have happened (all of a past month). */
+  throughDay: number;
+  /** What the budget committed that month: saved at month start, else today's. */
+  allocation: number;
+  /** Cumulative Budget expense per day, days 1..throughDay. */
+  expenseByDay: number[];
+  income: number;
+  inflows: number;
+  expense: number;
+  outflows: number;
+};
+
+// Everything the Dashboard draws, for any set of the months Ledger keeps
+// (`months`, oldest first). Totals are the selected months added together;
+// `months` in the result keeps each month's own figures. Every transaction
+// is read once, in one range, and each chart filters it in memory: this used
+// to be four separate reads over overlapping ranges, each re-reading Sources.
+export async function getDashboardData(months: string[], today: string, budgetType: "rolling" | "advanced") {
   const supabase = await createClient();
-  const month = monthISO;
+  const selected = new Set(months);
+  const from = months[0];
+  const to = nextMonthISO(months[months.length - 1]);
+  // Allocation is needed for each selected month and, under Advanced (this
+  // month's income funds next month), for the month after each one.
+  const allocationMonths = [...new Set([...months, ...months.map(nextMonthISO)])];
 
-  // Awaited first, not folded into the Promise.all below: it resets the
-  // current budget's linked source balance for the month if due, and
-  // v_source_balances/v_outflows must see that write.
+  // Awaited first: it applies any month-start roll-forward, and every read
+  // below must see that write.
   const userId = await ensureBudgetCurrent();
 
   const [
     { data: spending, error: spendingError },
     { data: inflowOutflow, error: inflowOutflowError },
     { data: outflows, error: outflowsError },
-    { data: sourceBalances, error: sourceBalancesError },
-    legs,
     { data: budgetCategoryIncome, error: budgetCategoryIncomeError },
+    { data: allSources, error: sourcesError },
     { data: categories, error: categoriesError },
-    transfersMonthlyTotal,
-    nextTransfersMonthlyTotal,
+    { data: savedAllocations, error: savedError },
+    commitments,
     { data: accounts, error: accountsError },
     { data: lastSync, error: lastSyncError },
   ] = await Promise.all([
-    supabase.from("v_spending_by_category").select("*").eq("month", month),
-    supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
-    supabase.from("v_outflows").select("*").eq("month", month).maybeSingle(),
-    supabase
-      .from("sources")
-      .select("id, name, type, balance, is_system, created_at")
-      .is("archived_at", null)
-      .order("created_at"),
-    // Gross spending per source for Source Allocation comes from the same
-    // legs the views count: negative amounts only, so money coming into a
-    // source never offsets its spending and the slices sum to outflows.
-    getLegs(supabase, month, nextMonthISO(month)),
-    supabase.from("v_budget_category_income").select("*").eq("month", month).maybeSingle(),
-    userId
-      ? supabase
-          .from("categories")
-          .select("id, name, monthly_amount")
-          .eq("user_id", userId)
-          .is("archived_at", null)
-          .order("sort_order")
-      : Promise.resolve({
-          data: [] as { id: string; name: string; monthly_amount: number }[],
-          error: null,
-        }),
-    userId ? getSinkingAndTransferMonthlyTotal(userId, month) : Promise.resolve(0),
-    // Next month's sinking + transfer commitment, for Budget Funding under
-    // Month Ahead (this month's income funds next month's allocation).
-    userId ? getSinkingAndTransferMonthlyTotal(userId, nextMonthISO(month)) : Promise.resolve(0),
-    // Safe to Spend: account balances against Source balances, plus when
-    // the banks were last synced (the balances are only as fresh as that).
+    supabase.from("v_spending_by_category").select("category_id, amount").in("month", months),
+    supabase.from("v_inflow_outflow").select("month, income, other_inflows").in("month", months),
+    supabase.from("v_outflows").select("month, expense, other_outflows").in("month", months),
+    supabase.from("v_budget_category_income").select("amount").in("month", months),
+    supabase.from("sources").select("id, name, type, balance, is_system, created_at, archived_at").order("created_at"),
+    supabase.from("categories").select("id, name, monthly_amount").is("archived_at", null).order("sort_order"),
+    supabase.from("monthly_totals").select("month, amount").eq("kind", "allocation").in("month", allocationMonths),
+    userId ? getCommitmentRows(userId) : Promise.resolve({ sinking: [], transfers: [] }),
+    // Safe to Spend: account balances against Source balances, plus when the
+    // banks were last synced (the balances are only as fresh as that).
     supabase.from("accounts").select("id, account_name, current_balance, include_in_cash").order("created_at"),
     supabase
       .from("bank_connections")
@@ -78,48 +82,94 @@ export async function getDashboardData(monthISO: string) {
     spendingError,
     inflowOutflowError,
     outflowsError,
-    sourceBalancesError,
     budgetCategoryIncomeError,
+    sourcesError,
     categoriesError,
+    savedError,
     accountsError,
     lastSyncError,
   ]) {
     if (error) throw new Error(error.message);
   }
 
-  const spendingByCategory = new Map(
-    (spending ?? []).map((s) => [s.category_id, spentFromRawAmount(s.amount)]),
+  const legs = (await getLegs(supabase, from, to, allSources ?? [])).filter((l) =>
+    selected.has(`${l.postedDate.slice(0, 7)}-01`),
   );
 
+  const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
+  const saved = new Map((savedAllocations ?? []).map((r) => [r.month, r.amount]));
+  // The allocation saved when the month started; months from before that
+  // was saved (and next month, not started yet) use today's categories with
+  // that month's commitments.
+  const allocationFor = (month: string) =>
+    saved.get(month) ?? categoriesTotal + sinkingAndTransferTotal(commitments, month);
+
+  const sum = <T>(rows: T[] | null, pick: (r: T) => number | null) =>
+    (rows ?? []).reduce((total, r) => total + (pick(r) ?? 0), 0);
+
+  // Categories: spent added up over the selected months, budget the monthly
+  // amount once per month (Transfers takes each month's commitments).
+  const spentByCategory = new Map<string, number>();
+  for (const s of spending ?? []) {
+    if (!s.category_id) continue;
+    spentByCategory.set(s.category_id, (spentByCategory.get(s.category_id) ?? 0) + spentFromRawAmount(s.amount));
+  }
+  const transfersBudget = months.reduce((total, m) => total + sinkingAndTransferTotal(commitments, m), 0);
   const categorySpending = (categories ?? []).map((c) => ({
-    ...c,
-    monthly_amount: c.name === TRANSFERS_CATEGORY_NAME ? transfersMonthlyTotal : c.monthly_amount,
-    spent: spendingByCategory.get(c.id) ?? 0,
+    id: c.id,
+    name: c.name,
+    monthly_amount: c.name === TRANSFERS_CATEGORY_NAME ? transfersBudget : c.monthly_amount * months.length,
+    spent: spentByCategory.get(c.id) ?? 0,
   }));
 
-  // Same calc as getBudgetRateData's allocation (lib/queries/budgets.ts)
-  // — categories here already carries every category's raw monthly_amount,
-  // Transfers' own $0 placeholder included, so adding transfersMonthlyTotal
-  // (the same getSinkingAndTransferMonthlyTotal call that function makes)
-  // reaches the identical figure without a second query for it.
-  const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
-  const allocation = categoriesTotal + transfersMonthlyTotal;
-  // Category amounts carry no per-month history, so next month's categories
-  // are today's; only sinking goal contributions can differ by month.
-  const nextMonthAllocation = categoriesTotal + nextTransfersMonthlyTotal;
+  const allocation = months.reduce((total, m) => total + allocationFor(m), 0);
+  const fundingAllocation =
+    budgetType === "advanced" ? months.reduce((total, m) => total + allocationFor(nextMonthISO(m)), 0) : allocation;
 
-  const expenseRaw = outflows?.expense ?? null;
-  const otherOutflowsRaw = outflows?.other_outflows ?? null;
+  const totals = computeDashboardTotals({
+    income: sum(inflowOutflow, (r) => r.income),
+    otherInflows: sum(inflowOutflow, (r) => r.other_inflows),
+    expenseRaw: sum(outflows, (r) => r.expense),
+    otherOutflowsRaw: sum(outflows, (r) => r.other_outflows),
+    categorizedIncome: sum(budgetCategoryIncome, (r) => r.amount),
+    allocation,
+  });
 
-  // The Income source is used whether Month Ahead is on or off (income always
-  // tracks to it), so nothing is hidden here any more.
-  const visibleSourceBalances = sourceBalances ?? [];
+  const monthFigures: MonthFigures[] = months.map((month) => {
+    const io = inflowOutflow?.find((r) => r.month === month);
+    const out = outflows?.find((r) => r.month === month);
+    const m = computeDashboardTotals({
+      income: io?.income ?? 0,
+      otherInflows: io?.other_inflows ?? 0,
+      expenseRaw: out?.expense ?? null,
+      otherOutflowsRaw: out?.other_outflows ?? null,
+      categorizedIncome: 0,
+      allocation: 0,
+    });
+    const end = nextMonthISO(month);
+    const throughDay = daysElapsed(month, today);
+    return {
+      month,
+      daysInMonth: daysInMonthISO(month),
+      throughDay,
+      allocation: allocationFor(month),
+      expenseByDay: cumulativeExpenseByDay(
+        legs.filter((l) => l.postedDate >= month && l.postedDate < end),
+        throughDay,
+      ),
+      income: m.income,
+      inflows: m.inflows,
+      expense: m.expense,
+      outflows: m.outflows,
+    };
+  });
 
+  const sources = (allSources ?? []).filter((s) => s.archived_at === null);
   // One color per Source, shared by Source Allocation and the money map.
-  const tones = sourceTones(
-    visibleSourceBalances.map((s) => ({ id: s.id, type: s.type, isSystem: s.is_system, createdAt: s.created_at })),
-  );
+  const tones = sourceTones(sources.map((s) => ({ id: s.id, type: s.type, isSystem: s.is_system, createdAt: s.created_at })));
 
+  // Gross spending per Source: negative amounts only, so money coming into
+  // a Source never offsets its spending and the slices sum to outflows.
   const spentBySourceId = new Map<string, number>();
   for (const leg of legs) {
     if (!leg.sourceId || leg.amount >= 0) continue;
@@ -128,22 +178,17 @@ export async function getDashboardData(monthISO: string) {
 
   return {
     hasBudget: userId !== null,
+    ...totals,
+    fundingAllocation,
     categorySpending,
-    ...computeDashboardTotals({
-      income: inflowOutflow?.income ?? 0,
-      otherInflows: inflowOutflow?.other_inflows ?? 0,
-      expenseRaw,
-      otherOutflowsRaw,
-      categorizedIncome: budgetCategoryIncome?.amount ?? 0,
-      allocation,
-    }),
-    // Every (non-archived) source, so Source Allocation can list them all;
-    // ones with no spending this month show as $0.
-    sourceOutflows: visibleSourceBalances.map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
+    months: monthFigures,
+    dailySpending: dailySpending(legs),
+    sourceOutflows: sources.map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
     sourceTones: Object.fromEntries(tones) as Record<string, ChartTone | null>,
+    // Balances right now, whatever months are selected.
     moneyMap: computeMoneyMap({
       accounts: (accounts ?? []).map((a) => ({ balance: a.current_balance, includeInCash: a.include_in_cash })),
-      sources: visibleSourceBalances.map((s) => ({
+      sources: sources.map((s) => ({
         id: s.id,
         name: s.name,
         type: s.type,
@@ -152,11 +197,12 @@ export async function getDashboardData(monthISO: string) {
         balance: s.balance,
       })),
     }),
-    nextMonthAllocation,
-    floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
-    safeToSpend: safeToSpendFigures(accounts ?? [], visibleSourceBalances, lastSync?.last_synced_at ?? null),
+    floatBalance: sources.find((s) => s.type === "float")?.balance ?? 0,
+    safeToSpend: safeToSpendFigures(accounts ?? [], sources, lastSync?.last_synced_at ?? null),
   };
 }
+
+export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
 
 function safeToSpendFigures(
   accounts: { id: string; account_name: string; current_balance: number; include_in_cash: boolean }[],
@@ -176,71 +222,4 @@ function safeToSpendFigures(
       .map((a) => ({ id: a.id, name: a.account_name, balance: a.current_balance })),
     lastSyncedAt,
   };
-}
-
-// Last 4 Months: per-month totals from the same views (and the same
-// computeDashboardTotals) the current-month figures use, so a month's column
-// always matches what the Dashboard shows when that month is selected.
-// Allocation comes from the monthly_totals row saved at each month start;
-// a month with no saved row (before 2026-10) falls back to today's
-// allocation (see applySavedAllocations).
-export async function getMonthlyTrend(months: string[]) {
-  const supabase = await createClient();
-  const [
-    { data: inflowOutflow, error: inflowOutflowError },
-    { data: outflows, error: outflowsError },
-    { data: saved, error: savedError },
-  ] = await Promise.all([
-    supabase.from("v_inflow_outflow").select("*").in("month", months),
-    supabase.from("v_outflows").select("*").in("month", months),
-    supabase.from("monthly_totals").select("month, amount").eq("kind", "allocation").in("month", months),
-  ]);
-  if (inflowOutflowError) throw new Error(inflowOutflowError.message);
-  if (outflowsError) throw new Error(outflowsError.message);
-  if (savedError) throw new Error(savedError.message);
-
-  // The allocation each month had when it started (monthly_totals); months
-  // saved before that table existed have none and the caller falls back to
-  // today's allocation.
-  const savedAllocations = new Map((saved ?? []).map((r) => [r.month, r.amount]));
-
-  const trend = [...months].sort().map((month) => {
-    const io = inflowOutflow?.find((r) => r.month === month);
-    const out = outflows?.find((r) => r.month === month);
-    const totals = computeDashboardTotals({
-      income: io?.income ?? 0,
-      otherInflows: io?.other_inflows ?? 0,
-      expenseRaw: out?.expense ?? null,
-      otherOutflowsRaw: out?.other_outflows ?? null,
-      categorizedIncome: 0,
-      allocation: 0,
-    });
-    return {
-      month,
-      income: totals.income,
-      inflows: totals.inflows,
-      expense: totals.expense,
-      outflows: totals.outflows,
-    };
-  });
-  return { trend, savedAllocations };
-}
-
-// Money spent per day in [from, to): the same rows and the same rule as
-// `outflows` (negative amounts only, transfers, Excluded rows and split
-// originals left out, rows with neither a Source nor a Category dropped), so
-// any month's days sum to that month's Outflows. Backs the heatmap.
-export async function getDailySpending(range: { from: string; to: string }): Promise<DaySpent[]> {
-  const supabase = await createClient();
-  return dailySpending(await getLegs(supabase, range.from, range.to));
-}
-
-// Cumulative Budget spending for up to three months before `monthISO`, for
-// the lines behind this month's on the pace chart. Months older than what
-// Ledger keeps have no transactions and are left out.
-export async function getPaceHistory(monthISO: string): Promise<PaceLine[]> {
-  const supabase = await createClient();
-  const months = earlierMonths(monthISO);
-  const legs = await getLegs(supabase, months[months.length - 1], monthISO);
-  return earlierMonthLines(legs, months);
 }

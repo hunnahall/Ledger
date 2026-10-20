@@ -1,32 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { donutSegmentPath } from "./donut";
+import { arcDash, ringArcs } from "./donut";
 
-describe("donutSegmentPath", () => {
-  it("draws a quarter as an outer arc, a side, an inner arc back, and closes", () => {
-    const d = donutSegmentPath(0, 0.25, 140)!;
-    expect(d.match(/A/g)).toHaveLength(2);
-    expect(d).toContain(" L");
-    expect(d.endsWith("Z")).toBe(true);
+describe("ringArcs", () => {
+  it("lays slices end to end around the ring", () => {
+    const arcs = ringArcs([0.5, 0.25, 0.25]);
+    expect(arcs.map((a) => a.offset)).toEqual([0, 50, 75]);
   });
 
-  it("leaves a gap at the start of each segment instead of a stroke", () => {
-    const d = donutSegmentPath(0, 0.25, 140)!;
-    const [x] = d.slice(1).split(" ")[0].split(",").map(Number);
-    expect(x).toBeGreaterThan(70);
+  it("runs each slice a hair under the next so no seam shows, but not the last", () => {
+    const arcs = ringArcs([0.5, 0.5]);
+    expect(arcs[0].length).toBeGreaterThan(50);
+    expect(arcs[1].length).toBe(50);
   });
 
-  it("draws the whole ring with a hole when one segment covers it", () => {
-    const d = donutSegmentPath(0, 1, 140)!;
-    expect(d.match(/M/g)).toHaveLength(2);
-    expect(d.match(/A/g)).toHaveLength(4);
+  it("never runs past the end of the ring", () => {
+    const arcs = ringArcs([0.9999, 0.0001]);
+    expect(arcs[0].offset + arcs[0].length).toBeLessThanOrEqual(100);
   });
 
-  it("skips a segment thinner than the gap", () => {
-    expect(donutSegmentPath(0, 0.0005, 140)).toBeNull();
+  it("covers the whole ring with one slice", () => {
+    expect(ringArcs([1])).toEqual([{ offset: 0, length: 100 }]);
   });
+});
 
-  it("uses the large-arc flag past half the ring", () => {
-    expect(donutSegmentPath(0, 0.75, 140)).toMatch(/A70,70 0 1 1/);
-    expect(donutSegmentPath(0, 0.25, 140)).toMatch(/A70,70 0 0 1/);
+describe("arcDash", () => {
+  it("draws the arc's length, then a gap for the rest, starting at its offset", () => {
+    expect(arcDash({ offset: 25, length: 50 })).toEqual({ strokeDasharray: "50 50", strokeDashoffset: -25 });
   });
 });

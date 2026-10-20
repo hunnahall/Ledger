@@ -33,6 +33,7 @@ export function SourceTransferRow({
       collapseLabel="Collapse details"
       updateAction={updateSourceTransfer.bind(null, transfer.id)}
       deleteAction={deleteSourceTransfer.bind(null, transfer.id)}
+      deleteMessage={`Delete the ${transfer.name} Source Transfer? ${transfer.source_name} stops receiving it each month.`}
       compactCells={
         <>
           <td className="px-4 font-medium">{transfer.name}</td>

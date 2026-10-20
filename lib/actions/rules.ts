@@ -23,7 +23,7 @@ export async function createRule(
 
   const { supabase } = await requireUser();
 
-  await learnRule(
+  const failed = await learnRule(
     supabase,
     merchantNormalized,
     target.categoryId,
@@ -31,6 +31,7 @@ export async function createRule(
     target.sourceId,
     target.isExclude,
   );
+  if (failed) return failed;
 
   revalidatePath("/rules");
   return null;

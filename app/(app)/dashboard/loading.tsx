@@ -5,8 +5,8 @@ import {
 } from "@/components/ui/skeleton";
 
 // Mirrors the Dashboard: the money map bar, three rows of a wide card and a
-// narrow one (the third row's narrow side a stack of funding, float, 4
-// months), and the full-width spending heatmap after the second row.
+// narrow one (the third row's narrow side a stack of funding, Safe to Spend and Float, By
+// Month), and the full-width spending heatmap after the second row.
 export default function Loading() {
   return (
     <div className="flex flex-col gap-4">

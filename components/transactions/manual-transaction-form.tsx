@@ -50,6 +50,10 @@ function ManualTransactionForm({
   const [typeChoice, setTypeChoice] = useState<TypeChoice>("expense");
   const [incomeAction, setIncomeAction] = useState<IncomeAction>("include_in_budget");
   const [categoryId, setCategoryId] = useState("");
+  const [sourceId, setSourceId] = useState(defaultSourceId ?? "");
+  // A Category only applies to Budget money (or money with no Source yet),
+  // the same rule the database enforces (transactions_tidy).
+  const categoryApplies = sourceId === "" || sourceId === defaultSourceId;
   // Tracks whether the current category came from the user's own pick vs. an
   // auto-fill from a learned rule, so a later description blur can overwrite
   // an auto-filled guess but never a manual choice. Mirrored into state (for
@@ -147,33 +151,33 @@ function ManualTransactionForm({
 
       {/* Source before Category, mirroring the Transactions table's column
           order. */}
-      {(typeChoice === "expense" || typeChoice === "income") && (
+      {typeChoice === "expense" && (
         <div className="grid gap-4 sm:grid-cols-2">
-          {typeChoice === "expense" && (
-            <label className={fieldLabel}>
-              Source
-              <Select name="source_id" defaultValue={defaultSourceId ?? ""} placeholder="No source">
-                <option value="">No source</option>
-                {sources.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
           <label className={fieldLabel}>
-            Category
-            <Select name="category_id" value={categoryId} onChange={handleCategoryChange} placeholder="Uncategorized">
-              <option value="">Uncategorized</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+            Source
+            <Select name="source_id" value={sourceId} onChange={setSourceId} placeholder="No source">
+              <option value="">No source</option>
+              {sources.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </Select>
-            <input type="hidden" name="category_source" value={categorySource ?? ""} />
           </label>
+          {categoryApplies && (
+            <label className={fieldLabel}>
+              Category
+              <Select name="category_id" value={categoryId} onChange={handleCategoryChange} placeholder="Uncategorized">
+                <option value="">Uncategorized</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+              <input type="hidden" name="category_source" value={categorySource ?? ""} />
+            </label>
+          )}
         </div>
       )}
 

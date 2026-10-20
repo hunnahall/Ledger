@@ -33,6 +33,23 @@ describe("buildHeatmap", () => {
     expect(level("2026-10-06")).toBe(4);
   });
 });
+describe("buildHeatmap with a month left out", () => {
+  it("blanks the days it doesn't include and keeps them out of the scale", () => {
+    const days = [
+      { date: "2026-08-31", spent: 10 },
+      { date: "2026-09-01", spent: 9999 },
+      { date: "2026-10-01", spent: 30 },
+    ];
+    const map = buildHeatmap(days, {
+      from: "2026-08-31",
+      to: "2026-10-01",
+      include: (date) => !date.startsWith("2026-09"),
+    });
+    expect(map.cells.map((c) => c.date)).toEqual(["2026-08-31", "2026-10-01"]);
+    expect(map.thresholds[2]).toBeLessThanOrEqual(30);
+  });
+});
+
 
 describe("quantile and heatLevel", () => {
   it("interpolates and bins", () => {

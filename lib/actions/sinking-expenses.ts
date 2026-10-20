@@ -3,7 +3,7 @@
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateLedgerPages } from "@/lib/actions/revalidate";
 import { logChange } from "@/lib/actions/log";
-import { logMoney } from "@/lib/format";
+import { logMoney, parseMoney } from "@/lib/format";
 import {
   SINKING_FREQUENCIES,
   type SinkingContributionType,
@@ -21,24 +21,39 @@ function parseContributionType(value: FormDataEntryValue | null): SinkingContrib
   return value === "goal" ? "goal" : "frequency";
 }
 
+type ModeFields =
+  | { contribution_type: "goal"; frequency: null; amount: 0; target_amount: number; target_date: string }
+  | { contribution_type: "frequency"; frequency: SinkingFrequency; amount: number; target_amount: null; target_date: null };
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 // Mode-specific fields (rows come from a single form): a goal-mode submit
 // must null out frequency, and vice versa, to satisfy the DB's XOR check
 // constraint on (contribution_type, frequency, target_amount, target_date).
-function modeFields(formData: FormData) {
+// Amounts go through parseMoney like every other money field, so a blank or
+// non-numeric one is a message rather than a raw database error.
+function modeFields(formData: FormData): ModeFields | { error: string } {
   const contributionType = parseContributionType(formData.get("contribution_type"));
   if (contributionType === "goal") {
+    const target = parseMoney(formData.get("target_amount"), { positive: true });
+    if ("error" in target) return { error: "Enter a target amount greater than zero." };
+    const targetDate = String(formData.get("target_date") ?? "");
+    if (!DATE_RE.test(targetDate)) return { error: "Choose a target date." };
     return {
-      contribution_type: "goal" as const,
+      contribution_type: "goal",
       frequency: null,
       amount: 0,
-      target_amount: Number(formData.get("target_amount") ?? 0),
-      target_date: String(formData.get("target_date") ?? ""),
+      target_amount: target.amount,
+      target_date: targetDate,
     };
   }
+  const amount = parseMoney(formData.get("amount"), { fallback: 0 });
+  if ("error" in amount) return amount;
+  if (amount.amount < 0) return { error: "Enter an amount of zero or more." };
   return {
-    contribution_type: "frequency" as const,
+    contribution_type: "frequency",
     frequency: parseFrequency(formData.get("frequency")),
-    amount: Number(formData.get("amount") ?? 0),
+    amount: amount.amount,
     target_amount: null,
     target_date: null,
   };
@@ -67,9 +82,11 @@ export async function createSinkingExpense(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Enter a name for the sinking expense." };
 
+  const fields = modeFields(formData);
+  if ("error" in fields) return fields;
+
   const { supabase, user } = await requireUser();
 
-  const fields = modeFields(formData);
   const { error } = await supabase.from("sinking_expenses").insert({
     user_id: user.id,
     name,
@@ -109,6 +126,7 @@ export async function updateSinkingExpense(
   if (!existing) return { error: "Sinking expense not found." };
 
   const fields = modeFields(formData);
+  if ("error" in fields) return fields;
   const { error } = await supabase
     .from("sinking_expenses")
     .update({ name, ...fields })

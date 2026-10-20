@@ -5,6 +5,7 @@ import { Money } from "@/components/ui/money";
 import { useTilePopup } from "@/components/dashboard/use-tile-popup";
 import { categoryStatus, type CategoryStatus } from "@/lib/dashboard-charts";
 import { cn } from "@/lib/cn";
+import { ChartTitle } from "@/components/charts/chart-title";
 
 const BAR: Record<CategoryStatus, string> = {
   below: "bg-accent",
@@ -18,24 +19,24 @@ const BAR: Record<CategoryStatus, string> = {
 export function CategorySpendingCard({
   categories,
   monthProgress,
-  monthISO,
+  months,
   decimalPlaces,
   emptyState,
 }: {
   categories: { id: string; name: string; monthly_amount: number; spent: number }[];
-  /** Share of the month elapsed, 0-1 (1 for a past month). */
+  /** Share of the selected months' days that have happened, 0-1 (1 for past months). */
   monthProgress: number;
-  monthISO: string;
+  months: string[];
   decimalPlaces: number;
   emptyState: ReactNode;
 }) {
-  const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
+  const { openTile, modal } = useTilePopup(months, decimalPlaces);
   const pacePct = Math.round(monthProgress * 100);
 
   return (
     <section className="flex min-w-0 flex-[999_1_560px] flex-col border border-border bg-surface p-5">
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">Spending by Category</h2>
+        <ChartTitle>Spending by Category</ChartTitle>
         <div className="flex flex-wrap gap-3.5 text-xs text-foreground-secondary">
           <Key swatch="h-3 w-0.5 bg-foreground">Today&apos;s pace ({pacePct}%)</Key>
           <Key swatch="size-2.5 bg-accent">Below pace</Key>

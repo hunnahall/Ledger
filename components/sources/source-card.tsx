@@ -44,6 +44,14 @@ export function SourceCard({
     });
   }
 
+  async function handleArchive() {
+    const ok = await confirm(`Archive "${source.name}"? It leaves the Sources page and the Dashboard, and its balance stops counting.`, {
+      confirmLabel: "Archive",
+      destructive: true,
+    });
+    if (ok) run(archiveSource.bind(null, source.id));
+  }
+
   async function handleDelete() {
     const ok = await confirm(`Delete "${source.name}"? This can't be undone.`, {
       confirmLabel: "Delete",
@@ -89,7 +97,7 @@ export function SourceCard({
     },
     ...(!source.is_system
       ? [
-          { label: "Archive", onSelect: () => run(archiveSource.bind(null, source.id)), destructive: true },
+          { label: "Archive", onSelect: handleArchive, destructive: true },
           { label: "Delete", onSelect: handleDelete, destructive: true },
         ]
       : []),

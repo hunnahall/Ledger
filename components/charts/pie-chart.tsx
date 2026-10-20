@@ -7,8 +7,6 @@ import { buildSourcePie } from "@/lib/dashboard-charts";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
-const SIZE = 140;
-
 // A ring of amounts: six series at most, the rest grouped as Other. The
 // legend lists every item with its share and amount; each row and slice that
 // maps to something real is a button.
@@ -25,7 +23,6 @@ export function PieChart({
 }) {
   const { total, slices, legend } = buildSourcePie(
     items.map((i) => ({ id: i.id, name: i.name, spent: i.amount })),
-    { size: SIZE },
   );
   const selectable = new Map(items.map((i) => [i.id, i.selectable !== false]));
   const [active, setActive] = useState<string | null>(null);
@@ -38,7 +35,6 @@ export function PieChart({
     <div className="flex flex-wrap items-center gap-6">
       <Donut
         slices={slices}
-        viewBox={SIZE}
         size={140}
         ariaLabel={ariaLabel}
         active={active}

@@ -2,9 +2,10 @@
 
 import { Money } from "@/components/ui/money";
 import { useTilePopup } from "@/components/dashboard/use-tile-popup";
+import { RING, arcDash } from "@/lib/charts/donut";
+import { ChartTitle } from "@/components/charts/chart-title";
 
-const R = 56;
-const C = 2 * Math.PI * R;
+const C = RING.size / 2;
 
 // How much of the budget this month's income has covered so far. With Month
 // Ahead on, this month's income funds next month, so it's measured against
@@ -13,41 +14,42 @@ export function BudgetFundingCard({
   income,
   allocation,
   fundsNextMonth,
-  monthISO,
+  months,
   decimalPlaces,
 }: {
   income: number;
   allocation: number;
   fundsNextMonth: boolean;
-  monthISO: string;
+  months: string[];
   decimalPlaces: number;
 }) {
-  const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
+  const { openTile, modal } = useTilePopup(months, decimalPlaces);
   const ratio = allocation > 0 ? income / allocation : null;
   const filled = ratio === null ? 0 : Math.min(ratio, 1);
 
   return (
     <section className="border border-border bg-surface p-5">
-      <h2 className="mb-3.5 whitespace-nowrap text-base font-semibold">Budget Funding</h2>
+      <ChartTitle className="mb-3.5">Budget Funding</ChartTitle>
       <div className="flex items-center gap-6">
         <svg
           width={100}
           height={100}
-          viewBox="0 0 140 140"
+          viewBox={`0 0 ${RING.size} ${RING.size}`}
           className="flex-none"
           role="img"
           aria-label={ratio === null ? "No budget allocation" : `${Math.round(ratio * 100)}% of the budget allocation funded`}
         >
-          <circle cx={70} cy={70} r={R} fill="none" strokeWidth={16} className="stroke-fill-active" />
+          <circle cx={C} cy={C} r={RING.radius} fill="none" strokeWidth={RING.stroke} className="stroke-fill-active" />
           {filled > 0 && (
             <circle
-              cx={70}
-              cy={70}
-              r={R}
+              cx={C}
+              cy={C}
+              r={RING.radius}
               fill="none"
-              strokeWidth={16}
-                            strokeDasharray={`${filled * C} ${C}`}
-              transform="rotate(-90 70 70)"
+              pathLength={100}
+              strokeWidth={RING.stroke}
+              {...arcDash({ offset: 0, length: filled * 100 })}
+              transform={`rotate(-90 ${C} ${C})`}
               className="stroke-accent"
             />
           )}
@@ -71,7 +73,11 @@ export function BudgetFundingCard({
           </button>
           <div>
             <span className="block text-xs text-muted">
-              {fundsNextMonth ? "Next month's allocation" : "Budget allocation"}
+              {fundsNextMonth
+                ? months.length === 1
+                  ? "Next month's allocation"
+                  : "Each following month's allocation"
+                : "Budget allocation"}
             </span>
             <span className="text-lg font-semibold">
               <Money amount={allocation} decimalPlaces={decimalPlaces} />
@@ -87,14 +93,14 @@ export function BudgetFundingCard({
 // Float's running balance, figure only.
 export function FloatCard({
   balance,
-  monthISO,
+  months,
   decimalPlaces,
 }: {
   balance: number;
-  monthISO: string;
+  months: string[];
   decimalPlaces: number;
 }) {
-  const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
+  const { openTile, modal } = useTilePopup(months, decimalPlaces);
   return (
     <>
       <button
@@ -102,7 +108,7 @@ export function FloatCard({
         onClick={() => openTile("Float", { type: "float" })}
         className="border border-border bg-surface p-5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
       >
-        <span className="block font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Float</span>
+        <ChartTitle>Float</ChartTitle>
         <span className="mt-1 block text-[28px] font-semibold leading-tight">
           <Money amount={balance} decimalPlaces={decimalPlaces} />
         </span>

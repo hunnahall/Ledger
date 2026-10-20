@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useAddForm } from "@/components/ui/use-add-form";
 import { createForecastEntry } from "@/lib/actions/forecasts";
 import { stepAmountByDollar } from "@/lib/dollar-step";
 import { ForecastEntryRow } from "@/components/forecast/forecast-entry-row";
@@ -44,8 +44,9 @@ export function ForecastEntriesTable({
   // of free-typed mm/yy, so an entry can never land outside the chart.
   monthOptions: MonthOption[];
 }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [, createAction] = useActionState(createForecastEntry.bind(null, forecastId), null);
+  const { open: showAdd, setOpen: setShowAdd, error: addError, formAction: createAction, pending: adding } = useAddForm(
+    createForecastEntry.bind(null, forecastId),
+  );
 
   return (
     <TableShell columns={["Month", "Description", "Amount", "Amount Remaining", ""]}>
@@ -85,7 +86,6 @@ export function ForecastEntriesTable({
           <td colSpan={5} className="px-4 py-3">
             <form
               action={createAction}
-              onSubmit={() => setShowAdd(false)}
               className="flex flex-wrap items-end gap-3"
             >
               <label className="flex flex-col gap-1 text-sm">
@@ -132,7 +132,7 @@ export function ForecastEntriesTable({
                 />
               </label>
 
-              <Button type="submit" variant="accent" size="sm">
+              <Button type="submit" variant="accent" size="sm" disabled={adding}>
                 Add
               </Button>
               <button
@@ -142,6 +142,7 @@ export function ForecastEntriesTable({
               >
                 Cancel
               </button>
+              {addError && <p className="w-full text-xs text-danger">{addError}</p>}
             </form>
           </td>
         </tr>

@@ -6,8 +6,7 @@ import { useState } from "react";
 import { Donut, TONE_SWATCH } from "@/components/charts/donut";
 import { buildSourcePie, type PieTone } from "@/lib/dashboard-charts";
 import { cn } from "@/lib/cn";
-
-const SIZE = 140;
+import { ChartTitle } from "@/components/charts/chart-title";
 
 // Share of this month's spending that came from each source — gross outflows
 // only (getDashboardData's sourceOutflows), so the slices sum to total
@@ -17,16 +16,16 @@ const SIZE = 140;
 export function SourceAllocationCard({
   sources,
   tones,
-  monthISO,
+  months,
   decimalPlaces,
 }: {
   sources: { id: string; name: string; spent: number }[];
   tones: Record<string, PieTone | null>;
-  monthISO: string;
+  months: string[];
   decimalPlaces: number;
 }) {
-  const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
-  const { total, slices, legend } = buildSourcePie(sources, { size: SIZE, tones: new Map(Object.entries(tones)) });
+  const { openTile, modal } = useTilePopup(months, decimalPlaces);
+  const { total, slices, legend } = buildSourcePie(sources, { tones: new Map(Object.entries(tones)) });
   const [active, setActive] = useState<string | null>(null);
   const spending = legend.filter((r) => r.amount > 0);
   const idle = legend.filter((r) => r.amount <= 0);
@@ -34,20 +33,19 @@ export function SourceAllocationCard({
 
   return (
     <section className="flex min-w-0 flex-[1_1_380px] flex-col border border-border bg-surface p-5">
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h2 className="whitespace-nowrap text-base font-semibold">Source Allocation</h2>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <ChartTitle>Source Allocation</ChartTitle>
         <span className="whitespace-nowrap text-xs text-muted">
           <Money amount={total} decimalPlaces={decimalPlaces} /> spent
         </span>
       </div>
 
       {total <= 0 ? (
-        <p className="text-sm text-muted">No spending this month yet.</p>
+        <p className="text-sm text-muted">No spending in these months yet.</p>
       ) : (
         <div className="flex flex-1 flex-wrap items-center gap-5">
           <Donut
             slices={slices}
-            viewBox={SIZE}
             size={120}
             active={active}
             onActive={setActive}
@@ -56,6 +54,14 @@ export function SourceAllocationCard({
               if (row) openTile(row.name, { type: "source", sourceId: row.id });
             }}
             ariaLabel={`Share of spending by source: ${slices.map((s) => `${s.label} ${pct(s.share)}`).join(", ")}.`}
+            center={
+              <>
+                <span className="text-sm font-semibold tabular-nums">
+                  <Money amount={total} decimalPlaces={0} />
+                </span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">Spent</span>
+              </>
+            }
           />
 
           <div className="flex min-w-[150px] flex-1 flex-col gap-1 text-sm tabular-nums">

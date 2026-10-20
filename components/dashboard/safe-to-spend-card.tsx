@@ -6,6 +6,7 @@ import { useModal } from "@/components/ui/modal";
 import { Money } from "@/components/ui/money";
 import { LocalTimestamp } from "@/components/ui/local-timestamp";
 import { cn } from "@/lib/cn";
+import { ChartTitle } from "@/components/charts/chart-title";
 
 type SafeToSpend = {
   amount: number;
@@ -77,9 +78,7 @@ export function SafeToSpendCard({ data, decimalPlaces }: { data: SafeToSpend; de
         onClick={openBreakdown}
         className="border border-border bg-surface p-5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
       >
-        <span className="block font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-          Safe to Spend
-        </span>
+        <ChartTitle>Safe to Spend</ChartTitle>
         <span className="mt-1 block text-[28px] font-semibold leading-tight">
           <Money amount={data.amount} decimalPlaces={decimalPlaces} />
         </span>

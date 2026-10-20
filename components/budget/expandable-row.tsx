@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDownIcon } from "@/components/ui/icons";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 type ActionResult = { error: string } | null;
 type RowAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -20,6 +21,7 @@ export function ExpandableRow({
   collapseLabel,
   updateAction,
   deleteAction,
+  deleteMessage,
   children,
 }: {
   compactCells: ReactNode;
@@ -28,11 +30,22 @@ export function ExpandableRow({
   collapseLabel: string;
   updateAction: RowAction;
   deleteAction: RowAction;
+  /** What the confirm step asks before deleting. */
+  deleteMessage: string;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [updateState, runUpdateAction] = useActionState(updateAction, null);
   const [deleteState, runDeleteAction] = useActionState(deleteAction, null);
+  const { confirm, dialog } = useConfirm();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  async function handleDelete() {
+    const ok = await confirm(deleteMessage, { confirmLabel: "Delete", destructive: true });
+    if (!ok || !formRef.current) return;
+    const formData = new FormData(formRef.current);
+    startTransition(() => runDeleteAction(formData));
+  }
 
   return (
     <>
@@ -61,12 +74,12 @@ export function ExpandableRow({
 
       <tr className={`border-b border-border bg-surface-subtle ${expanded ? "" : "hidden"}`}>
         <td colSpan={colSpan} className="px-4 py-3">
-          <form action={runUpdateAction} className="flex flex-wrap items-center gap-3">
+          <form ref={formRef} action={runUpdateAction} className="flex flex-wrap items-center gap-3">
             {children}
             <Button type="submit" size="sm">
               Save
             </Button>
-            <Button type="submit" size="sm" tone="negative" formAction={runDeleteAction}>
+            <Button type="button" size="sm" tone="negative" onClick={handleDelete}>
               Delete
             </Button>
             {(updateState?.error || deleteState?.error) && (
@@ -75,6 +88,7 @@ export function ExpandableRow({
               </p>
             )}
           </form>
+          {dialog}
         </td>
       </tr>
     </>

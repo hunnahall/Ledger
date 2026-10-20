@@ -42,11 +42,15 @@ describe("resolveSourceFilter", () => {
 });
 
 describe("summarizeTransactions", () => {
-  const row = (amount: number, over: Partial<{ sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean }> = {}) => ({
+  const row = (
+    amount: number,
+    over: Partial<{ sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean; isTransfer: boolean }> = {},
+  ) => ({
     amount,
     sourceId: "budget",
     excludeFromBudget: false,
     isIncome: false,
+    isTransfer: false,
     ...over,
   });
 
@@ -63,6 +67,7 @@ describe("summarizeTransactions", () => {
       row(-10, { sourceId: null }),
       row(-10, { sourceId: null, excludeFromBudget: true }),
       row(50, { sourceId: null, isIncome: true }),
+      row(-300, { sourceId: null, isTransfer: true }),
     ]);
     expect(summary.withoutSource).toBe(1);
   });

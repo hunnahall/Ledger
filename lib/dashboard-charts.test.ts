@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  applySavedAllocations,
   buildSourcePie,
   categoryStatus,
   dailyFromCumulative,
@@ -87,7 +86,7 @@ describe("buildSourcePie", () => {
 
   it("draws a single source as a full circle", () => {
     const pie = buildSourcePie([{ id: "b", name: "Budget", spent: 10 }]);
-    expect(pie.slices[0].path).toContain(" A");
+    expect(pie.slices[0].arc).toEqual({ offset: 0, length: 100 });
     expect(pie.slices[0].share).toBe(1);
   });
 
@@ -111,9 +110,11 @@ describe("buildSourcePie", () => {
     expect(pie.legend.find((r) => r.id === "s")?.tone).toBe(3);
   });
 
-  it("draws slices as ring segments with no outline", () => {
+  it("lays the slices end to end around the ring", () => {
     const pie = buildSourcePie(sources);
-    for (const s of pie.slices) expect(s.path).toMatch(/^M.* A.* L.* A.* Z$/);
+    const last = pie.slices[pie.slices.length - 1].arc;
+    expect(pie.slices[0].arc.offset).toBe(0);
+    expect(last.offset + last.length).toBeCloseTo(100);
   });
 
   it("has no slices when nothing was spent", () => {
@@ -139,13 +140,3 @@ describe("trendPair", () => {
   });
 });
 
-describe("applySavedAllocations", () => {
-  it("uses the saved allocation for a month and today's for the rest", () => {
-    const out = applySavedAllocations(
-      [{ month: "2026-09-01" }, { month: "2026-10-01" }],
-      new Map([["2026-09-01", 7900]]),
-      8260,
-    );
-    expect(out.map((m) => m.allocation)).toEqual([7900, 8260]);
-  });
-});

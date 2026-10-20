@@ -19,8 +19,8 @@ export async function learnRule(
   isIncome: boolean,
   sourceId: string | null,
   isExclude: boolean = false,
-) {
-  if (!merchantNormalized) return;
+): Promise<{ error: string } | null> {
+  if (!merchantNormalized) return null;
 
   // One atomic upsert. This used to be a select, then an insert, then a
   // hand-written 23505 recovery path for the race between them — and it
@@ -35,8 +35,13 @@ export async function learnRule(
   });
 
   // A failed rule write shouldn't block or crash the categorization it was
-  // reinforcing — same reasoning as logChange's own error handling.
-  if (error) console.error("learnRule failed:", error.message);
+  // reinforcing — same reasoning as logChange's own error handling — so
+  // those callers ignore the result. The Rules page reports it.
+  if (error) {
+    console.error("learnRule failed:", error.message);
+    return { error: error.message };
+  }
+  return null;
 }
 
 export async function createManualTransaction(
@@ -398,6 +403,10 @@ export async function createSourceFromTransaction(
     .from("transactions")
     .update({
       source_id: newSource.id,
+      // Most positive bank rows arrive as Income, and route_income_to_source
+      // puts an Income row back on the Income source. Moving the money into
+      // its own Source ends Income, the same as picking any other Source.
+      is_income: false,
       // This new source is always reimbursement/fund, never Budget, so a
       // category picked while on a Budget source (the only type categories
       // apply to — see handleSourceChange in transaction-list.tsx) is now
@@ -530,15 +539,19 @@ export async function deleteTransaction(
   // RLS already scopes the delete, but without this an unauthenticated call
   // deleted nothing and reported success.
   const { supabase } = await requireUser();
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("transactions")
     .delete()
     .eq("id", transactionId)
     .is("provider_transaction_id", null)
     // A split piece goes away by editing its split, never on its own (the
     // pieces would stop adding up).
-    .is("split_parent_id", null);
+    .is("split_parent_id", null)
+    .select("id");
   if (error) return { error: error.message };
+  if (!deleted || deleted.length === 0) {
+    return { error: "Only manual transactions can be deleted. Bank transactions and split pieces can't." };
+  }
 
   revalidateLedgerPages();
   return null;

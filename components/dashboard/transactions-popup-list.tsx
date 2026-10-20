@@ -15,12 +15,12 @@ import { Money } from "@/components/ui/money";
 export function TransactionsPopupList({
   title,
   kind,
-  monthISO,
+  months,
   decimalPlaces,
 }: {
   title: string;
   kind: DashboardTileKind;
-  monthISO: string;
+  months: string[];
   decimalPlaces: number;
 }) {
   const [transactions, setTransactions] = useState<DashboardTileTransaction[] | null>(null);
@@ -29,10 +29,10 @@ export function TransactionsPopupList({
   useEffect(() => {
     // useModal (components/ui/modal.tsx) unmounts this component entirely
     // on close and mounts a fresh instance on the next open, so kind and
-    // monthISO are fixed for the lifetime of one instance — listing them
+    // months are fixed for the lifetime of one instance — listing them
     // below is honest about what's read without causing a refetch.
     let cancelled = false;
-    getDashboardTileTransactions(kind, monthISO)
+    getDashboardTileTransactions(kind, months)
       .then((rows) => {
         if (!cancelled) setTransactions(rows);
       })
@@ -42,7 +42,7 @@ export function TransactionsPopupList({
     return () => {
       cancelled = true;
     };
-  }, [kind, monthISO]);
+  }, [kind, months]);
 
   const total = transactions?.reduce((sum, t) => sum + t.amount, 0) ?? 0;
 

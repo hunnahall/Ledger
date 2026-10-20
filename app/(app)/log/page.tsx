@@ -16,7 +16,7 @@ export default async function LogPage({
   const { page: rawPage } = await searchParams;
   const requested = Math.max(1, Math.floor(Number(rawPage)) || 1);
   let { entries, totalPages } = await getActivityLog(requested);
-  // A stale or hand-typed ?page= past the end (e.g. after the 60-day purge
+  // A stale or hand-typed ?page= past the end (e.g. after the nightly purge
   // shrank the log) lands on the last real page instead of an empty one.
   let page = requested;
   if (page > totalPages) {

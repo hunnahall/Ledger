@@ -45,11 +45,18 @@ export function heatLevel(spent: number, [p25, p50, p75]: [number, number, numbe
   return 4;
 }
 
-/** Every day from `from` through `to` (inclusive), in week columns. */
-export function buildHeatmap(days: DaySpent[], { from, to }: { from: string; to: string }): Heatmap {
+/**
+ * Every day from `from` through `to` (inclusive), in week columns. Days
+ * `include` turns down (a month that isn't selected) are left blank.
+ */
+export function buildHeatmap(
+  days: DaySpent[],
+  { from, to, include = () => true }: { from: string; to: string; include?: (date: string) => boolean },
+): Heatmap {
+  const shown = (date: string) => date >= from && date <= to && include(date);
   const spentOn = new Map(days.map((d) => [d.date, d.spent]));
   const nonzero = days
-    .filter((d) => d.date >= from && d.date <= to && d.spent > 0)
+    .filter((d) => shown(d.date) && d.spent > 0)
     .map((d) => d.spent)
     .sort((a, b) => a - b);
   const thresholds: [number, number, number] = [
@@ -65,7 +72,7 @@ export function buildHeatmap(days: DaySpent[], { from, to }: { from: string; to:
     const column: (HeatCell | null)[] = [];
     for (let wd = 0; wd < 7; wd++) {
       const date = addDays(start, wd);
-      if (date < from || date > to) {
+      if (!shown(date)) {
         column.push(null);
         continue;
       }

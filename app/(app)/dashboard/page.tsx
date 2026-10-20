@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { getDailySpending, getDashboardData, getMonthlyTrend, getPaceHistory } from "@/lib/queries/dashboard";
-import { getBudgetRateData } from "@/lib/queries/budgets";
+import { getDashboardData } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/queries/settings";
-import { currentMonthISO, previousMonthISO, monthLabel, todayISO } from "@/lib/dates";
-import { addDays } from "@/lib/charts/heatmap";
-import { applySavedAllocations } from "@/lib/dashboard-charts";
-import { MonthSegments } from "@/components/dashboard/month-segments";
+import { currentMonthISO, todayISO } from "@/lib/dates";
+import { parseMonthSelection, selectableMonths, selectionLabel, selectionProgress } from "@/lib/dashboard-months";
+import { MonthPicker } from "@/components/dashboard/month-picker";
 import { PaceCard } from "@/components/dashboard/pace-card";
 import { CashFlowCard } from "@/components/dashboard/cash-flow-card";
 import { DailySpendingCard } from "@/components/dashboard/daily-spending-card";
@@ -17,47 +15,26 @@ import { SafeToSpendCard } from "@/components/dashboard/safe-to-spend-card";
 import { MoneyMapCard } from "@/components/dashboard/money-map-card";
 import { HeatmapCard } from "@/components/dashboard/heatmap-card";
 
-// Current month plus the 4 full calendar months before it: the same window
-// purge_expired_data() keeps (see
-// supabase/migrations/20261019130000_retention_four_months_monthly_totals.sql),
-// so every month offered here still has data.
-function selectableMonths(timeZone: string): string[] {
-  const months = [currentMonthISO(timeZone)];
-  for (let i = 0; i < 4; i++) months.push(previousMonthISO(months[months.length - 1]));
-  return months;
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ months?: string }>;
 }) {
-  const { month } = await searchParams;
+  const params = await searchParams;
   // Awaited before the rest: which month "this month" is depends on the
-  // user's timezone, and every query below is scoped to that month.
+  // user's timezone, and every query below is scoped to the selection.
   const settings = await getSettings();
-  const months = selectableMonths(settings.timezone);
-  const monthISO = month && months.includes(month) ? month : currentMonthISO(settings.timezone);
-
-  // The heatmap runs from the first month Ledger keeps through today.
+  const current = currentMonthISO(settings.timezone);
   const today = todayISO(settings.timezone);
-  const firstRetainedMonth = months[months.length - 1];
+  // The current month plus the 3 full months before it: the same window
+  // purge_expired_data() keeps, so every month offered still has data.
+  const selectable = selectableMonths(current);
+  const months = parseMonthSelection(params.months, selectable);
 
-  const [data, rateData, monthlyTrend, paceHistory, dailySpending] = await Promise.all([
-    getDashboardData(monthISO),
-    getBudgetRateData(monthISO, settings.timezone),
-    getMonthlyTrend(months),
-    getPaceHistory(monthISO),
-    getDailySpending({ from: firstRetainedMonth, to: addDays(today, 1) }),
-  ]);
-  const allocation = rateData?.allocation ?? data.allocation;
-  const trend = applySavedAllocations(monthlyTrend.trend, monthlyTrend.savedAllocations, allocation);
+  const data = await getDashboardData(months, today, settings.budget_type);
   const decimalPlaces = settings.decimal_places;
-
-  const daysInMonth = rateData?.daysInMonth ?? 30;
-  const currentDay = rateData?.currentDay ?? 0;
-  const actualByDay = rateData?.actualByDay ?? [];
-  const common = { monthISO, decimalPlaces };
+  const onlyCurrent = months.length === 1 && months[0] === current;
+  const currentFigures = data.months.find((m) => m.month === current);
 
   return (
     <div className="flex flex-col gap-4">
@@ -65,12 +42,12 @@ export default async function DashboardPage({
         <div>
           <h1>Dashboard</h1>
           <p className="mt-1 font-mono text-xs text-muted">
-            {monthLabel(monthISO)}
-            {monthISO === months[0] && ` · Day ${currentDay} of ${daysInMonth}`}
+            {selectionLabel(months, selectable)}
+            {onlyCurrent && currentFigures && ` · Day ${currentFigures.throughDay} of ${currentFigures.daysInMonth}`}
             {!data.hasBudget && " · No current budget set"}
           </p>
         </div>
-        <MonthSegments months={months} selected={monthISO} currentMonthISO={months[0]} />
+        <MonthPicker months={selectable} selected={months} />
       </div>
 
       <MoneyMapCard map={data.moneyMap} decimalPlaces={decimalPlaces} />
@@ -78,13 +55,10 @@ export default async function DashboardPage({
       <div className="flex flex-wrap gap-4">
         <PaceCard
           budgetNet={data.budgetNet}
-          allocation={allocation}
+          allocation={data.allocation}
           expense={data.expense}
-          daysInMonth={daysInMonth}
-          currentDay={currentDay}
-          actualByDay={actualByDay}
-          earlier={paceHistory}
-          {...common}
+          months={data.months}
+          decimalPlaces={decimalPlaces}
         />
         <CashFlowCard
           income={data.income}
@@ -92,27 +66,35 @@ export default async function DashboardPage({
           expense={data.expense}
           otherOutflows={data.otherOutflows}
           cashFlow={data.cashFlow}
-          {...common}
+          months={months}
+          decimalPlaces={decimalPlaces}
         />
       </div>
 
       <div className="flex flex-wrap gap-4">
-        <DailySpendingCard
-          actualByDay={actualByDay}
-          allocation={allocation}
-          daysInMonth={daysInMonth}
-          currentDay={currentDay}
-          {...common}
+        <DailySpendingCard months={data.months} decimalPlaces={decimalPlaces} />
+        <SourceAllocationCard
+          sources={data.sourceOutflows}
+          tones={data.sourceTones}
+          months={months}
+          decimalPlaces={decimalPlaces}
         />
-        <SourceAllocationCard sources={data.sourceOutflows} tones={data.sourceTones} {...common} />
       </div>
 
-      <HeatmapCard days={dailySpending} from={firstRetainedMonth} today={today} decimalPlaces={decimalPlaces} />
+      <HeatmapCard
+        key={months.join()}
+        days={data.dailySpending}
+        months={months}
+        today={today}
+        decimalPlaces={decimalPlaces}
+      />
 
       <div className="flex flex-wrap gap-4">
         <CategorySpendingCard
           categories={data.categorySpending}
-          monthProgress={daysInMonth > 0 ? currentDay / daysInMonth : 0}
+          monthProgress={selectionProgress(months, today)}
+          months={months}
+          decimalPlaces={decimalPlaces}
           emptyState={
             <p className="text-sm text-muted">
               No categories in your current budget yet.{" "}
@@ -122,20 +104,20 @@ export default async function DashboardPage({
               .
             </p>
           }
-          {...common}
         />
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
           <BudgetFundingCard
             income={data.income}
-            allocation={(settings.budget_type === "advanced") ? data.nextMonthAllocation : allocation}
-            fundsNextMonth={(settings.budget_type === "advanced")}
-            {...common}
+            allocation={data.fundingAllocation}
+            fundsNextMonth={settings.budget_type === "advanced"}
+            months={months}
+            decimalPlaces={decimalPlaces}
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <SafeToSpendCard data={data.safeToSpend} decimalPlaces={decimalPlaces} />
-            <FloatCard balance={data.floatBalance} {...common} />
+            <FloatCard balance={data.floatBalance} months={months} decimalPlaces={decimalPlaces} />
           </div>
-          <LastMonthsCard months={trend.slice(-4)} currentMonthISO={months[0]} decimalPlaces={decimalPlaces} />
+          <LastMonthsCard months={data.months} currentMonthISO={current} decimalPlaces={decimalPlaces} />
         </div>
       </div>
     </div>

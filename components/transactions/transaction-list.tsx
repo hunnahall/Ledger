@@ -850,6 +850,11 @@ const TransactionRow = memo(function TransactionRow({
   }
 
   async function handleDelete() {
+    const ok = await confirm(`Delete "${txn.description}"? This can't be undone.`, {
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     const result = await deleteTransaction(txn.id);
     setRowError(result?.error ?? null);
   }

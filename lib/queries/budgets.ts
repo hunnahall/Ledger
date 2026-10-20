@@ -2,15 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getOptionalUser } from "@/lib/supabase/auth";
 import { getSettings } from "@/lib/queries/settings";
-import { getLegs } from "@/lib/queries/legs";
-import { cumulativeExpenseByDay } from "@/lib/transactions/legs";
-import {
-  currentMonthISO,
-  currentDayOfMonth,
-  monthsRemaining,
-  nextMonthISO,
-  daysInMonthISO,
-} from "@/lib/dates";
+import { currentMonthISO, monthsRemaining } from "@/lib/dates";
 import { computeProgress, spentFromRawAmount } from "@/lib/progress";
 import {
   goalMonthlyAmount,
@@ -122,110 +114,52 @@ export async function getBudgetData() {
   };
 }
 
-// Sinking expenses' monthly-equivalent amount (frequency-normalized, or the
-// goal-mode remaining-savings pace) plus source transfers' amount, summed —
-// "how much of the budget is committed to money movement rather than
-// category spending" — shared by getBudgetRateData's total allocation below
-// and the Dashboard's Transfers category tile (see getDashboardData), which
-// both need the exact same figure.
-//
-// Memoized per request (keyed on userId+month): the Dashboard calls this from
-// getDashboardData and, concurrently, from getBudgetRateData with identical
-// arguments — two pairs of identical queries for one number.
-export const getSinkingAndTransferMonthlyTotal = cache(
-  async function getSinkingAndTransferMonthlyTotal(
-    userId: string,
-    month: string,
-  ): Promise<number> {
-    const supabase = await createClient();
-    const [
-      { data: sinkingExpenses, error: sinkingError },
-      { data: sourceTransfers, error: sourceTransfersError },
-    ] = await Promise.all([
-      // Named columns rather than "*": this only ever computes a monthly
-      // figure, and `select("*")` pulled every column of every row for it.
-      supabase
-        .from("sinking_expenses")
-        .select("contribution_type, amount, frequency, target_amount, target_date, contributed_to_date")
-        .eq("user_id", userId)
-        .is("archived_at", null),
-      supabase.from("source_transfers").select("amount").eq("user_id", userId),
-    ]);
-    if (sinkingError) throw new Error(sinkingError.message);
-    if (sourceTransfersError) throw new Error(sourceTransfersError.message);
+type CommitmentRows = {
+  sinking: {
+    contribution_type: string;
+    amount: number;
+    frequency: string | null;
+    target_amount: number | null;
+    target_date: string | null;
+    contributed_to_date: number;
+  }[];
+  transfers: { amount: number }[];
+};
 
-    const sinkingTotal = (sinkingExpenses ?? []).reduce((sum, expense) => {
-      const monthlyAmount =
-        expense.contribution_type === "goal"
-          ? goalMonthlyAmount(
-              expense.target_amount ?? 0,
-              expense.contributed_to_date,
-              monthsRemaining(expense.target_date ?? month, month),
-            )
-          : monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency);
-      return sum + monthlyAmount;
-    }, 0);
-    const sourceTransfersTotal = (sourceTransfers ?? []).reduce((sum, t) => sum + t.amount, 0);
-    return sinkingTotal + sourceTransfersTotal;
-  },
-);
-
-// Backs the Budget page's "Budget Fill" stat (income this month / total
-// budget allocation) and "Budget Rate" chart (cumulative Budget-sourced
-// spend per day vs. a flat linear pace). Deliberately independent of
-// getBudgetData/ensureBudgetCurrent above — this only reads, no resets to
-// apply, so it can run concurrently with the rest of the page's data
-// fetching without racing ensure_budget_source_current's write.
-export async function getBudgetRateData(monthISO: string, timeZone: string) {
-  const { supabase, user } = await getOptionalUser();
-  if (!user) return null;
-
-  const month = monthISO;
-  const daysInMonth = daysInMonthISO(month);
-  // A past month is already fully elapsed, so the actual-spend line should
-  // run through its last day rather than today's day-of-month (which, for
-  // a month that isn't the current one, has no relationship to it at all).
-  const currentDay =
-    month === currentMonthISO(timeZone)
-      ? Math.min(daysInMonth, currentDayOfMonth(timeZone))
-      : daysInMonth;
-
-  // Total budget allocation is categories + sinking expenses + source
-  // transfers together (same three components getBudgetData's totalMonthly
-  // sums on the Budget page), not just categories — a sinking expense or
-  // source transfer allocation is still money the budget has committed.
-  // All four reads are independent, so they go out together. The spending
-  // query and the income read below used to be awaited one after the other,
-  // after this Promise.all had already resolved — three sequential round
-  // trips for data with no dependency between any of them.
-  const [
-    { data: categories, error: categoriesError },
-    sinkingAndTransferTotal,
-    legs,
-    { data: inflowOutflow, error: inflowOutflowError },
-  ] = await Promise.all([
-    supabase.from("categories").select("monthly_amount").eq("user_id", user.id).is("archived_at", null),
-    getSinkingAndTransferMonthlyTotal(user.id, month),
-    // Same rows and the same expense definition as
-    // v_outflows, so the pace line ends where Expense does.
-    getLegs(supabase, month, nextMonthISO(month)),
-    supabase.from("v_inflow_outflow").select("income").eq("month", month).maybeSingle(),
+// The rows behind every "money the budget commits beyond its categories"
+// figure: sinking expenses and Source Transfers. Read once per request and
+// priced per month by sinkingAndTransferTotal, since a goal's monthly amount
+// depends on the month.
+export const getCommitmentRows = cache(async function getCommitmentRows(userId: string): Promise<CommitmentRows> {
+  const supabase = await createClient();
+  const [{ data: sinking, error: sinkingError }, { data: transfers, error: transfersError }] = await Promise.all([
+    supabase
+      .from("sinking_expenses")
+      .select("contribution_type, amount, frequency, target_amount, target_date, contributed_to_date")
+      .eq("user_id", userId)
+      .is("archived_at", null),
+    supabase.from("source_transfers").select("amount").eq("user_id", userId),
   ]);
-  if (categoriesError) throw new Error(categoriesError.message);
-  // Previously unchecked, which silently reported $0 income on the Budget
-  // Fill stat whenever this query failed.
-  if (inflowOutflowError) throw new Error(inflowOutflowError.message);
+  if (sinkingError) throw new Error(sinkingError.message);
+  if (transfersError) throw new Error(transfersError.message);
+  return { sinking: sinking ?? [], transfers: transfers ?? [] };
+});
 
-  const categoriesTotal = (categories ?? []).reduce((sum, c) => sum + c.monthly_amount, 0);
-  const allocation = categoriesTotal + sinkingAndTransferTotal;
-
-  const actualByDay = cumulativeExpenseByDay(legs, currentDay);
-
-  return {
-    income: inflowOutflow?.income ?? 0,
-    allocation,
-    daysInMonth,
-    currentDay,
-    actualByDay,
-  };
+// Sinking expenses' monthly-equivalent amount (frequency-normalized, or the
+// goal-mode remaining-savings pace) plus Source Transfers' amount for
+// `month`: what the budget commits to money movement rather than category
+// spending. Part of every allocation, and the Transfers category's budget.
+export function sinkingAndTransferTotal(rows: CommitmentRows, month: string): number {
+  const sinkingTotal = rows.sinking.reduce((sum, expense) => {
+    const monthlyAmount =
+      expense.contribution_type === "goal"
+        ? goalMonthlyAmount(
+            expense.target_amount ?? 0,
+            expense.contributed_to_date,
+            monthsRemaining(expense.target_date ?? month, month),
+          )
+        : monthlySinkingAmount(expense.amount, expense.frequency as SinkingFrequency);
+    return sum + monthlyAmount;
+  }, 0);
+  return sinkingTotal + rows.transfers.reduce((sum, t) => sum + t.amount, 0);
 }

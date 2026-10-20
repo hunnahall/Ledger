@@ -4,6 +4,7 @@ import { Money } from "@/components/ui/money";
 import { useTilePopup } from "@/components/dashboard/use-tile-popup";
 import type { DashboardTileKind } from "@/lib/actions/dashboard-transactions";
 import { cn } from "@/lib/cn";
+import { ChartTitle } from "@/components/charts/chart-title";
 
 const BAR_HEIGHT = 260;
 // A segment with any money in it stays visible even when it's tiny next to
@@ -20,7 +21,7 @@ export function CashFlowCard({
   expense,
   otherOutflows,
   cashFlow,
-  monthISO,
+  months,
   decimalPlaces,
 }: {
   income: number;
@@ -28,10 +29,10 @@ export function CashFlowCard({
   expense: number;
   otherOutflows: number;
   cashFlow: number;
-  monthISO: string;
+  months: string[];
   decimalPlaces: number;
 }) {
-  const { openTile, modal } = useTilePopup(monthISO, decimalPlaces);
+  const { openTile, modal } = useTilePopup(months, decimalPlaces);
 
   const total = income + otherInflows + expense + otherOutflows;
   const px = (amount: number) =>
@@ -56,8 +57,8 @@ export function CashFlowCard({
 
   return (
     <section className="flex min-w-0 flex-[1_1_380px] flex-col border border-border bg-surface p-5">
-      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold">Cash Flow</h2>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <ChartTitle>Cash Flow</ChartTitle>
         <button
           type="button"
           onClick={() => openTile("Net Cash Flow", { type: "cash_flow" })}

@@ -41,18 +41,19 @@ export function resolveSourceFilter(
   return { sourceId };
 }
 
-// "Needs a Source": no Source, and neither Excluded nor Income (Income always
-// carries the Income source). The same rule the "No source" filter applies
-// in getFilteredTransactions, so the summary count and the filter agree.
-function needsSource(t: { sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean }) {
-  return t.sourceId === null && !t.excludeFromBudget && !t.isIncome;
+// "Needs a Source": no Source, and not Excluded, Income or a transfer.
+// Income always carries the Income source, and a transfer never takes one
+// (giving it a Source ends the transfer). The same rule the "No source"
+// filter and the nav badge apply, so all three agree.
+type SourceCheck = { sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean; isTransfer: boolean };
+
+function needsSource(t: SourceCheck) {
+  return t.sourceId === null && !t.excludeFromBudget && !t.isIncome && !t.isTransfer;
 }
 
 // The summary line over the transactions the list currently shows:
 // "248 transactions · 6 without a Source · Net −1,204.18".
-export function summarizeTransactions(
-  rows: { amount: number; sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean }[],
-) {
+export function summarizeTransactions(rows: (SourceCheck & { amount: number })[]) {
   let net = 0;
   let withoutSource = 0;
   for (const row of rows) {

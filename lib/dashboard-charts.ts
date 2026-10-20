@@ -2,10 +2,10 @@
 // comes from computeDashboardTotals (lib/dashboard-metrics.ts) or from here,
 // so components only draw — they never add or compare raw amounts themselves.
 
-import { donutSegmentPath } from "@/lib/charts/donut";
+import { ringArcs, type RingArc } from "@/lib/charts/donut";
 import { MAX_TONES, type ChartTone } from "@/lib/charts/source-tones";
 
-/** Per-day spend from the pace chart's cumulative series (getBudgetRateData's actualByDay). */
+/** Per-day spend from the pace chart's cumulative series (a month's expenseByDay, see getDashboardData). */
 export function dailyFromCumulative(actualByDay: number[]): number[] {
   return actualByDay.map((total, i) => total - (i === 0 ? 0 : actualByDay[i - 1]));
 }
@@ -52,8 +52,8 @@ export type PieSlice = {
   share: number;
   /** 1-6 index into the chart-1..6 series, or null for the grouped remainder (Other, in --fg-3). */
   tone: PieTone | null;
-  /** SVG ring segment for this slice in a 0..size box, or null when it's too thin to draw. */
-  path: string | null;
+  /** This slice's stretch of the ring. */
+  arc: RingArc;
 };
 
 type PieLegendRow = {
@@ -76,9 +76,8 @@ export function buildSourcePie(
   sources: { id: string; name: string; spent: number }[],
   {
     maxSlices = MAX_TONES,
-    size = 140,
     tones,
-  }: { maxSlices?: number; size?: number; tones?: Map<string, PieTone | null> } = {},
+  }: { maxSlices?: number; tones?: Map<string, PieTone | null> } = {},
 ): { total: number; slices: PieSlice[]; legend: PieLegendRow[] } {
   const spending = sources.filter((s) => s.spent > 0).sort((a, b) => b.spent - a.spent);
   const idle = sources.filter((s) => s.spent <= 0).sort((a, b) => a.name.localeCompare(b.name));
@@ -91,7 +90,7 @@ export function buildSourcePie(
   const own = spending.filter((s, i) => toneOf(s.id, i) !== null);
   const rest = spending.filter((s, i) => toneOf(s.id, i) === null);
 
-  const raw: Omit<PieSlice, "path">[] = own.map((s) => ({
+  const raw: Omit<PieSlice, "arc">[] = own.map((s) => ({
     key: s.id,
     label: s.name,
     amount: s.spent,
@@ -103,12 +102,8 @@ export function buildSourcePie(
     raw.push({ key: "other", label: "Other", amount: restTotal, share: share(restTotal), tone: null });
   }
 
-  let start = 0;
-  const slices = raw.map((s) => {
-    const path = s.share > 0 ? donutSegmentPath(start, start + s.share, size) : null;
-    start += s.share;
-    return { ...s, path };
-  });
+  const arcs = ringArcs(raw.map((s) => s.share));
+  const slices = raw.map((s, i) => ({ ...s, arc: arcs[i] }));
 
   const legend: PieLegendRow[] = [
     ...spending.map((s, i) => ({
@@ -141,7 +136,7 @@ export type TrendMonth = {
   allocation: number;
 };
 
-/** The two series one Last 4 Months mode compares, per month. */
+/** The two series one By Month mode compares, per month. */
 export function trendPair(m: TrendMonth, mode: TrendMode): [number, number] {
   switch (mode) {
     case "income_expenses":
@@ -151,17 +146,4 @@ export function trendPair(m: TrendMonth, mode: TrendMode): [number, number] {
     case "budget_spending":
       return [m.allocation, m.expense];
   }
-}
-
-/**
- * Fills each trend month's allocation from the saved monthly figures
- * (`monthly_totals`, kind allocation), falling back to today's allocation for
- * months saved before that table existed.
- */
-export function applySavedAllocations<T extends { month: string }>(
-  months: T[],
-  saved: Map<string, number>,
-  currentAllocation: number,
-): (T & { allocation: number })[] {
-  return months.map((m) => ({ ...m, allocation: saved.get(m.month) ?? currentAllocation }));
 }

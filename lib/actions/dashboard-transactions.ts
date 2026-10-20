@@ -40,25 +40,32 @@ export type DashboardTileTransaction = {
 // Read-only fetch backing the dashboard's clickable tiles/categories: the
 // popup lists the transactions behind a figure. Split originals are always
 // left out; their pieces are ordinary transactions and list like any other.
+const MONTH_RE = /^\d{4}-\d{2}-01$/;
+
 export async function getDashboardTileTransactions(
   kind: DashboardTileKind,
-  // Required rather than defaulted: "this month" depends on the account's
-  // settings.timezone, which the page already resolved to render the tile
-  // this popup is explaining.
-  monthISO: string,
+  // The months the Dashboard has selected (YYYY-MM-01), required rather
+  // than defaulted: "this month" depends on the account's settings.timezone,
+  // which the page already resolved to render the figure this explains.
+  months: string[],
 ): Promise<DashboardTileTransaction[]> {
   // RLS scopes every query below, but without this an unauthenticated call
   // returned an empty list as though the user simply had no transactions.
   const { supabase } = await requireUser();
 
-  const month = monthISO;
-  const nextMonth = nextMonthISO(month);
+  if (months.length === 0 || months.length > 12 || !months.every((m) => MONTH_RE.test(m))) {
+    throw new Error("Invalid months.");
+  }
+  const sorted = [...months].sort();
+  const selected = new Set(sorted);
+  const from = sorted[0];
+  const to = nextMonthISO(sorted[sorted.length - 1]);
+  const inSelection = (date: string) => selected.has(`${date.slice(0, 7)}-01`);
 
   // Float's tile is a running balance (never reset monthly, unlike every
   // other tile here), so its breakdown has to be all-time to actually sum
-  // to the balance shown — every other kind, "source" included, stays
-  // scoped to the current month, matching the month-scoped figure it
-  // explains (v_spending_by_source for "source").
+  // to the balance shown. Every other kind, "source" included, stays scoped
+  // to the selected months, matching the figure it explains.
   if (kind.type === "float") {
     const { data: floatSource, error: floatSourceError } = await supabase
       .from("sources")
@@ -82,11 +89,11 @@ export async function getDashboardTileTransactions(
       .eq("exclude_from_budget", false)
       .eq("is_split", false)
       .lt("amount", 0)
-      .gte("posted_date", month)
-      .lt("posted_date", nextMonth)
+      .gte("posted_date", from)
+      .lt("posted_date", to)
       .order("posted_date", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((r) => ({
+    return (data ?? []).filter((r) => inSelection(r.posted_date)).map((r) => ({
       id: r.id,
       postedDate: r.posted_date,
       description: r.description,
@@ -94,7 +101,7 @@ export async function getDashboardTileTransactions(
     }));
   }
 
-  // One heatmap square: that day's outflows, the same rule getDailySpending
+  // One heatmap square: that day's outflows, the same rule the heatmap
   // counts, so the list sums to the square's amount.
   if (kind.type === "day") {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(kind.date)) throw new Error("Invalid date.");
@@ -106,7 +113,7 @@ export async function getDashboardTileTransactions(
 
   // Every other kind reads the same rows the dashboard views count, so a
   // popup always sums to the figure it explains.
-  const legs = await getLegs(supabase, month, nextMonth);
+  const legs = (await getLegs(supabase, from, to)).filter((l) => inSelection(l.postedDate));
   const matches: Record<Exclude<DashboardTileKind["type"], "float" | "source" | "category" | "day">, (l: Leg) => boolean> = {
     income: isIncome,
     other_inflows: isOtherInflow,
