@@ -117,14 +117,9 @@ export function ForecastPicker({
       </div>
 
       {!showCreate && (
-        <Button
-          type="button"
-          variant="accent"
-          size="sm"
-          className="w-fit"
-          onClick={() => setShowCreate(true)}
-        >
-          <AddIcon size={14} /> New Forecast
+        <Button type="button" size="sm" className="w-fit" onClick={() => setShowCreate(true)}>
+          <AddIcon size={16} />
+          New forecast
         </Button>
       )}
     </div>

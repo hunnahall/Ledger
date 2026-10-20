@@ -370,7 +370,7 @@ export function TransactionList({
               />
             </span>
             <DateRangeColumnFilter label="Date" className="w-28 shrink-0 font-medium" />
-            <span className="md:max-w-[260px] md:flex-1 text-left font-medium">Description</span>
+            <span className="min-w-32 flex-[2] text-left font-medium">Description</span>
             <span className="md:ml-4 w-24 shrink-0 text-right font-medium">Amount</span>
             <SelectColumnFilter
               label="Source"
@@ -379,7 +379,7 @@ export function TransactionList({
                 { value: NO_SOURCE_FILTER_VALUE, label: "No source" },
                 ...sources.map((s) => ({ value: s.id, label: s.name })),
               ]}
-              className="w-40 shrink-0 font-medium"
+              className="min-w-0 max-w-40 flex-1 font-medium"
             />
             <SelectColumnFilter
               label="Category"
@@ -388,7 +388,7 @@ export function TransactionList({
                 { value: UNCATEGORIZED_FILTER_VALUE, label: "Uncategorized" },
                 ...categories.map((c) => ({ value: c.id, label: c.name })),
               ]}
-              className="w-48 shrink-0 font-medium"
+              className="min-w-0 max-w-48 flex-1 font-medium"
             />
             <span className="w-14 shrink-0 text-right font-medium">Rule</span>
             <span className="w-8 shrink-0"></span>
@@ -950,7 +950,7 @@ const TransactionRow = memo(function TransactionRow({
 
           <div className="flex items-center justify-between gap-2 md:contents">
             {editingDescription ? (
-              <div className="flex min-w-0 flex-col gap-1 md:max-w-[280px] md:flex-1">
+              <div className="flex min-w-0 flex-col gap-1 md:min-w-32 md:flex-[2]">
                 <Input
                   ref={descriptionEditRef}
                   type="text"
@@ -1018,7 +1018,7 @@ const TransactionRow = memo(function TransactionRow({
                 type="button"
                 onClick={() => setEditingDescription(true)}
                 title={notes ? `${description} — ${notes}` : description}
-                className="min-w-0 truncate px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-fill-active md:max-w-[260px] md:flex-1"
+                className="min-w-0 truncate px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-fill-active md:min-w-32 md:flex-[2]"
               >
                 {description}
                 {splitLabel && (
@@ -1053,7 +1053,7 @@ const TransactionRow = memo(function TransactionRow({
               form={`txn-${txn.id}`}
               name="source_id"
               uiSize="sm"
-              className="min-w-0 flex-1 md:w-40 md:flex-none"
+              className="min-w-0 flex-1 md:max-w-40"
               value={sourceSelectValue}
               onChange={handleSourceChange}
               placeholder="No source"
@@ -1079,7 +1079,7 @@ const TransactionRow = memo(function TransactionRow({
                 <option value={ADD_SOURCE}>+ Add source</option>
               )}
             </Select>
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:w-48 md:flex-none">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 md:max-w-48">
               <Select
                 form={`txn-${txn.id}`}
                 name="category_id"
@@ -1120,7 +1120,7 @@ const TransactionRow = memo(function TransactionRow({
           </div>
 
           <div className="flex items-center justify-between gap-2 text-xs text-muted md:contents">
-            <span className="md:hidden">Add Rule</span>
+            <span className="md:hidden">Add rule</span>
             <span className="flex items-center justify-end md:w-14 md:shrink-0">
               <button
                 type="button"

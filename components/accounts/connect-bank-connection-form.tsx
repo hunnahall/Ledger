@@ -46,12 +46,11 @@ function ConnectBankConnectionForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-// The Accounts page's one accent button.
 export function ConnectBankButton() {
   const { open, close, modal } = useModal();
   return (
     <>
-      <Button type="button" variant="accent" onClick={() => open(<ConnectBankConnectionForm onDone={close} />)}>
+      <Button type="button" size="sm" onClick={() => open(<ConnectBankConnectionForm onDone={close} />)}>
         <AddIcon size={16} />
         Connect bank
       </Button>

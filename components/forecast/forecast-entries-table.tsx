@@ -49,7 +49,7 @@ export function ForecastEntriesTable({
   );
 
   return (
-    <TableShell columns={["Month", "Description", "Amount", "Amount Remaining", ""]}>
+    <TableShell columns={["Month", "Description", "Amount", "Amount remaining", ""]}>
       {entries.map((entry) => (
         <ForecastEntryRow
           key={entry.id}
@@ -66,14 +66,9 @@ export function ForecastEntriesTable({
         !showAdd && (
           <tr>
             <td className="px-4 py-3">
-              <Button
-                type="button"
-                variant="accent"
-                size="icon"
-                aria-label="Add entry"
-                onClick={() => setShowAdd(true)}
-              >
-                <AddIcon />
+              <Button type="button" size="sm" onClick={() => setShowAdd(true)}>
+                <AddIcon size={16} />
+                Add entry
               </Button>
             </td>
             <td colSpan={4} />

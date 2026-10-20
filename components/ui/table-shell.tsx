@@ -67,8 +67,9 @@ export function TableEmptyRow({
     <tr>
       <td colSpan={colSpan} className="px-4 py-6 text-center text-sm text-muted">
         {onClick ? (
-          <Button type="button" variant="accent" size="icon" aria-label={label} onClick={onClick}>
-            <AddIcon />
+          <Button type="button" size="sm" onClick={onClick}>
+            <AddIcon size={16} />
+            {label}
           </Button>
         ) : (
           label

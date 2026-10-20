@@ -70,7 +70,7 @@ export async function updateSourceTransfer(
     .eq("id", sourceTransferId)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
-  if (!existing) return { error: "Source Transfer not found." };
+  if (!existing) return { error: "Source transfer not found." };
 
   const { error } = await supabase
     .from("source_transfers")

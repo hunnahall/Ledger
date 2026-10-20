@@ -90,7 +90,7 @@ export function AddSourceButton() {
   const { open, close, modal } = useModal();
   return (
     <>
-      <Button type="button" variant="accent" onClick={() => open(<CreateSourceForm onDone={close} />)}>
+      <Button type="button" size="sm" onClick={() => open(<CreateSourceForm onDone={close} />)}>
         <AddIcon size={16} />
         Add source
       </Button>

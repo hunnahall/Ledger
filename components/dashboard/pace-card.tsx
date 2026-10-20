@@ -81,7 +81,7 @@ export function PaceCard({
               type="button"
               // The list is the spending (and category income) behind the figure.
               // Allocation isn't a transaction, so its total isn't Budget Net itself.
-              onClick={() => openTile("Budget spending and category income", { type: "budget_net" })}
+              onClick={() => openTile("Budget Spending and Category Income", { type: "budget_net" })}
               className="-mx-1.5 mt-1 flex flex-col items-start px-1.5 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
             >
               <span
