@@ -11,7 +11,6 @@ import { SourceAllocationCard } from "@/components/dashboard/source-allocation-c
 import { CategorySpendingCard } from "@/components/dashboard/category-spending-card";
 import { BudgetFundingCard, FloatCard } from "@/components/dashboard/funding-and-float";
 import { LastMonthsCard } from "@/components/dashboard/last-months-card";
-import { SafeToSpendCard } from "@/components/dashboard/safe-to-spend-card";
 import { MoneyMapCard } from "@/components/dashboard/money-map-card";
 import { HeatmapCard } from "@/components/dashboard/heatmap-card";
 
@@ -113,10 +112,7 @@ export default async function DashboardPage({
             months={months}
             decimalPlaces={decimalPlaces}
           />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <SafeToSpendCard data={data.safeToSpend} decimalPlaces={decimalPlaces} />
-            <FloatCard balance={data.floatBalance} months={months} decimalPlaces={decimalPlaces} />
-          </div>
+          <FloatCard balance={data.floatBalance} months={months} decimalPlaces={decimalPlaces} />
           <LastMonthsCard months={data.months} currentMonthISO={current} decimalPlaces={decimalPlaces} />
         </div>
       </div>

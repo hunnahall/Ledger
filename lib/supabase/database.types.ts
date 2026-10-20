@@ -23,7 +23,6 @@ export type Database = {
           created_at: string
           current_balance: number
           id: string
-          include_in_cash: boolean
           institution_name: string | null
           is_manual: boolean
           last4: string | null
@@ -40,7 +39,6 @@ export type Database = {
           created_at?: string
           current_balance?: number
           id?: string
-          include_in_cash?: boolean
           institution_name?: string | null
           is_manual?: boolean
           last4?: string | null
@@ -57,7 +55,6 @@ export type Database = {
           created_at?: string
           current_balance?: number
           id?: string
-          include_in_cash?: boolean
           institution_name?: string | null
           is_manual?: boolean
           last4?: string | null

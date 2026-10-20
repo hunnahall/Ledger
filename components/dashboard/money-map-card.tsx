@@ -5,55 +5,46 @@ import { useRouter } from "next/navigation";
 import { TONE_SWATCH } from "@/components/charts/donut";
 import { Money } from "@/components/ui/money";
 import type { MoneyMap } from "@/lib/charts/money-map";
-import { NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ChartTitle } from "@/components/charts/chart-title";
 
-// Where the cash in your accounts sits: one bar split by the Sources holding
-// it, in each Source's stable color (the same as Source Allocation). Cash no
-// Source holds shows as a dashed warning segment; Sources holding more than
-// the cash run past a tick where the cash ends. Clicking a segment opens
-// that Source's transactions; Unassigned opens the ones with no Source.
+// Where your money sits: one bar split by what each Source holds, in each
+// Source's stable color (the same as Source Allocation). Sources below zero
+// are listed under the bar. Clicking a segment opens that Source's
+// transactions.
 export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPlaces: number }) {
   const router = useRouter();
   const money = (n: number) => formatMoney(n, decimalPlaces);
   const filterBy = (sourceId: string) => router.push(`/transactions?source_id=${encodeURIComponent(sourceId)}`);
 
-  if (map.empty) {
+  if (map.segments.length === 0) {
     return (
       <section className="border border-border bg-surface p-5">
         <ChartTitle className="mb-3">Money Map</ChartTitle>
         <p className="text-sm text-muted">
-          Connect a bank to see where your cash sits.{" "}
-          <Link href="/accounts" className="underline">
-            Go to Accounts
+          No Source holds any money yet.{" "}
+          <Link href="/sources" className="underline">
+            Go to Sources
           </Link>
         </p>
       </section>
     );
   }
 
-  const label = [
-    `Cash ${money(map.cash)} split by Source:`,
-    ...map.segments.map((s) => `${s.name} ${money(s.amount)}`),
-    map.status === "under" && `Unassigned ${money(map.unassigned)}`,
-    map.status === "over" && `Sources hold ${money(-map.unassigned)} more than the cash`,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const label = [`Sources hold ${money(map.total)}:`, ...map.segments.map((s) => `${s.name} ${money(s.amount)}`)].join(", ");
 
   return (
     <section className="flex min-w-0 flex-col border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <ChartTitle>Money Map</ChartTitle>
         <span className="font-mono text-xs text-muted">
-          Cash <Money amount={map.cash} decimalPlaces={decimalPlaces} />
+          Sources hold <Money amount={map.total} decimalPlaces={decimalPlaces} />
         </span>
       </div>
 
       <div className="-mx-1 overflow-x-auto px-1">
-        <div role="group" aria-label={label} className="relative min-w-[480px] py-1.5">
+        <div role="group" aria-label={label} className="min-w-[480px] py-1.5">
           <div className="flex h-6 gap-px pointer-coarse:h-10">
             {map.segments.map((s) => {
               const own = s.id !== "other";
@@ -74,47 +65,9 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
                 />
               );
             })}
-            {map.status === "under" && (
-              <button
-                type="button"
-                title={`Unassigned: ${money(map.unassigned)}`}
-                aria-label={`Unassigned: ${money(map.unassigned)}. Show transactions with no Source.`}
-                onClick={() => filterBy(NO_SOURCE_FILTER_VALUE)}
-                style={{ flexGrow: map.unassignedShare, flexBasis: 0 }}
-                className="min-w-px border border-dashed border-warning bg-warning-soft hover:bg-warning/25"
-              />
-            )}
           </div>
-          {map.cashMark !== null && (
-            <span
-              aria-hidden="true"
-              className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-foreground"
-              style={{ left: `${map.cashMark * 100}%` }}
-            />
-          )}
         </div>
       </div>
-
-      <p className="mt-3 inline-flex items-center gap-2 text-sm">
-        <span
-          aria-hidden="true"
-          className={cn(
-            "size-1.5 rounded-full",
-            map.status === "exact" ? "bg-success" : map.status === "under" ? "bg-warning" : "bg-danger",
-          )}
-        />
-        {map.status === "exact" && "Every dollar is assigned"}
-        {map.status === "under" && (
-          <>
-            Unassigned <Money amount={map.unassigned} decimalPlaces={decimalPlaces} />
-          </>
-        )}
-        {map.status === "over" && (
-          <span className="text-danger">
-            Sources hold <Money amount={-map.unassigned} decimalPlaces={decimalPlaces} /> more than your cash
-          </span>
-        )}
-      </p>
 
       <ul className="mt-3 grid grid-cols-1 gap-x-6 text-[13px] tabular-nums sm:grid-cols-2 lg:grid-cols-3">
         {map.segments.map((s) => (
@@ -128,17 +81,6 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
             />
           </li>
         ))}
-        {map.status === "under" && (
-          <li>
-            <LegendRow
-              swatch="border border-dashed border-warning bg-warning-soft"
-              name="Unassigned"
-              amount={map.unassigned}
-              decimalPlaces={decimalPlaces}
-              onClick={() => filterBy(NO_SOURCE_FILTER_VALUE)}
-            />
-          </li>
-        )}
       </ul>
 
       {map.negatives.length > 0 && (

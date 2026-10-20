@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { deleteAccount, setAccountType, setIncludeInCash } from "@/lib/actions/accounts";
+import { deleteAccount, setAccountType } from "@/lib/actions/accounts";
 import { ACCOUNT_TYPE_LABELS as TYPE_LABELS } from "@/lib/accounts/types";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ type AccountRowData = {
   last4: string | null;
   current_balance: number;
   is_manual: boolean;
-  include_in_cash: boolean;
   bank_connection_id: string | null;
 };
 
@@ -65,13 +64,6 @@ export function AccountRow({
     });
   }
 
-  function changeIncludeInCash(next: boolean) {
-    startTransition(async () => {
-      const result = await setIncludeInCash(account.id, next);
-      setTypeError(result?.error ?? null);
-    });
-  }
-
   return (
     <details className="group border-b border-border last:border-0">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-5 py-2 transition-colors duration-[120ms] ease-standard hover:bg-fill-hover [&::-webkit-details-marker]:hidden">
@@ -80,11 +72,6 @@ export function AccountRow({
           className="shrink-0 -rotate-90 text-muted transition-transform duration-[200ms] group-open:rotate-0"
         />
         <span className="min-w-0 flex-1 truncate font-medium">{account.account_name}</span>
-        {!account.include_in_cash && (
-          <Tag className="hidden sm:inline-flex" title="Not counted as cash">
-            Not cash
-          </Tag>
-        )}
         <Tag className="hidden sm:inline-flex">{TYPE_LABELS[account.account_type] ?? account.account_type}</Tag>
         {account.last4 && (
           <span className="hidden w-12 font-mono text-xs text-muted sm:inline">··{account.last4}</span>
@@ -114,16 +101,6 @@ export function AccountRow({
                 </option>
               ))}
             </Select>
-          </label>
-          <label className="flex items-center gap-2" title="Counted in Cash and in Safe to Spend on the Dashboard">
-            <input
-              type="checkbox"
-              checked={account.include_in_cash}
-              disabled={isPending}
-              onChange={(e) => changeIncludeInCash(e.target.checked)}
-              className="size-4 accent-[var(--accent)]"
-            />
-            Count as cash
           </label>
           {deletable && (
             <div className="ml-auto">

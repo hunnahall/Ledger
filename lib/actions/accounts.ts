@@ -131,38 +131,3 @@ export async function setAccountType(
   revalidatePath("/dashboard");
   return null;
 }
-
-// Whether an account counts toward cash for Safe to Spend and the Accounts
-// stat row. Off for money that isn't spendable cash (an investment or loan
-// account).
-export async function setIncludeInCash(
-  accountId: string,
-  include: boolean,
-): Promise<{ error: string } | null> {
-  const { supabase, user } = await requireUser();
-
-  const { data: existing, error: fetchError } = await supabase
-    .from("accounts")
-    .select("account_name, include_in_cash")
-    .eq("id", accountId)
-    .maybeSingle();
-  if (fetchError) return { error: fetchError.message };
-  if (!existing) return { error: "Account not found." };
-  if (existing.include_in_cash === include) return null;
-
-  const { error } = await supabase.from("accounts").update({ include_in_cash: include }).eq("id", accountId);
-  if (error) return { error: error.message };
-
-  await logChange(
-    supabase,
-    user.id,
-    "Accounts",
-    `${existing.account_name} — Count as cash`,
-    existing.include_in_cash ? "Yes" : "No",
-    include ? "Yes" : "No",
-  );
-
-  revalidatePath("/accounts");
-  revalidatePath("/dashboard");
-  return null;
-}

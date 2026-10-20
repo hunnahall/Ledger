@@ -6,7 +6,6 @@ import { daysInMonthISO, nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
 import { cumulativeExpenseByDay } from "@/lib/transactions/legs";
 import { TRANSFERS_CATEGORY_NAME } from "@/lib/budget/category-status";
-import { safeToSpend, unassignedCash } from "@/lib/accounts/unassigned-cash";
 import { dailySpending } from "@/lib/charts/daily-spending";
 import { computeMoneyMap } from "@/lib/charts/money-map";
 import { sourceTones, type ChartTone } from "@/lib/charts/source-tones";
@@ -55,8 +54,6 @@ export async function getDashboardData(months: string[], today: string, budgetTy
     { data: categories, error: categoriesError },
     { data: savedAllocations, error: savedError },
     commitments,
-    { data: accounts, error: accountsError },
-    { data: lastSync, error: lastSyncError },
   ] = await Promise.all([
     supabase.from("v_spending_by_category").select("category_id, amount").in("month", months),
     supabase.from("v_inflow_outflow").select("month, income, other_inflows").in("month", months),
@@ -66,16 +63,6 @@ export async function getDashboardData(months: string[], today: string, budgetTy
     supabase.from("categories").select("id, name, monthly_amount").is("archived_at", null).order("sort_order"),
     supabase.from("monthly_totals").select("month, amount").eq("kind", "allocation").in("month", allocationMonths),
     userId ? getCommitmentRows(userId) : Promise.resolve({ sinking: [], transfers: [] }),
-    // Safe to Spend: account balances against Source balances, plus when the
-    // banks were last synced (the balances are only as fresh as that).
-    supabase.from("accounts").select("id, account_name, current_balance, include_in_cash").order("created_at"),
-    supabase
-      .from("bank_connections")
-      .select("last_synced_at")
-      .not("last_synced_at", "is", null)
-      .order("last_synced_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
   ]);
 
   for (const error of [
@@ -86,8 +73,6 @@ export async function getDashboardData(months: string[], today: string, budgetTy
     sourcesError,
     categoriesError,
     savedError,
-    accountsError,
-    lastSyncError,
   ]) {
     if (error) throw new Error(error.message);
   }
@@ -187,7 +172,6 @@ export async function getDashboardData(months: string[], today: string, budgetTy
     sourceTones: Object.fromEntries(tones) as Record<string, ChartTone | null>,
     // Balances right now, whatever months are selected.
     moneyMap: computeMoneyMap({
-      accounts: (accounts ?? []).map((a) => ({ balance: a.current_balance, includeInCash: a.include_in_cash })),
       sources: sources.map((s) => ({
         id: s.id,
         name: s.name,
@@ -198,28 +182,7 @@ export async function getDashboardData(months: string[], today: string, budgetTy
       })),
     }),
     floatBalance: sources.find((s) => s.type === "float")?.balance ?? 0,
-    safeToSpend: safeToSpendFigures(accounts ?? [], sources, lastSync?.last_synced_at ?? null),
   };
 }
 
 export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
-
-function safeToSpendFigures(
-  accounts: { id: string; account_name: string; current_balance: number; include_in_cash: boolean }[],
-  sources: { type: string | null; balance: number | null }[],
-  lastSyncedAt: string | null,
-) {
-  const sourceBalances = sources.map((s) => s.balance ?? 0);
-  const budgetBalance = sources.find((s) => s.type === "budget")?.balance ?? 0;
-  const unassigned = unassignedCash(accounts, sourceBalances);
-  return {
-    amount: safeToSpend(budgetBalance, unassigned),
-    budgetBalance,
-    unassigned,
-    sourcesTotal: Math.round(sourceBalances.reduce((sum, b) => sum + b, 0) * 100) / 100,
-    accounts: accounts
-      .filter((a) => a.include_in_cash)
-      .map((a) => ({ id: a.id, name: a.account_name, balance: a.current_balance })),
-    lastSyncedAt,
-  };
-}
