@@ -195,8 +195,8 @@ function ManualTransactionForm({
               {(
                 [
                   ["include_in_budget", "Add to Income"],
-                  ["add_to_source", "Add to Source"],
-                  ["create_source", "Create a Source"],
+                  ["add_to_source", "Add to source"],
+                  ["create_source", "Create a source"],
                 ] as const
               ).map(([value, label]) => (
                 <label key={value} className="flex items-center gap-1.5 text-sm text-foreground">

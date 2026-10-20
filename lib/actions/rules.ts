@@ -60,11 +60,11 @@ export async function updateRule(
       category_id: target.categoryId,
       is_income: target.isIncome,
       is_exclude: target.isExclude,
-      // A category rule's source_id is a secondary fill-in learned from the
-      // Transactions page, which this form doesn't show — leave it as is.
-      // Every other target owns source_id outright (null for Income/
-      // Excluded, the target itself for a source rule).
-      ...(target.categoryId ? {} : { source_id: target.sourceId }),
+      // Null for every target but a source rule. A category rule always
+      // fills the Budget source (see apply_rules), so a source left over
+      // from an edit that turned a source rule into a category rule can't
+      // linger and pull matches onto that source.
+      source_id: target.sourceId,
     })
     .eq("id", ruleId)
     .eq("user_id", user.id);
