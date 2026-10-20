@@ -32,7 +32,7 @@ export default async function DashboardPage({
   const selectable = selectableMonths(current);
   const months = parseMonthSelection(params.months, selectable);
 
-  const data = await getDashboardData(months, today, settings.budget_type);
+  const data = await getDashboardData(months, selectable, today, settings.budget_type);
   const decimalPlaces = settings.decimal_places;
   const onlyCurrent = months.length === 1 && months[0] === current;
   const currentFigures = data.months.find((m) => m.month === current);
@@ -118,7 +118,7 @@ export default async function DashboardPage({
           />
         ),
         float: <FloatCard balance={data.floatBalance} months={months} decimalPlaces={decimalPlaces} />,
-        "by-month": <LastMonthsCard months={data.months} currentMonthISO={current} decimalPlaces={decimalPlaces} />,
+        "by-month": <LastMonthsCard months={data.trend} currentMonthISO={current} decimalPlaces={decimalPlaces} />,
       }}
     />
   );

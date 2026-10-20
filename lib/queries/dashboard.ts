@@ -29,17 +29,24 @@ export type MonthFigures = {
 
 // Everything the Dashboard draws, for any set of the months Ledger keeps
 // (`months`, oldest first). Totals are the selected months added together;
-// `months` in the result keeps each month's own figures. Every transaction
+// `months` in the result keeps each month's own figures. `trend` is the one
+// exception to the selection: By Month compares the current month with the
+// ones before it, so it covers every kept month (`allMonths`). Every transaction
 // is read once, in one range, and each chart filters it in memory: this used
 // to be four separate reads over overlapping ranges, each re-reading Sources.
-export async function getDashboardData(months: string[], today: string, budgetType: "rolling" | "advanced") {
+export async function getDashboardData(
+  months: string[],
+  allMonths: string[],
+  today: string,
+  budgetType: "rolling" | "advanced",
+) {
   const supabase = await createClient();
   const selected = new Set(months);
   const from = months[0];
   const to = nextMonthISO(months[months.length - 1]);
   // Allocation is needed for each selected month and, under Advanced (this
   // month's income funds next month), for the month after each one.
-  const allocationMonths = [...new Set([...months, ...months.map(nextMonthISO)])];
+  const allocationMonths = [...new Set([...allMonths, ...months.map(nextMonthISO)])];
 
   // Awaited first: it applies any month-start roll-forward, and every read
   // below must see that write.
@@ -56,8 +63,9 @@ export async function getDashboardData(months: string[], today: string, budgetTy
     commitments,
   ] = await Promise.all([
     supabase.from("v_spending_by_category").select("category_id, amount").in("month", months),
-    supabase.from("v_inflow_outflow").select("month, income, other_inflows").in("month", months),
-    supabase.from("v_outflows").select("month, expense, other_outflows").in("month", months),
+    // Every kept month, for By Month; the totals below keep only the selection.
+    supabase.from("v_inflow_outflow").select("month, income, other_inflows").in("month", allMonths),
+    supabase.from("v_outflows").select("month, expense, other_outflows").in("month", allMonths),
     supabase.from("v_budget_category_income").select("amount").in("month", months),
     supabase.from("sources").select("id, name, type, balance, is_system, created_at, archived_at").order("created_at"),
     supabase.from("categories").select("id, name, monthly_amount").is("archived_at", null).order("sort_order"),
@@ -111,19 +119,22 @@ export async function getDashboardData(months: string[], today: string, budgetTy
   const fundingAllocation =
     budgetType === "advanced" ? months.reduce((total, m) => total + allocationFor(nextMonthISO(m)), 0) : allocation;
 
+  const selectedInflows = (inflowOutflow ?? []).filter((r) => r.month && selected.has(r.month));
+  const selectedOutflows = (outflows ?? []).filter((r) => r.month && selected.has(r.month));
   const totals = computeDashboardTotals({
-    income: sum(inflowOutflow, (r) => r.income),
-    otherInflows: sum(inflowOutflow, (r) => r.other_inflows),
-    expenseRaw: sum(outflows, (r) => r.expense),
-    otherOutflowsRaw: sum(outflows, (r) => r.other_outflows),
+    income: sum(selectedInflows, (r) => r.income),
+    otherInflows: sum(selectedInflows, (r) => r.other_inflows),
+    expenseRaw: sum(selectedOutflows, (r) => r.expense),
+    otherOutflowsRaw: sum(selectedOutflows, (r) => r.other_outflows),
     categorizedIncome: sum(budgetCategoryIncome, (r) => r.amount),
     allocation,
   });
 
-  const monthFigures: MonthFigures[] = months.map((month) => {
+  // One month's own income, inflows, expense and outflows.
+  const monthTotals = (month: string) => {
     const io = inflowOutflow?.find((r) => r.month === month);
     const out = outflows?.find((r) => r.month === month);
-    const m = computeDashboardTotals({
+    return computeDashboardTotals({
       income: io?.income ?? 0,
       otherInflows: io?.other_inflows ?? 0,
       expenseRaw: out?.expense ?? null,
@@ -131,6 +142,22 @@ export async function getDashboardData(months: string[], today: string, budgetTy
       categorizedIncome: 0,
       allocation: 0,
     });
+  };
+
+  const trend = [...allMonths].sort().map((month) => {
+    const m = monthTotals(month);
+    return {
+      month,
+      allocation: allocationFor(month),
+      income: m.income,
+      inflows: m.inflows,
+      expense: m.expense,
+      outflows: m.outflows,
+    };
+  });
+
+  const monthFigures: MonthFigures[] = months.map((month) => {
+    const m = monthTotals(month);
     const end = nextMonthISO(month);
     const throughDay = daysElapsed(month, today);
     return {
@@ -167,6 +194,7 @@ export async function getDashboardData(months: string[], today: string, budgetTy
     fundingAllocation,
     categorySpending,
     months: monthFigures,
+    trend,
     dailySpending: dailySpending(legs),
     sourceOutflows: sources.map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
     sourceTones: Object.fromEntries(tones) as Record<string, ChartTone | null>,

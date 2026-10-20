@@ -24,8 +24,10 @@ const COLORS: Record<TrendMode, [string, string]> = {
   budget_spending: ["bg-foreground/25", "bg-accent"],
 };
 
-// Two bars for each selected month, in one of three comparisons. The current
-// month is drawn lighter since it's still in progress.
+// Two bars for every month Ledger keeps, in one of three comparisons. It
+// ignores the month picker on purpose: it's there to compare the current
+// month with the ones before it. The current month is drawn lighter since
+// it's still in progress.
 export function LastMonthsCard({
   months,
   currentMonthISO,
