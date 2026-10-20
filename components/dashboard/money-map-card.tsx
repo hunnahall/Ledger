@@ -35,14 +35,27 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
     );
   }
 
+  // Several Source colors are close (the shared palette is muted), so the
+  // hovered segment is named here: what a click will open is never a guess.
+  const hovered = map.segments.find((s) => s.id === active) ?? null;
   const label = [`Sources hold ${money(map.total)}:`, ...map.segments.map((s) => `${s.name} ${money(s.amount)}`)].join(", ");
 
   return (
     <section className="flex min-w-0 flex-col border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <ChartTitle>Money Map</ChartTitle>
-        <span className="font-mono text-xs text-muted">
-          Sources hold <Money amount={map.total} decimalPlaces={decimalPlaces} />
+        <span aria-live="polite" className="font-mono text-xs text-muted">
+          {hovered ? (
+            <>
+              <span className="text-foreground">{hovered.name}</span>{" "}
+              <Money amount={hovered.amount} decimalPlaces={decimalPlaces} />
+              {hovered.id !== "other" && " · click to see transactions"}
+            </>
+          ) : (
+            <>
+              Sources hold <Money amount={map.total} decimalPlaces={decimalPlaces} />
+            </>
+          )}
         </span>
       </div>
 
@@ -56,7 +69,6 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
                   key={s.id}
                   type="button"
                   disabled={!own}
-                  title={`${s.name}: ${money(s.amount)}`}
                   aria-label={own ? `${s.name}: ${money(s.amount)}. Show transactions.` : `${s.name}: ${money(s.amount)}`}
                   onClick={() => own && filterBy(s.id)}
                   onMouseEnter={() => setActive(s.id)}
@@ -84,6 +96,7 @@ export function MoneyMapCard({ map, decimalPlaces }: { map: MoneyMap; decimalPla
               name={s.name}
               amount={s.amount}
               decimalPlaces={decimalPlaces}
+              highlighted={active === s.id}
               onClick={s.id !== "other" ? () => filterBy(s.id) : undefined}
             />
           </li>
@@ -110,12 +123,14 @@ function LegendRow({
   name,
   amount,
   decimalPlaces,
+  highlighted = false,
   onClick,
 }: {
   swatch: string;
   name: string;
   amount: number;
   decimalPlaces: number;
+  highlighted?: boolean;
   onClick?: () => void;
 }) {
   const content = (
@@ -125,7 +140,7 @@ function LegendRow({
       <Money amount={amount} decimalPlaces={decimalPlaces} />
     </>
   );
-  const cls = "flex min-h-8 w-full items-center gap-2 border-b border-border px-1.5 text-left";
+  const cls = cn("flex min-h-8 w-full items-center gap-2 border-b border-border px-1.5 text-left", highlighted && "bg-fill-hover");
   return onClick ? (
     <button type="button" onClick={onClick} className={cn(cls, "hover:bg-fill-hover")}>
       {content}

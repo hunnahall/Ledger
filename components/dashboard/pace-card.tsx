@@ -79,7 +79,9 @@ export function PaceCard({
             <ChartTitle>Budget Net</ChartTitle>
             <button
               type="button"
-              onClick={() => openTile("Budget Net", { type: "budget_net" })}
+              // The list is the spending (and category income) behind the figure.
+              // Allocation isn't a transaction, so its total isn't Budget Net itself.
+              onClick={() => openTile("Budget spending and category income", { type: "budget_net" })}
               className="-mx-1.5 mt-1 flex flex-col items-start px-1.5 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
             >
               <span

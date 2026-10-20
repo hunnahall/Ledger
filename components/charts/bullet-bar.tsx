@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 
 const FILL: Record<BulletTone, string> = {
   accent: "bg-chart-1",
-  warning: "bg-warning",
+  warning: "bg-chart-caution",
   danger: "bg-danger",
 };
 

@@ -28,7 +28,8 @@ export type DashboardTileKind =
   | { type: "cash_flow" }
   | { type: "float" }
   | { type: "source"; sourceId: string }
-  | { type: "day"; date: string };
+  | { type: "day"; date: string }
+  | { type: "expense_day"; date: string };
 
 export type DashboardTileTransaction = {
   id: string;
@@ -101,6 +102,16 @@ export async function getDashboardTileTransactions(
     }));
   }
 
+  // One Daily Spending bar: that day's Budget expense, the same rule the bar
+  // counts (cumulativeExpenseByDay), so the list sums to the bar.
+  if (kind.type === "expense_day") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(kind.date)) throw new Error("Invalid date.");
+    const legs = await getLegs(supabase, kind.date, addDays(kind.date, 1));
+    return legs
+      .filter(isExpense)
+      .map((l) => ({ id: l.id, postedDate: l.postedDate, description: l.description, amount: l.amount }));
+  }
+
   // One heatmap square: that day's outflows, the same rule the heatmap
   // counts, so the list sums to the square's amount.
   if (kind.type === "day") {
@@ -114,7 +125,7 @@ export async function getDashboardTileTransactions(
   // Every other kind reads the same rows the dashboard views count, so a
   // popup always sums to the figure it explains.
   const legs = (await getLegs(supabase, from, to)).filter((l) => inSelection(l.postedDate));
-  const matches: Record<Exclude<DashboardTileKind["type"], "float" | "source" | "category" | "day">, (l: Leg) => boolean> = {
+  const matches: Record<Exclude<DashboardTileKind["type"], "float" | "source" | "category" | "day" | "expense_day">, (l: Leg) => boolean> = {
     income: isIncome,
     other_inflows: isOtherInflow,
     inflows: isInflow,

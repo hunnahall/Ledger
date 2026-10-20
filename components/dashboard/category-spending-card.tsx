@@ -9,7 +9,7 @@ import { ChartTitle } from "@/components/charts/chart-title";
 
 const BAR: Record<CategoryStatus, string> = {
   below: "bg-accent",
-  ahead: "bg-warning",
+  ahead: "bg-chart-caution",
   over: "bg-danger",
   full: "bg-chart-neutral",
 };
@@ -40,7 +40,7 @@ export function CategorySpendingCard({
         <div className="flex flex-wrap gap-3.5 text-xs text-foreground-secondary">
           <Key swatch="h-3 w-0.5 bg-foreground">Today&apos;s pace ({pacePct}%)</Key>
           <Key swatch="size-2.5 bg-accent">Below pace</Key>
-          <Key swatch="size-2.5 bg-warning">Ahead of pace</Key>
+          <Key swatch="size-2.5 bg-chart-caution">Ahead of pace</Key>
           <Key swatch="size-2.5 bg-danger">Over</Key>
           <Key swatch="size-2.5 bg-chart-neutral">Fully spent</Key>
         </div>

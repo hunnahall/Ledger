@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTilePopup } from "@/components/dashboard/use-tile-popup";
 import { compactMoney, shortMonthLabel } from "@/components/dashboard/format";
 import { addDays, buildHeatmap, type DaySpent, type HeatCell, type HeatLevel } from "@/lib/charts/heatmap";
@@ -54,11 +54,24 @@ export function HeatmapCard({
 
   const open = (cell: HeatCell) => openTile(formatDate(cell.date), { type: "day", date: cell.date }, [`${cell.date.slice(0, 7)}-01`]);
 
+  // The tooltip is centered over the square but kept 80px inside the window,
+  // so the first and last weeks don't push it off screen.
   function showTip(cell: HeatCell, el: Element | null) {
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setTip({ cell, x: r.left + r.width / 2, y: r.top });
+    const x = Math.min(window.innerWidth - 80, Math.max(80, r.left + r.width / 2));
+    setTip({ cell, x, y: r.top });
   }
+
+  // It's fixed to the window, so scrolling the page would leave it behind.
+  // Only the page's own scroll counts: the grid's sideways scroll on a phone
+  // happens while moving with the arrow keys, and the tip follows that.
+  useEffect(() => {
+    if (!tip) return;
+    const hide = () => setTip(null);
+    window.addEventListener("scroll", hide);
+    return () => window.removeEventListener("scroll", hide);
+  }, [tip]);
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     const step: Record<string, number> = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -7, ArrowRight: 7 };
