@@ -42,7 +42,7 @@ export default async function AccountsPage() {
       </div>
 
       <StatRow>
-        <Stat label="Cash" value={money(totals.cash)} caption="Checking, savings and manual" />
+        <Stat label="Cash" value={money(totals.cash)} caption="Accounts counted as cash" />
         <Stat label="Credit cards" value={money(totals.credit)} />
         <Stat label="Net" value={money(totals.net)} caption={`${accounts.length} accounts`} />
       </StatRow>

@@ -5,6 +5,7 @@ import { ensureBudgetCurrent, getSinkingAndTransferMonthlyTotal } from "@/lib/qu
 import { nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
 import { TRANSFERS_CATEGORY_NAME } from "@/lib/budgets/category-status";
+import { safeToSpend, unassignedCash } from "@/lib/accounts/unassigned-cash";
 
 export async function getDashboardData(monthISO: string) {
   const supabase = await createClient();
@@ -25,6 +26,8 @@ export async function getDashboardData(monthISO: string) {
     { data: categories, error: categoriesError },
     transfersMonthlyTotal,
     nextTransfersMonthlyTotal,
+    { data: accounts, error: accountsError },
+    { data: lastSync, error: lastSyncError },
   ] = await Promise.all([
     supabase.from("v_spending_by_category").select("*").eq("month", month),
     supabase.from("v_inflow_outflow").select("*").eq("month", month).maybeSingle(),
@@ -50,6 +53,16 @@ export async function getDashboardData(monthISO: string) {
     // Next month's sinking + transfer commitment, for Budget Funding under
     // Month Ahead (this month's income funds next month's allocation).
     userId ? getSinkingAndTransferMonthlyTotal(userId, nextMonthISO(month)) : Promise.resolve(0),
+    // Safe to Spend: account balances against Source balances, plus when
+    // the banks were last synced (the balances are only as fresh as that).
+    supabase.from("accounts").select("id, account_name, current_balance, include_in_cash").order("created_at"),
+    supabase
+      .from("bank_connections")
+      .select("last_synced_at")
+      .not("last_synced_at", "is", null)
+      .order("last_synced_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   for (const error of [
@@ -59,6 +72,8 @@ export async function getDashboardData(monthISO: string) {
     sourceBalancesError,
     budgetCategoryIncomeError,
     categoriesError,
+    accountsError,
+    lastSyncError,
   ]) {
     if (error) throw new Error(error.message);
   }
@@ -115,16 +130,36 @@ export async function getDashboardData(monthISO: string) {
       .map((s) => ({ id: s.id, name: s.name, spent: spentBySourceId.get(s.id) ?? 0 })),
     nextMonthAllocation,
     floatBalance: visibleSourceBalances.find((s) => s.type === "float")?.balance ?? 0,
+    safeToSpend: safeToSpendFigures(accounts ?? [], visibleSourceBalances, lastSync?.last_synced_at ?? null),
+  };
+}
+
+function safeToSpendFigures(
+  accounts: { id: string; account_name: string; current_balance: number; include_in_cash: boolean }[],
+  sources: { type: string | null; balance: number | null }[],
+  lastSyncedAt: string | null,
+) {
+  const sourceBalances = sources.map((s) => s.balance ?? 0);
+  const budgetBalance = sources.find((s) => s.type === "budget")?.balance ?? 0;
+  const unassigned = unassignedCash(accounts, sourceBalances);
+  return {
+    amount: safeToSpend(budgetBalance, unassigned),
+    budgetBalance,
+    unassigned,
+    sourcesTotal: Math.round(sourceBalances.reduce((sum, b) => sum + b, 0) * 100) / 100,
+    accounts: accounts
+      .filter((a) => a.include_in_cash)
+      .map((a) => ({ id: a.id, name: a.account_name, balance: a.current_balance })),
+    lastSyncedAt,
   };
 }
 
 // Last 4 Months: per-month totals from the same views (and the same
 // computeDashboardTotals) the current-month figures use, so a month's column
 // always matches what the Dashboard shows when that month is selected.
-// Allocation history isn't stored — categories/sinking/transfer amounts are
-// current values only — so the caller fills in allocation with one
-// figure for every month; a month whose budget differed shows today's
-// budget, not the one it had.
+// Allocation comes from the monthly_totals row saved at each month start;
+// a month with no saved row (before 2026-10) falls back to today's
+// allocation (see applySavedAllocations).
 export async function getMonthlyTrend(months: string[]) {
   const supabase = await createClient();
   const [

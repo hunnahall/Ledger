@@ -2,7 +2,6 @@
 
 import { Money } from "@/components/ui/money";
 import { useTilePopup } from "@/components/dashboard/use-tile-popup";
-import { cn } from "@/lib/cn";
 
 const R = 56;
 const C = 2 * Math.PI * R;
@@ -101,10 +100,10 @@ export function FloatCard({
       <button
         type="button"
         onClick={() => openTile("Float", { type: "float" })}
-        className="border border-border bg-surface p-5 transition-colors duration-[120ms] ease-standard hover:bg-paper-a1"
+        className="border border-border bg-surface p-5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
       >
-        <span className="block text-sm text-muted">Float</span>
-        <span className={cn("mt-0.5 block text-2xl font-semibold")}>
+        <span className="block font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Float</span>
+        <span className="mt-1 block text-[28px] font-semibold leading-tight">
           <Money amount={balance} decimalPlaces={decimalPlaces} />
         </span>
       </button>

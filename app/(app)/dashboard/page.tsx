@@ -12,6 +12,7 @@ import { SourceAllocationCard } from "@/components/dashboard/source-allocation-c
 import { CategorySpendingCard } from "@/components/dashboard/category-spending-card";
 import { BudgetFundingCard, FloatCard } from "@/components/dashboard/funding-and-float";
 import { LastMonthsCard } from "@/components/dashboard/last-months-card";
+import { SafeToSpendCard } from "@/components/dashboard/safe-to-spend-card";
 
 // Current month plus the 4 full calendar months before it: the same window
 // purge_expired_data() keeps (see
@@ -116,7 +117,10 @@ export default async function DashboardPage({
             fundsNextMonth={(settings.budget_type === "advanced")}
             {...common}
           />
-          <FloatCard balance={data.floatBalance} {...common} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SafeToSpendCard data={data.safeToSpend} decimalPlaces={decimalPlaces} />
+            <FloatCard balance={data.floatBalance} {...common} />
+          </div>
           <LastMonthsCard months={trend.slice(-4)} currentMonthISO={months[0]} decimalPlaces={decimalPlaces} />
         </div>
       </div>

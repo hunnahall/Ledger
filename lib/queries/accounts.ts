@@ -8,7 +8,7 @@ export async function getAccounts() {
   const { data, error } = await supabase
     .from("accounts")
     .select(
-      "id, account_name, account_type, institution_name, last4, current_balance, is_manual, status, updated_at, bank_connection_id",
+      "id, account_name, account_type, institution_name, last4, current_balance, is_manual, include_in_cash, status, updated_at, bank_connection_id",
     )
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
