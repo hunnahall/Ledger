@@ -4,46 +4,92 @@ import {
   SkeletonCard,
 } from "@/components/ui/skeleton";
 
+// Mirrors the Dashboard: the money map bar, three rows of a wide card and a
+// narrow one (the third row's narrow side a stack of funding, Float and By
+// Month), and the full-width spending heatmap after the second row.
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeaderSkeleton title="Dashboard" />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {Array.from({ length: 9 }, (_, i) => (
-          <SkeletonCard key={i} className="p-5">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="mt-3 h-7 w-28" />
-          </SkeletonCard>
-        ))}
+      <SkeletonCard>
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="mt-5 h-6 w-full pointer-coarse:h-10" />
+        <Skeleton className="mt-4 h-3.5 w-48" />
+      </SkeletonCard>
+
+      <div className="flex flex-wrap gap-4">
+        <SkeletonCard className="min-w-0 flex-[999_1_560px]">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="mt-2 h-11 w-44" />
+          <Skeleton className="mt-6 h-40 w-full" />
+        </SkeletonCard>
+        <SkeletonCard className="min-w-0 flex-[1_1_380px]">
+          <Skeleton className="h-4 w-24" />
+          <div className="mt-5 flex gap-7">
+            <Skeleton className="ml-3 h-64 w-16" />
+            <div className="flex flex-1 flex-col justify-center gap-3">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Skeleton key={i} className="h-3.5 w-full" />
+              ))}
+            </div>
+          </div>
+        </SkeletonCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SkeletonCard>
+      <div className="flex flex-wrap gap-4">
+        <SkeletonCard className="min-w-0 flex-[999_1_560px]">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="mt-4 h-36 w-full" />
+        </SkeletonCard>
+        <SkeletonCard className="min-w-0 flex-[1_1_380px]">
+          <Skeleton className="h-4 w-36" />
+          <div className="mt-4 flex items-center gap-5">
+            <Skeleton className="size-[120px] rounded-full" />
+            <div className="flex flex-1 flex-col gap-2.5">
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} className="h-3.5 w-full" />
+              ))}
+            </div>
+          </div>
+        </SkeletonCard>
+      </div>
+
+      <SkeletonCard>
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="mt-4 h-[220px] w-full" />
+      </SkeletonCard>
+
+      <div className="flex flex-wrap gap-4">
+        <SkeletonCard className="min-w-0 flex-[999_1_560px]">
           <Skeleton className="h-4 w-40" />
-          <div className="mt-4 flex flex-col gap-3">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
-                <div className="flex justify-between">
-                  <Skeleton className="h-3.5 w-28" />
-                  <Skeleton className="h-3.5 w-16" />
-                </div>
-                <Skeleton className="h-1.5 w-full rounded-full" />
+          <div className="mt-4 flex flex-col gap-5">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-3.5 w-28" />
+                <Skeleton className="h-2 flex-1 rounded-full" />
+                <Skeleton className="h-3.5 w-20" />
               </div>
             ))}
           </div>
         </SkeletonCard>
-        <SkeletonCard>
-          <Skeleton className="h-4 w-40" />
-          <div className="mt-4 flex flex-col gap-3">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="flex justify-between">
-                <Skeleton className="h-3.5 w-32" />
-                <Skeleton className="h-3.5 w-16" />
-              </div>
-            ))}
-          </div>
-        </SkeletonCard>
+        <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+          <SkeletonCard>
+            <Skeleton className="h-4 w-32" />
+            <div className="mt-3.5 flex items-center gap-6">
+              <Skeleton className="size-[100px] rounded-full" />
+              <Skeleton className="h-10 flex-1" />
+            </div>
+          </SkeletonCard>
+          <SkeletonCard>
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="mt-2 h-7 w-28" />
+          </SkeletonCard>
+          <SkeletonCard>
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="mt-4 h-28 w-full" />
+          </SkeletonCard>
+        </div>
       </div>
     </div>
   );

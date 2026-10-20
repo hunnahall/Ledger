@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateLedgerPages } from "@/lib/actions/revalidate";
 import { logChange } from "@/lib/actions/log";
@@ -30,7 +29,6 @@ export async function createCategory(
   await logChange(supabase, user.id, "Budgets", `Category: ${name}`, null, money(monthlyAmount));
 
   revalidateLedgerPages();
-  revalidatePath("/settings");
   return null;
 }
 
@@ -83,7 +81,6 @@ export async function updateCategory(
   }
 
   revalidateLedgerPages();
-  revalidatePath("/settings");
   return null;
 }
 
@@ -101,8 +98,8 @@ export async function deleteCategory(
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
 
-  // transactions.category_id and transaction_splits.category_id are
-  // `on delete set null`, so affected transactions fall back to Uncategorized.
+  // transactions.category_id is `on delete set null`, so affected
+  // transactions fall back to Uncategorized.
   const { error } = await supabase.from("categories").delete().eq("id", categoryId);
   if (error) return { error: error.message };
 
@@ -118,6 +115,5 @@ export async function deleteCategory(
   }
 
   revalidateLedgerPages();
-  revalidatePath("/settings");
   return null;
 }

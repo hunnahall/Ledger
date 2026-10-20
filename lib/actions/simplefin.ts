@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateBankPages } from "@/lib/actions/revalidate";
 import { MAX_IMPORT_DAYS, daysBetween } from "@/lib/sources/import-range";
@@ -104,7 +103,9 @@ async function invokeSync(
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  // A thrown message, not redirect(): every caller catches what this throws
+  // and shows it, and a redirect caught that way surfaced as "NEXT_REDIRECT".
+  if (!session) throw new Error("Your session has expired. Sign in again, then sync.");
 
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/simplefin-sync`,
@@ -153,7 +154,7 @@ export async function syncAllBankConnections(
     .select("id");
   if (fetchError) return { error: fetchError.message };
   if (!connections || connections.length === 0) {
-    return { error: "No banks connected — add one on the Settings page." };
+    return { error: "No banks connected. Add one with Connect bank on the Accounts page." };
   }
 
   const results = await Promise.allSettled(connections.map((c) => invokeSync(c.id)));

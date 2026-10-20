@@ -35,8 +35,8 @@ export function AuthField({
 export function AuthMessages({ error, notice }: { error: string | null; notice: string | null }) {
   return (
     <>
-      {notice && <p className="text-sm text-positive">{notice}</p>}
-      {error && <p className="text-sm text-negative">{error}</p>}
+      {notice && <p className="text-sm text-success">{notice}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </>
   );
 }

@@ -119,7 +119,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
       <polyline
         points={linePoints}
         fill="none"
-        className={endValue < startValue ? "stroke-negative" : "stroke-positive"}
+        className={endValue < startValue ? "stroke-danger" : "stroke-success"}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -151,7 +151,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
             cx={hx}
             cy={hy}
             r={5}
-            className={seriesTone === "negative" ? "fill-negative" : "fill-positive"}
+            className={seriesTone === "negative" ? "fill-danger" : "fill-success"}
             stroke="var(--surface)"
             strokeWidth={3}
           />
@@ -162,7 +162,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
               width={tooltipWidth}
               height={tooltipHeight}
               rx={8}
-              className="fill-surface stroke-card-border"
+              className="fill-surface stroke-border"
               strokeWidth={1}
             />
             <text

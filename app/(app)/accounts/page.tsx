@@ -1,76 +1,93 @@
-import { getAccounts } from "@/lib/queries/accounts";
+import { getAccounts, getBankConnections, getRecentTransactionsByAccount } from "@/lib/queries/accounts";
 import { getSettings } from "@/lib/queries/settings";
-import { deleteManualAccount } from "@/lib/actions/accounts";
-import { CreateManualAccountForm } from "@/components/accounts/create-manual-account-form";
+import { accountTotals } from "@/lib/accounts/totals";
+import { formatMoney } from "@/lib/format";
+import { AccountRow } from "@/components/accounts/account-row";
+import { BankConnectionPanel } from "@/components/accounts/bank-connection-panel";
+import { ConnectBankButton } from "@/components/accounts/connect-bank-connection-form";
+import { AddManualAccountButton } from "@/components/accounts/create-manual-account-form";
 import { Card } from "@/components/ui/card";
-import { ActionButtonForm } from "@/components/ui/action-button-form";
-import { Money } from "@/components/ui/money";
-import { ACCOUNT_TYPE_LABELS as TYPE_LABELS } from "@/lib/accounts/types";
-
+import { Stat, StatRow } from "@/components/ui/stat";
 
 export default async function AccountsPage() {
-  const [accounts, settings] = await Promise.all([getAccounts(), getSettings()]);
+  const [accounts, connections, settings] = await Promise.all([
+    getAccounts(),
+    getBankConnections(),
+    getSettings(),
+  ]);
+  const recent = await getRecentTransactionsByAccount(accounts.map((a) => a.id));
   const decimalPlaces = settings.decimal_places;
+  const money = (n: number) => formatMoney(n, decimalPlaces);
+  const totals = accountTotals(accounts);
+  const manual = accounts.filter((a) => a.is_manual);
+  // Bank accounts whose bank was disconnected: kept, with their
+  // transactions, until deleted.
+  const disconnected = accounts.filter((a) => !a.is_manual && a.bank_connection_id === null);
+
+  const rows = (list: typeof accounts) =>
+    list.map((account) => (
+      <AccountRow
+        key={account.id}
+        account={account}
+        transactions={recent.get(account.id) ?? []}
+        decimalPlaces={decimalPlaces}
+      />
+    ));
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Accounts</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1>Accounts</h1>
+          <p className="mt-1 text-sm text-muted">Open an account to see its latest transactions.</p>
+        </div>
+        <ConnectBankButton />
       </div>
 
-      <Card className="p-0">
-        {/* Below md this stacks into a card per account instead of a table
-            row — at full table width, Status and the Delete button would
-            otherwise only be reachable by scrolling sideways. */}
-        <div className="hidden items-center gap-3 border-b border-border px-4 py-3 text-left text-xs text-muted md:flex">
-          <span className="flex-1 font-medium">Account</span>
-          <span className="w-28 shrink-0 font-medium">Type</span>
-          <span className="w-28 shrink-0 font-medium">Balance</span>
-          <span className="w-24 shrink-0 font-medium">Status</span>
-          <span className="w-20 shrink-0"></span>
-        </div>
-        {accounts.map((account) => (
-          <div
-            key={account.id}
-            className="flex flex-col gap-2 border-b border-border p-4 last:border-0 md:flex-row md:items-center md:gap-3 md:px-4 md:py-3"
-          >
-            <div className="md:flex-1">
-              <div className="font-medium">{account.account_name}</div>
-              {account.institution_name && (
-                <div className="text-xs text-muted">{account.institution_name}</div>
-              )}
-            </div>
-            <div className="flex items-center justify-between text-sm text-muted md:contents">
-              <span className="md:w-28 md:shrink-0">
-                {TYPE_LABELS[account.account_type] ?? account.account_type}
-              </span>
-              <Money amount={account.current_balance} decimalPlaces={decimalPlaces} className="text-foreground md:w-28 md:shrink-0" />
-            </div>
-            <div className="flex items-center justify-between text-sm md:contents">
-              <span className="text-muted md:w-24 md:shrink-0">{account.status}</span>
-              <span className="md:w-20 md:shrink-0 md:text-right">
-                {account.is_manual && (
-                  <ActionButtonForm
-                    action={deleteManualAccount.bind(null, account.id)}
-                    variant="secondary"
-                    tone="negative"
-                    size="sm"
-                    className="px-2 py-1 text-xs"
-                    errorClassName="mt-1 text-right text-xs text-negative"
-                  >
-                    Delete
-                  </ActionButtonForm>
-                )}
-              </span>
-            </div>
-          </div>
-        ))}
-        {accounts.length === 0 && (
-          <p className="px-4 py-6 text-center text-muted">No accounts yet.</p>
+      <StatRow>
+        <Stat label="Cash" value={money(totals.cash)} caption="Checking, savings and manual" />
+        <Stat label="Credit cards" value={money(totals.credit)} />
+        <Stat label="Net" value={money(totals.net)} caption={`${accounts.length} accounts`} />
+      </StatRow>
+
+      {connections.map((connection) => {
+        const connectionAccounts = accounts.filter((a) => a.bank_connection_id === connection.id);
+        const bankName =
+          connectionAccounts.find((a) => a.institution_name)?.institution_name ??
+          (connectionAccounts.length > 0 ? connectionAccounts[0].account_name : "Bank connection");
+        return (
+          <BankConnectionPanel key={connection.id} connection={connection} bankName={bankName}>
+            {connectionAccounts.length > 0 ? (
+              rows(connectionAccounts)
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">No accounts yet. Sync to pull them in.</p>
+            )}
+          </BankConnectionPanel>
+        );
+      })}
+
+      <Card title="Manual Accounts" action={<AddManualAccountButton />}>
+        {manual.length > 0 ? (
+          rows(manual)
+        ) : (
+          <p className="px-5 py-4 text-sm text-muted">
+            For money no bank reports, like cash in a wallet.
+          </p>
         )}
       </Card>
 
-      <CreateManualAccountForm />
+      {disconnected.length > 0 && (
+        <Card title="Disconnected Accounts">
+          <p className="border-b border-border px-5 py-3 text-xs text-muted">
+            No longer syncing. Balances are as of the last sync. Connect the bank again to pick them back up.
+          </p>
+          {rows(disconnected)}
+        </Card>
+      )}
+
+      {connections.length === 0 && (
+        <p className="text-sm text-muted">No banks connected yet. Use Connect bank to add one through SimpleFin.</p>
+      )}
     </div>
   );
 }

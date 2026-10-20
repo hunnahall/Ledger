@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
-export const LOG_PAGE_SIZE = 100;
+const LOG_PAGE_SIZE = 100;
 
 // One page of the Log, newest first. `page` is 1-based; the total count
 // comes back on the same request so the page can show "Page x of y".

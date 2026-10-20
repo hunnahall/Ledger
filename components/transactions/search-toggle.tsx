@@ -45,19 +45,19 @@ export function SearchToggle() {
         onClick={() => setOpen((o) => !o)}
         aria-label="Search transactions"
         aria-expanded={open}
-        className="relative flex items-center justify-center rounded-md p-2 text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground"
+        className="relative flex items-center justify-center p-2 text-muted transition-colors duration-[120ms] ease-standard hover:bg-fill-hover hover:text-foreground"
       >
         <SearchIcon size={24} />
         {currentSearch && (
           <span
-            className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-mark"
+            className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-accent"
             aria-hidden="true"
           />
         )}
       </button>
       {open && (
         <form
-          className="absolute right-0 top-full z-10 mt-1 flex items-center gap-1 rounded-lg border border-card-border bg-surface p-2 shadow-popover"
+          className="absolute right-0 top-full z-10 mt-1 flex items-center gap-1 border border-border-strong bg-surface-2 p-2 font-sans normal-case tracking-normal shadow-popover"
           onSubmit={(e) => {
             e.preventDefault();
             commitAndClose();
@@ -68,8 +68,9 @@ export function SearchToggle() {
             autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Search…"
-            className="w-40"
+            placeholder="Description, note, amount, category, source"
+            aria-label="Search any field"
+            className="w-72"
           />
           {value && (
             <button
@@ -79,7 +80,7 @@ export function SearchToggle() {
                 setParams({ search: null });
               }}
               aria-label="Clear search"
-              className="rounded-md p-1 text-muted hover:text-foreground"
+              className="p-1 text-muted hover:text-foreground"
             >
               ×
             </button>

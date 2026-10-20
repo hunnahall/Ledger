@@ -1,23 +1,31 @@
-export function formatMoney(amount: number, decimalPlaces: number = 2) {
+const MINUS = "\u2212";
+
+function currencyParts(amount: number, decimalPlaces: number, symbol = true) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: decimalPlaces,
     maximumFractionDigits: decimalPlaces,
-  }).format(amount);
+  })
+    .formatToParts(amount)
+    .filter((p) => symbol || p.type !== "currency")
+    .map((p) => ({ type: p.type, value: p.type === "minusSign" ? MINUS : p.value }));
+}
+
+// Negatives use a true minus sign, never a hyphen or parentheses. Pass
+// `symbol: false` for table cells, which carry no $ per cell.
+export function formatMoney(amount: number, decimalPlaces: number = 2, { symbol = true } = {}) {
+  return currencyParts(amount, decimalPlaces, symbol)
+    .map((p) => p.value)
+    .join("");
 }
 
 // Splits a formatted currency string into the whole-dollar part and the
 // fractional (cents) part so callers can de-emphasize cents visually
 // (e.g. <Money>) — the fintech "$5,216,471.18" pattern where cents render
 // smaller than the whole-dollar amount.
-export function formatMoneyParts(amount: number, decimalPlaces: number = 2) {
-  const parts = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: decimalPlaces,
-    maximumFractionDigits: decimalPlaces,
-  }).formatToParts(amount);
+export function formatMoneyParts(amount: number, decimalPlaces: number = 2, { symbol = true } = {}) {
+  const parts = currencyParts(amount, decimalPlaces, symbol);
 
   const fractionIndex = parts.findIndex((p) => p.type === "decimal");
   if (decimalPlaces === 0 || fractionIndex === -1) {
@@ -55,6 +63,41 @@ export function formatShortDate(dateString: string) {
   return `${dateString.slice(5, 7)}/${dateString.slice(8, 10)}`;
 }
 
+function calendarDay(date: Date, timeZone?: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    timeZone,
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return { year: get("year"), utcDay: Date.UTC(get("year"), get("month") - 1, get("day")) / 86_400_000 };
+}
+
+// Short "how long ago" for sync times and the like: "Just now", "5m", then
+// "2h" while it's still the same calendar day, then "Yesterday", then "Oct 12"
+// (with the year once it's a different year). Calendar days are counted in
+// `timeZone`, which defaults to the device's own.
+export function formatRelative(iso: string, now: Date = new Date(), timeZone?: string) {
+  const then = new Date(iso);
+  const minutes = Math.floor((now.getTime() - then.getTime()) / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m`;
+
+  const today = calendarDay(now, timeZone);
+  const day = calendarDay(then, timeZone);
+  const daysAgo = today.utcDay - day.utcDay;
+  if (daysAgo === 0) return `${Math.floor(minutes / 60)}h`;
+  if (daysAgo === 1) return "Yesterday";
+
+  return then.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(day.year !== today.year ? { year: "numeric" } : {}),
+    timeZone,
+  });
+}
+
 // Short "$1,234.56" used in activity-log entries. Five action files each
 // had their own `$${amount.toFixed(2)}` reimplementation of this; the "/mo"
 // suffix (categories, source transfers) is the only variation any of them
@@ -63,7 +106,7 @@ export function logMoney(amount: number, suffix: string = "") {
   return `${formatMoney(amount)}${suffix}`;
 }
 
-export type ParseMoneyOptions = {
+type ParseMoneyOptions = {
   // Reject zero and negatives — for fields where an amount must be a real
   // positive figure (a source transfer, a forecast entry, a transfer leg).
   positive?: boolean;

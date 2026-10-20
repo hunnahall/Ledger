@@ -26,3 +26,30 @@ export async function getSourceOptions() {
   if (error) throw new Error(error.message);
   return data ?? [];
 }
+
+// Each Source's net change from this month's transactions (money in minus
+// money out, transfers and Excluded rows left out), from
+// v_spending_by_source. Balance edits, Source Transfers and the month-start
+// roll-forward aren't transactions, so they aren't in it.
+export async function getSourceMonthChange(monthISO: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_spending_by_source")
+    .select("source_id, amount")
+    .eq("month", monthISO);
+  if (error) throw new Error(error.message);
+  return new Map(
+    (data ?? []).flatMap((r) => (r.source_id ? [[r.source_id, r.amount ?? 0] as const] : [])),
+  );
+}
+
+// How many forecasts each Source has, so deleting a Source can say how many
+// go with it (forecasts.source_id is `on delete cascade`).
+export async function getForecastCountsBySource(): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("forecasts").select("source_id");
+  if (error) throw new Error(error.message);
+  const counts = new Map<string, number>();
+  for (const f of data ?? []) counts.set(f.source_id, (counts.get(f.source_id) ?? 0) + 1);
+  return counts;
+}

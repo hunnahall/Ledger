@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
-export type SortDirection = "desc" | "asc" | null;
+type SortDirection = "desc" | "asc" | null;
 
 // The three-state numeric sort used by the Budget page's "Monthly amount"
 // header and the Dashboard's "Spending By Source" card. Both had their own

@@ -94,7 +94,7 @@ export function StartingBalanceControl({
           Reset to live ({formatMoney(liveBalance, decimalPlaces)})
         </button>
       )}
-      {error && <p className="text-xs text-negative">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

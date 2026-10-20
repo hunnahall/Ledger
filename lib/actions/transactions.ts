@@ -1,32 +1,32 @@
 "use server";
 
 import { requireUser, type SupabaseServerClient } from "@/lib/supabase/auth";
-import { revalidateLedgerPages, revalidateVendorRulePages } from "@/lib/actions/revalidate";
+import { revalidateLedgerPages, revalidateRulePages } from "@/lib/actions/revalidate";
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
-import { findMatchingRule } from "@/lib/transactions/match-vendor-rule";
-import { MAX_SPLIT_ROWS } from "@/lib/transactions/splits";
-import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/vendor-rule-target";
+import { findMatchingRule } from "@/lib/transactions/match-rule";
+import { validateSplitRows, type SplitRowInput } from "@/lib/transactions/splits";
+import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/rule-target";
 import { logMoney, parseMoney } from "@/lib/format";
 import { logChange } from "@/lib/actions/log";
 
-export async function learnVendorRule(
+export async function learnRule(
   supabase: SupabaseServerClient,
   merchantNormalized: string,
   // Exactly one of these is the rule's target (see the
-  // vendor_category_rules_target_check constraint) — a real category, or a
+  // rules_target_check constraint) — a real category, or a
   // flag that marks matching transactions as Income or Excluded instead.
   categoryId: string | null,
   isIncome: boolean,
   sourceId: string | null,
   isExclude: boolean = false,
-) {
-  if (!merchantNormalized) return;
+): Promise<{ error: string } | null> {
+  if (!merchantNormalized) return null;
 
   // One atomic upsert. This used to be a select, then an insert, then a
   // hand-written 23505 recovery path for the race between them — and it
   // incremented use_count by reading it into JS and writing it back, so two
   // concurrent categorizations of the same merchant lost an increment.
-  const { error } = await supabase.rpc("learn_vendor_rule", {
+  const { error } = await supabase.rpc("learn_rule", {
     p_merchant_normalized: merchantNormalized,
     p_category_id: categoryId,
     p_is_income: isIncome,
@@ -35,8 +35,13 @@ export async function learnVendorRule(
   });
 
   // A failed rule write shouldn't block or crash the categorization it was
-  // reinforcing — same reasoning as logChange's own error handling.
-  if (error) console.error("learnVendorRule failed:", error.message);
+  // reinforcing — same reasoning as logChange's own error handling — so
+  // those callers ignore the result. The Rules page reports it.
+  if (error) {
+    console.error("learnRule failed:", error.message);
+    return { error: error.message };
+  }
+  return null;
 }
 
 export async function createManualTransaction(
@@ -48,8 +53,8 @@ export async function createManualTransaction(
   const description = String(formData.get("description") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const categoryFieldSource = String(formData.get("category_source") ?? "");
-  // Set by the form when the user was prompted to save a new vendor rule and
-  // declined — "skip" means don't touch vendor_category_rules this time.
+  // Set by the form when the user was prompted to save a new rule and
+  // declined — "skip" means don't touch rules this time.
   // Left unset (defaults to writing) when accepting an auto-fill or when a
   // rule already covers this merchant, since that's reinforcement, not the
   // one-off-merchant noise the prompt exists to avoid.
@@ -58,7 +63,7 @@ export async function createManualTransaction(
   // One dropdown picks the sign and the routing all at once. "exclude"
   // disregards category/source/budget entirely, not just the budget total.
   // No "transfer" choice — see ManualTransactionForm: Source Transfers on
-  // the Budgets page own moving money between a user's own sources now.
+  // the Budget page own moving money between a user's own sources now.
   const typeChoice = String(formData.get("type_choice") ?? "expense");
   const isIncome = typeChoice === "income";
   const isExcluded = typeChoice === "exclude";
@@ -85,7 +90,7 @@ export async function createManualTransaction(
   const amount = isIncome ? Math.abs(rawAmount) : -Math.abs(rawAmount);
 
   if (isIncome && incomeAction === "include_in_budget") {
-    // route_income_to_fund sets the Income source on insert.
+    // route_income_to_source sets the Income source on insert.
     resolvedSourceId = null;
   } else if (isIncome && incomeAction === "create_source") {
     if (newSourceType !== "reimbursement") {
@@ -127,7 +132,7 @@ export async function createManualTransaction(
 
   if (!isExcluded && !resolvedCategoryId && merchantNormalized) {
     const { data: rules } = await supabase
-      .from("vendor_category_rules")
+      .from("rules")
       .select("merchant_normalized, category_id, source_id")
       .eq("user_id", user.id);
     const rule = findMatchingRule(rules ?? [], merchantNormalized);
@@ -161,18 +166,18 @@ export async function createManualTransaction(
 
   let learnedRule = false;
   if (resolvedCategoryId && ruleAction !== "skip") {
-    await learnVendorRule(supabase, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
+    await learnRule(supabase, merchantNormalized, resolvedCategoryId, false, resolvedSourceId);
     learnedRule = true;
   }
 
   // A rule written here also has to show up on Settings, which has its own
   // cached route the ledger revalidation above doesn't touch.
-  if (learnedRule) revalidateVendorRulePages();
+  if (learnedRule) revalidateRulePages();
   revalidateLedgerPages();
   return null;
 }
 
-// Looks up whether a description would match a learned vendor rule, so the
+// Looks up whether a description would match a learned rule, so the
 // manual-entry form can auto-fill the category select as the user types —
 // same lookup createManualTransaction falls back to server-side if the
 // client-set category_id didn't make it into the submitted form.
@@ -185,7 +190,7 @@ export async function suggestCategoryForDescription(
   const { supabase, user } = await requireUser();
 
   const { data: rules } = await supabase
-    .from("vendor_category_rules")
+    .from("rules")
     .select("merchant_normalized, category_id, source_id, categories(name)")
     .eq("user_id", user.id);
 
@@ -211,7 +216,7 @@ export async function ruleExistsForDescription(description: string): Promise<boo
   const { supabase, user } = await requireUser();
 
   const { data: rules } = await supabase
-    .from("vendor_category_rules")
+    .from("rules")
     .select("merchant_normalized")
     .eq("user_id", user.id);
 
@@ -236,7 +241,7 @@ export async function assignTransaction(
       ? rawCategoryId
       : null;
   // See createManualTransaction — "skip" means the user was prompted to
-  // save a new vendor rule for this merchant and declined.
+  // save a new rule for this merchant and declined.
   const ruleAction = String(formData.get("rule_action") ?? "");
   // Same stripping as categoryId above, and for the same reason: the Source
   // select's hidden input carries this row's own Exclude/Income sentinel
@@ -264,7 +269,7 @@ export async function assignTransaction(
 
   const { supabase } = await requireUser();
 
-  // Editing the description changes what future syncs/vendor rules match
+  // Editing the description changes what future syncs/rules match
   // against, so re-derive merchant_normalized from it the same way a new
   // manual transaction does — otherwise it would keep matching the old text.
   // When the description isn't being edited the row's existing value is what
@@ -294,7 +299,7 @@ export async function assignTransaction(
         ? { description, merchant_normalized: normalizeMerchant(description) }
         : {}),
       // is_transfer itself is read back unchanged here — there's no row UI
-      // that can flip it (Source Transfers on the Budgets page replaced
+      // that can flip it (Source Transfers on the Budget page replaced
       // that; a transaction only becomes one via match_transfer_pairs
       // during sync, or the manual-entry form's own Transfer type). Not
       // writing transfer_from_source_id/transfer_to_source_id at all is
@@ -336,11 +341,11 @@ export async function assignTransaction(
     (((categoryId || isIncome || isExcludeTarget) && ruleAction !== "skip") ||
       (isSourceTarget && ruleAction === "write"))
   ) {
-    await learnVendorRule(supabase, merchantNormalized, categoryId, isIncome, sourceId, isExcludeTarget);
+    await learnRule(supabase, merchantNormalized, categoryId, isIncome, sourceId, isExcludeTarget);
     learnedRule = true;
   }
 
-  if (learnedRule) revalidateVendorRulePages();
+  if (learnedRule) revalidateRulePages();
   revalidateLedgerPages();
   return null;
 }
@@ -398,6 +403,10 @@ export async function createSourceFromTransaction(
     .from("transactions")
     .update({
       source_id: newSource.id,
+      // Most positive bank rows arrive as Income, and route_income_to_source
+      // puts an Income row back on the Income source. Moving the money into
+      // its own Source ends Income, the same as picking any other Source.
+      is_income: false,
       // This new source is always reimbursement/fund, never Budget, so a
       // category picked while on a Budget source (the only type categories
       // apply to — see handleSourceChange in transaction-list.tsx) is now
@@ -430,7 +439,7 @@ export async function bulkUpdateTransactions(
 
   // Picking the Income source is marking Income — route it through the
   // isIncome branch below. Sending it as a plain source pick (is_income
-  // false + source = Income) would read to route_income_to_fund as
+  // false + source = Income) would read to route_income_to_source as
   // "un-mark Income" on rows that already are, and clear their source.
   if (updates.sourceId && !updates.isIncome) {
     const { data: incomeSource, error: incomeSourceError } = await supabase
@@ -462,7 +471,7 @@ export async function bulkUpdateTransactions(
     patch.category_source = null;
     patch.is_income = false;
   } else if (updates.isIncome) {
-    // source_id is left to route_income_to_fund, which sets the Income
+    // source_id is left to route_income_to_source, which sets the Income
     // source on every row this marks Income.
     patch.is_income = true;
     patch.category_id = null;
@@ -507,7 +516,7 @@ export async function bulkUpdateTransactions(
         .in("id", transactionIds)
         .eq("is_transfer", false)
         .not("merchant_normalized", "is", null),
-      supabase.from("vendor_category_rules").select("merchant_normalized").eq("user_id", user.id),
+      supabase.from("rules").select("merchant_normalized").eq("user_id", user.id),
     ]);
     const seen = new Set<string>();
     for (const txn of affected ?? []) {
@@ -515,11 +524,11 @@ export async function bulkUpdateTransactions(
       if (!merchant || seen.has(merchant)) continue;
       seen.add(merchant);
       if (!findMatchingRule(rules ?? [], merchant)) continue;
-      await learnVendorRule(supabase, merchant, patch.category_id, false, txn.source_id);
+      await learnRule(supabase, merchant, patch.category_id, false, txn.source_id);
     }
   }
 
-  if (patch.category_id) revalidateVendorRulePages();
+  if (patch.category_id) revalidateRulePages();
   revalidateLedgerPages();
   return null;
 }
@@ -530,44 +539,60 @@ export async function deleteTransaction(
   // RLS already scopes the delete, but without this an unauthenticated call
   // deleted nothing and reported success.
   const { supabase } = await requireUser();
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("transactions")
     .delete()
     .eq("id", transactionId)
-    .is("provider_transaction_id", null);
+    .is("provider_transaction_id", null)
+    // A split piece goes away by editing its split, never on its own (the
+    // pieces would stop adding up).
+    .is("split_parent_id", null)
+    .select("id");
   if (error) return { error: error.message };
+  if (!deleted || deleted.length === 0) {
+    return { error: "Only manual transactions can be deleted. Bank transactions and split pieces can't." };
+  }
 
   revalidateLedgerPages();
   return null;
 }
 
+// Saves a split: the original's pieces are replaced with these (an empty
+// list removes the split). The rows were checked by validateSplitRows in the
+// editor; save_transaction_splits checks them again against the original's
+// own amount, so the sum can't be bypassed from the client.
 export async function saveSplits(
   transactionId: string,
-  _prevState: { error: string } | null,
-  formData: FormData,
+  rows: SplitRowInput[],
 ): Promise<{ error: string } | null> {
   const { supabase } = await requireUser();
 
-  const rows: { category_id: string | null; source_id: string | null; amount: number }[] = [];
-  for (let i = 1; i <= MAX_SPLIT_ROWS; i++) {
-    const parsed = parseMoney(formData.get(`split_amount_${i}`), { fallback: 0 });
-    if ("error" in parsed) return { error: `Split ${i}: ${parsed.error}` };
-    if (parsed.amount === 0) continue;
-    rows.push({
-      category_id: String(formData.get(`split_category_${i}`) ?? "") || null,
-      source_id: String(formData.get(`split_source_${i}`) ?? "") || null,
-      amount: parsed.amount,
-    });
-  }
+  const { data: budget, error: budgetError } = await supabase
+    .from("sources")
+    .select("id")
+    .eq("type", "budget")
+    .maybeSingle();
+  if (budgetError) return { error: budgetError.message };
+  const { data: original, error: originalError } = await supabase
+    .from("transactions")
+    .select("amount")
+    .eq("id", transactionId)
+    .maybeSingle();
+  if (originalError) return { error: originalError.message };
+  if (!original) return { error: "Transaction not found." };
 
-  // One RPC rather than delete -> insert -> update is_split as three
-  // separate round trips, each firing balance triggers: a failure part-way
-  // through used to leave is_split wrong and the source balances drifted.
-  // It also reads the transaction's own amount to check the split sum
-  // against, instead of trusting a figure passed in from the client.
+  const checked = validateSplitRows(original.amount, rows, budget?.id ?? null);
+  if ("error" in checked) return checked;
+
   const { error } = await supabase.rpc("save_transaction_splits", {
     p_transaction_id: transactionId,
-    p_rows: rows,
+    p_rows: checked.rows.map((r) => ({
+      amount: r.amount,
+      source_id: r.sourceId,
+      category_id: r.categoryId,
+      exclude: r.exclude,
+      notes: r.notes,
+    })),
   });
   if (error) return { error: error.message };
 

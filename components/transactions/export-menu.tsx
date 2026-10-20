@@ -14,7 +14,6 @@ export function ExportMenu() {
       <Select
         value={range}
         onChange={(value) => setRange(value as ExportRange)}
-        uiSize="sm"
         className="w-40"
       >
         <option value="all">All transactions</option>
@@ -22,10 +21,10 @@ export function ExportMenu() {
       </Select>
       <a
         href={`/api/transactions/export${range === "30d" ? "?range=30d" : ""}`}
-        aria-label="Export CSV"
-        className="flex items-center justify-center rounded-md bg-mark p-2 text-mark-foreground shadow-xs transition-[filter,box-shadow] duration-[120ms] ease-standard hover:brightness-[0.96] active:brightness-[0.92]"
+        className="inline-flex h-[var(--control-md)] items-center gap-2 whitespace-nowrap border border-border-strong bg-surface px-3 text-sm font-medium transition-[background-color,border-color] duration-[120ms] ease-standard hover:border-muted hover:bg-fill-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        <ShareIcon />
+        <ShareIcon size={16} />
+        Export
       </a>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { memo, useActionState, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { defaultRangeExtractor, useWindowVirtualizer, type Range } from "@tanstack/react-virtual";
 import {
   assignTransaction,
   bulkUpdateTransactions,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/transactions";
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { SplitEditor } from "@/components/transactions/split-editor";
+import type { SplitGroup } from "@/lib/transactions/splits";
 import { EXCLUDE, INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
-import { AddIcon, SplitIcon, SpinnerIcon } from "@/components/ui/icons";
+import { AddIcon, SplitIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ClearFiltersButton, DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 import { SearchToggle } from "./search-toggle";
@@ -36,14 +37,14 @@ export type TransactionRowData = {
   sourceId: string | null;
   // Still read-only here (the "Transfer" badge) — set by match_transfer_pairs
   // during sync, not by anything in this row anymore. No transfer_from/to
-  // bucket fields: Source Transfers on the Budgets page own that now.
+  // bucket fields: Source Transfers on the Budget page own that now.
   isTransfer: boolean;
   isIncome: boolean;
   excludeFromBudget: boolean;
   notes: string | null;
-  isSplit: boolean;
   hasProviderTransactionId: boolean;
-  splits: { id: string; categoryId: string | null; sourceId: string | null; amount: number }[];
+  /** Set on a piece of a split: its original and all of its pieces. */
+  split: SplitGroup | null;
 };
 
 type Option = { id: string; name: string };
@@ -57,12 +58,12 @@ const ADD_SOURCE = "__add_source__";
 // checkbox that used to live in the row's (now-removed) expandable detail
 // panel. Clears source_id/category_id the same way leaving Budget already
 // did; see handleSourceChange. There's no Transfer equivalent — Source
-// Transfers on the Budgets page cover that now.
+// Transfers on the Budget page cover that now.
 const EXCLUDE_SOURCE = "__exclude__";
 
 // Income is not a sentinel: it's the real system Income source (its id
 // arrives as incomeSourceId). Picking it marks the row Income and clears
-// the category; route_income_to_fund keeps is_income and source_id in
+// the category; route_income_to_source keeps is_income and source_id in
 // lockstep in the database, whichever one a save sets. The Category select
 // is disabled whenever a row is Income (see isBudgetSource below).
 
@@ -74,6 +75,52 @@ const EXCLUDE_SOURCE = "__exclude__";
 // there so the narrower column still shows something useful.
 function accountLast4(name: string | null): string | null {
   return name?.match(/\((\d{4})\)\s*$/)?.[1] ?? null;
+}
+
+type ListItem =
+  | { kind: "header"; date: string; net: number }
+  | { kind: "row"; txn: TransactionRowData; txnIndex: number; lastOfDay: boolean };
+
+// Interleaves a date header before each run of same-day transactions. The
+// list arrives sorted by date, newest first.
+function buildListItems(transactions: TransactionRowData[]): ListItem[] {
+  const items: ListItem[] = [];
+  let header: Extract<ListItem, { kind: "header" }> | null = null;
+  transactions.forEach((txn, txnIndex) => {
+    if (!header || header.date !== txn.postedDate) {
+      const last = items[items.length - 1];
+      if (last?.kind === "row") last.lastOfDay = true;
+      header = { kind: "header", date: txn.postedDate, net: 0 };
+      items.push(header);
+    }
+    header.net = Math.round((header.net + txn.amount) * 100) / 100;
+    items.push({ kind: "row", txn, txnIndex, lastOfDay: false });
+  });
+  const last = items[items.length - 1];
+  if (last?.kind === "row") last.lastOfDay = true;
+  return items;
+}
+
+// The last header at or above `startIndex`: the date the top row belongs to.
+function activeHeader(headerIndexes: number[], startIndex: number) {
+  let active = 0;
+  for (const i of headerIndexes) {
+    if (i <= startIndex) active = i;
+    else break;
+  }
+  return active;
+}
+
+// "OCT 14", with the year added when it isn't this year.
+function dayHeaderLabel(date: string) {
+  const d = new Date(`${date}T00:00:00Z`);
+  const sameYear = d.getUTCFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+    timeZone: "UTC",
+  });
 }
 
 export function TransactionList({
@@ -131,19 +178,44 @@ export function TransactionList({
   // dynamic sizing (rather than a fixed estimate) because a row's real
   // height varies by breakpoint (stacked card vs. single line) and by
   // whether it's expanded.
+  // Rows grouped under a header per posted date ("OCT 14 · −123.40"). The
+  // headers are virtual items of their own, so the flat list interleaves
+  // them; `txnIndex` maps a row back to its place in `transactions` (what
+  // shift-click range selection walks).
+  const items = useMemo(() => buildListItems(transactions), [transactions]);
+  const headerIndexes = useMemo(
+    () => items.flatMap((item, i) => (item.kind === "header" ? [i] : [])),
+    [items],
+  );
+  // The header for whatever date is at the top of the viewport. Always kept
+  // in the rendered range and drawn position: sticky, so it stays pinned.
+  const rangeExtractor = useCallback(
+    (range: Range) => {
+      const next = new Set([activeHeader(headerIndexes, range.startIndex), ...defaultRangeExtractor(range)]);
+      return [...next].sort((a, b) => a - b);
+    },
+    [headerIndexes],
+  );
+
   const rowVirtualizer = useWindowVirtualizer({
-    count: transactions.length,
+    count: items.length,
     // Keyed by transaction id rather than the default (array index) — an
     // edit that reorders the list (e.g. changing a row's date moves it to
     // a new index) would otherwise leave the measurement cache mapping the
     // old index's cached height/position onto whatever transaction now
     // sits there, which is what produced the blank-row/overlapping-row
     // glitch on a date change.
-    getItemKey: (index) => transactions[index].id,
-    estimateSize: () => 48,
+    getItemKey: (index) => {
+      const item = items[index];
+      return item.kind === "header" ? `h:${item.date}` : item.txn.id;
+    },
+    estimateSize: (index) => (items[index].kind === "header" ? 28 : 48),
     overscan: 10,
     scrollMargin: listEl?.offsetTop ?? 0,
+    rangeExtractor,
   });
+
+  const pinnedHeader = activeHeader(headerIndexes, rowVirtualizer.range?.startIndex ?? 0);
 
   // Anchor for shift+click range selection — a ref rather than state since
   // it's only read inside the click handler below, never during render.
@@ -251,15 +323,15 @@ export function TransactionList({
     <div className="flex flex-col gap-3">
       {selectedIds.size > 0 && (
         <div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
-          <div className="pointer-events-auto flex max-w-full items-center gap-3 rounded-full border border-border bg-surface px-4 py-2 text-sm shadow-elevated">
+          <div className="pointer-events-auto flex max-w-full items-center gap-3 border border-border bg-surface px-4 py-2 text-sm shadow-elevated">
             <span className="font-medium whitespace-nowrap">
               {selectedIds.size} selected
             </span>
             <span className="hidden text-xs text-muted sm:inline">
               Change a category or source on any selected row to apply it to all
             </span>
-            {isPending && <SpinnerIcon className="animate-spin shrink-0" size={14} />}
-            {bulkError && <span className="text-xs text-negative">{bulkError}</span>}
+            {isPending && <span className="text-xs text-muted">Saving</span>}
+            {bulkError && <span className="text-xs text-danger">{bulkError}</span>}
             <button
               type="button"
               onClick={() => setSelectedIds(new Set())}
@@ -285,8 +357,8 @@ export function TransactionList({
         // into a single-line table on wider screens without duplicating any
         // fields, so there's one row layout, not two parallel ones to keep in
         // sync.
-        <div className="overflow-hidden rounded-lg border border-border bg-surface text-sm shadow-card">
-          <div className="sticky top-0 z-10 hidden items-center gap-1.5 border-b border-border bg-surface-subtle/85 px-2 py-2 text-left text-sm text-muted backdrop-blur md:flex">
+        <div className="border border-border bg-surface text-sm">
+          <div className="sticky top-[env(safe-area-inset-top,0px)] z-10 hidden h-9 items-center gap-1.5 border-b border-border bg-surface px-2 text-left font-mono text-[11px] uppercase tracking-[0.08em] text-muted md:flex">
             <span className="flex w-8 shrink-0 items-center">
               <input
                 ref={selectAllRef}
@@ -299,7 +371,7 @@ export function TransactionList({
             </span>
             <DateRangeColumnFilter label="Date" className="w-28 shrink-0 font-medium" />
             <span className="md:max-w-[260px] md:flex-1 text-left font-medium">Description</span>
-            <span className="md:ml-4 w-24 shrink-0 text-center font-medium">Amount</span>
+            <span className="md:ml-4 w-24 shrink-0 text-right font-medium">Amount</span>
             <SelectColumnFilter
               label="Source"
               paramKey="source_id"
@@ -327,10 +399,38 @@ export function TransactionList({
           </div>
           <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const txn = transactions[virtualRow.index];
+              const item = items[virtualRow.index];
+              if (item.kind === "header") {
+                const pinned = virtualRow.index === pinnedHeader;
+                return (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
+                    className={cn(
+                      "z-[5] flex h-7 items-center border-b border-border bg-surface-2 px-3 font-mono text-[11px] uppercase tracking-[0.08em] text-muted tabular-nums md:px-2",
+                      pinned && "top-0 md:top-9",
+                    )}
+                    style={
+                      pinned
+                        ? { position: "sticky", width: "100%" }
+                        : {
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                          }
+                    }
+                  >
+                    {dayHeaderLabel(item.date)} &middot; {formatMoney(item.net, decimalPlaces, { symbol: false })}
+                  </div>
+                );
+              }
+              const txn = item.txn;
               return (
                 <div
-                  key={txn.id}
+                  key={virtualRow.key}
                   data-index={virtualRow.index}
                   ref={rowVirtualizer.measureElement}
                   style={{
@@ -348,7 +448,7 @@ export function TransactionList({
                     decimalPlaces={decimalPlaces}
                     budgetSourceId={budgetSourceId}
                     incomeSourceId={incomeSourceId}
-                    index={virtualRow.index}
+                    index={item.txnIndex}
                     selected={selectedIds.has(txn.id)}
                     onToggleSelect={toggleSelect}
                     selectedCount={selectedIds.size}
@@ -358,7 +458,7 @@ export function TransactionList({
                     onBulkApplyIncome={applyBulkIncome}
                     buildRule={buildRuleIds.has(txn.id)}
                     onToggleBuildRule={toggleBuildRule}
-                    isLastRow={virtualRow.index === transactions.length - 1}
+                    isLastRow={item.lastOfDay}
                   />
                 </div>
               );
@@ -436,7 +536,7 @@ const TransactionRow = memo(function TransactionRow({
   const [editingDate, setEditingDate] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descError, setDescError] = useState<string | null>(null);
-  const [splitOpen, setSplitOpen] = useState(txn.isSplit);
+  const [splitOpen, setSplitOpen] = useState(false);
   // Not cleared when txn.isIncome — Income lives on the Source select (the
   // Income source), not in this field, and a transaction can carry a
   // real category_id alongside is_income (the manual-entry form's own
@@ -473,7 +573,7 @@ const TransactionRow = memo(function TransactionRow({
     txn.categoryId !== prevTxn.categoryId ||
     txn.sourceId !== prevTxn.sourceId ||
     txn.postedDate !== prevTxn.postedDate ||
-    txn.isSplit !== prevTxn.isSplit ||
+    txn.split !== prevTxn.split ||
     txn.excludeFromBudget !== prevTxn.excludeFromBudget ||
     txn.description !== prevTxn.description ||
     txn.notes !== prevTxn.notes
@@ -487,7 +587,6 @@ const TransactionRow = memo(function TransactionRow({
     setDescription(txn.description);
     setNotes(txn.notes ?? "");
     setAddingSource(false);
-    setSplitOpen(txn.isSplit);
     // Assigning an Excluded Category (see Settings) forces this true via
     // a DB trigger, server-side, independent of anything submitted here —
     // reconcile it the same way as the other server-driven fields above,
@@ -521,7 +620,7 @@ const TransactionRow = memo(function TransactionRow({
     setRowError(result?.error ?? null);
   }
 
-  // "Add Rule": whether this category pick should also teach a vendor rule,
+  // "Add Rule": whether this category pick should also teach a rule,
   // and the prompt that asks. See use-rule-builder.ts.
   const { resolveRuleAction, isFreshPick } = useRuleBuilder({
     description: txn.description,
@@ -751,6 +850,11 @@ const TransactionRow = memo(function TransactionRow({
   }
 
   async function handleDelete() {
+    const ok = await confirm(`Delete "${txn.description}"? This can't be undone.`, {
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     const result = await deleteTransaction(txn.id);
     setRowError(result?.error ?? null);
   }
@@ -762,6 +866,10 @@ const TransactionRow = memo(function TransactionRow({
       : isIncome
         ? "Income"
         : null;
+  // "Split 1 of 3": this row is one piece of a split transaction.
+  const splitLabel = txn.split
+    ? `Split ${txn.split.pieces.findIndex((p) => p.id === txn.id) + 1} of ${txn.split.pieces.length}`
+    : null;
 
   const accountLast4Value = txn.accountLast4 ?? accountLast4(txn.accountName);
   const accountDisplay = accountLast4Value ?? txn.accountName ?? "—";
@@ -769,7 +877,7 @@ const TransactionRow = memo(function TransactionRow({
   // What the Source select currently shows — a real source id (the Income
   // source for an Income row) or the Exclude sentinel (see
   // handleSourceChange). An Income row always carries the Income source in
-  // the database (route_income_to_fund); the fallback only covers the
+  // the database (route_income_to_source); the fallback only covers the
   // moment between picking Income and the save returning.
   const sourceSelectValue = excludeFromBudget
     ? EXCLUDE_SOURCE
@@ -789,7 +897,7 @@ const TransactionRow = memo(function TransactionRow({
         className={cn(
           "transition-colors duration-[120ms] ease-standard",
           isLastRow ? "" : "border-b border-border",
-          selected ? "bg-accent/8" : "hover:bg-paper-a1",
+          selected ? "bg-accent-soft" : "hover:bg-fill-hover",
         )}
       >
         {/* Below md this is a stacked card (each inner group is its own
@@ -832,7 +940,7 @@ const TransactionRow = memo(function TransactionRow({
                   type="button"
                   onClick={() => setEditingDate(true)}
                   title={`Account: ${accountDisplay}`}
-                  className="w-full rounded-sm px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                  className="w-full px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-active"
                 >
                   {formatShortDate(postedDate)}
                 </button>
@@ -903,29 +1011,33 @@ const TransactionRow = memo(function TransactionRow({
                     Cancel
                   </Button>
                 </div>
-                {descError && <p className="text-xs text-negative">{descError}</p>}
+                {descError && <p className="text-xs text-danger">{descError}</p>}
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setEditingDescription(true)}
                 title={notes ? `${description} — ${notes}` : description}
-                className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 md:max-w-[260px] md:flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                className="min-w-0 truncate px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-fill-active md:max-w-[260px] md:flex-1"
               >
                 {description}
+                {splitLabel && (
+                  <span
+                    className="ml-2 border border-border px-1.5 py-0.5 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted"
+                    title={`Part of a ${formatMoney(txn.split!.parentAmount, decimalPlaces)} transaction`}
+                  >
+                    {splitLabel}
+                  </span>
+                )}
                 {typeLabel && (
-                  <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
+                  <span className="ml-2 border border-border px-1.5 py-0.5 text-xs font-normal text-muted">
                     {typeLabel}
                   </span>
                 )}
               </button>
             )}
-            <span
-              className={`shrink-0 whitespace-nowrap font-medium md:ml-4 md:w-24 md:text-center ${
-                txn.amount < 0 ? "text-negative" : "text-positive"
-              }`}
-            >
-              <Money amount={txn.amount} decimalPlaces={decimalPlaces} />
+            <span className="shrink-0 whitespace-nowrap font-medium md:ml-4 md:w-24 md:text-right">
+              <Money amount={txn.amount} decimalPlaces={decimalPlaces} symbol={false} />
             </span>
           </div>
 
@@ -998,7 +1110,7 @@ const TransactionRow = memo(function TransactionRow({
               </Select>
               {isBudgetSource && txn.categorySource === "rule" && (
                 <span
-                  className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
+                  className="shrink-0 border border-border px-1.5 py-0.5 text-[0.65rem] text-muted"
                   title="Auto-categorized from a learned rule"
                 >
                   auto
@@ -1020,9 +1132,9 @@ const TransactionRow = memo(function TransactionRow({
                     : "Rule-building off for this row"
                 }
                 title="Prompt to save a rule when this row's category, source, Income or Exclude changes"
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-[120ms] ease-standard ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center border transition-colors duration-[120ms] ease-standard ${
                   buildRule
-                    ? "border-mark bg-mark text-mark-foreground"
+                    ? "border-accent bg-accent text-on-accent"
                     : "border-border text-muted hover:bg-background hover:text-foreground"
                 }`}
               >
@@ -1034,22 +1146,24 @@ const TransactionRow = memo(function TransactionRow({
           <div className="flex items-center justify-end gap-1 md:contents">
             <button
               type="button"
-              onClick={() => setSplitOpen((s) => !s)}
+              onClick={() => setSplitOpen((open) => !open)}
+              disabled={isTransfer}
               aria-pressed={splitOpen}
-              aria-label={splitOpen ? "Hide split" : "Split this transaction"}
-              title="Split into multiple categories/sources"
-              className={`rounded-sm p-1 transition-colors duration-[120ms] ease-standard md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
-                splitOpen ? "text-accent" : "text-muted hover:bg-paper-a2 hover:text-foreground"
+              aria-label={splitOpen ? "Hide split" : txn.split ? "Edit split" : "Split this transaction"}
+              title={isTransfer ? "Transfers can't be split" : txn.split ? "Edit the split" : "Split into several transactions"}
+              className={`p-1 transition-colors duration-[120ms] ease-standard disabled:pointer-events-none disabled:opacity-40 md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
+                splitOpen ? "text-accent" : "text-muted hover:bg-fill-active hover:text-foreground"
               }`}
             >
               <SplitIcon size={14} />
             </button>
             <div className="flex items-center gap-1 md:order-1 md:w-8 md:flex-none md:justify-end">
-              {!txn.hasProviderTransactionId && (
+              {/* A split piece goes away by editing or removing its split. */}
+              {!txn.hasProviderTransactionId && !txn.split && (
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="rounded p-1.5 text-negative hover:bg-background"
+                  className="p-1.5 text-danger hover:bg-background"
                   aria-label="Delete transaction"
                   title="Delete"
                 >
@@ -1060,7 +1174,7 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         </div>
 
-        {rowError && <p className="px-3 pb-2 text-xs text-negative md:px-2">{rowError}</p>}
+        {rowError && <p className="px-3 pb-2 text-xs text-danger md:px-2">{rowError}</p>}
 
         {/* Triggered by picking "+ Add source" in the Source select above
             (see ADD_SOURCE) rather than a separate toggle — mirrors the
@@ -1092,7 +1206,7 @@ const TransactionRow = memo(function TransactionRow({
               </label>
               <button
                 type="submit"
-                className="w-fit rounded-md border border-border px-3 py-1.5 text-xs hover:bg-background"
+                className="w-fit border border-border px-3 py-1.5 text-xs hover:bg-background"
               >
                 Create source ({formatMoney(txn.amount, decimalPlaces)})
               </button>
@@ -1104,7 +1218,7 @@ const TransactionRow = memo(function TransactionRow({
                 Cancel
               </button>
               {createSourceState?.error && (
-                <p className="w-full text-xs text-negative">{createSourceState.error}</p>
+                <p className="w-full text-xs text-danger">{createSourceState.error}</p>
               )}
             </form>
           </div>
@@ -1116,12 +1230,15 @@ const TransactionRow = memo(function TransactionRow({
         {splitOpen && (
           <div className="border-t border-border bg-surface-subtle px-4 py-3">
             <SplitEditor
-              transactionId={txn.id}
-              transactionAmount={txn.amount}
-              splits={txn.splits}
+              transactionId={txn.split?.parentId ?? txn.id}
+              transactionAmount={txn.split?.parentAmount ?? txn.amount}
+              pieces={txn.split?.pieces ?? []}
               categories={categories}
               sources={sources}
+              budgetSourceId={budgetSourceId}
+              incomeSourceId={incomeSourceId}
               decimalPlaces={decimalPlaces}
+              onDone={() => setSplitOpen(false)}
             />
           </div>
         )}

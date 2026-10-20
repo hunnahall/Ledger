@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/auth";
 import { logChange } from "@/lib/actions/log";
 import { logMoney, parseMoney } from "@/lib/format";
+import { revalidateLedgerPages } from "@/lib/actions/revalidate";
 
 const ACCOUNT_TYPES = ["checking", "savings", "credit_card", "manual"] as const;
 
@@ -52,52 +53,81 @@ export async function createManualAccount(
   return null;
 }
 
-export async function deleteManualAccount(
+// Deletes a manual account, or a bank account whose bank was disconnected.
+// Its transactions stay (with no account) and keep their effect on Source
+// balances: transactions.account_id is `on delete set null`. An account still
+// syncing can't be deleted here; disconnect its bank first.
+export async function deleteAccount(
   accountId: string,
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
   const { supabase, user } = await requireUser();
 
-  const { count, error: countError } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("account_id", accountId);
-  // Previously unchecked: a failed count came back null, which read as
-  // "zero transactions" and let the delete proceed — taking the account's
-  // transactions with it.
-  if (countError) return { error: countError.message };
-  if (count && count > 0) {
-    return {
-      error: `This account has ${count} transaction${count === 1 ? "" : "s"}. Delete those first — deleting the account would delete them too.`,
-    };
-  }
-
   const { data: account, error: fetchError } = await supabase
     .from("accounts")
-    .select("account_name, current_balance")
+    .select("account_name, current_balance, is_manual, bank_connection_id")
     .eq("id", accountId)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
+  if (!account) return { error: "Account not found." };
+  if (!account.is_manual && account.bank_connection_id) {
+    return { error: "This account is still connected to its bank. Disconnect the bank first." };
+  }
+
+  const { error } = await supabase.from("accounts").delete().eq("id", accountId);
+  if (error) return { error: error.message };
+
+  await logChange(
+    supabase,
+    user.id,
+    "Accounts",
+    `Account: ${account.account_name}`,
+    logMoney(account.current_balance),
+    null,
+  );
+
+  revalidatePath("/accounts");
+  revalidateLedgerPages();
+  return null;
+}
+
+// Account type is the user's call (SimpleFin doesn't report it). Sync only
+// sets "checking" on an account it hasn't seen before, so this sticks.
+export async function setAccountType(
+  accountId: string,
+  accountType: string,
+): Promise<{ error: string } | null> {
+  if (!ACCOUNT_TYPES.includes(accountType as (typeof ACCOUNT_TYPES)[number])) {
+    return { error: "Not a valid account type." };
+  }
+  const { supabase, user } = await requireUser();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("accounts")
+    .select("account_name, account_type")
+    .eq("id", accountId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!existing) return { error: "Account not found." };
+  if (existing.account_type === accountType) return null;
 
   const { error } = await supabase
     .from("accounts")
-    .delete()
-    .eq("id", accountId)
-    .eq("is_manual", true);
+    .update({ account_type: accountType })
+    .eq("id", accountId);
   if (error) return { error: error.message };
 
-  if (account) {
-    await logChange(
-      supabase,
-      user.id,
-      "Accounts",
-      `Account: ${account.account_name}`,
-      logMoney(account.current_balance),
-      null,
-    );
-  }
+  await logChange(
+    supabase,
+    user.id,
+    "Accounts",
+    `${existing.account_name} — Type`,
+    existing.account_type,
+    accountType,
+  );
 
   revalidatePath("/accounts");
+  revalidatePath("/dashboard");
   return null;
 }

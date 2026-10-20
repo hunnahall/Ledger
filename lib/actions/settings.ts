@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateLedgerPages } from "@/lib/actions/revalidate";
+import { normalizeLayout, type DashboardLayout } from "@/lib/dashboard-layout";
 
 export async function updateDecimalPlaces(
   _prevState: { error: string } | null,
@@ -25,22 +26,25 @@ export async function updateDecimalPlaces(
   return null;
 }
 
-export async function updateMonthAhead(
+export async function updateBudgetType(
   _prevState: { error: string } | null,
   formData: FormData,
 ): Promise<{ error: string } | null> {
-  const monthAhead = formData.get("month_ahead") === "on";
+  const budgetType = formData.get("budget_type");
+  if (budgetType !== "rolling" && budgetType !== "advanced") {
+    return { error: "Choose Rolling or Advanced." };
+  }
 
   const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("settings")
-    .update({ month_ahead: monthAhead })
+    .update({ budget_type: budgetType })
     .eq("user_id", user.id);
   if (error) return { error: error.message };
 
   // No catch-up needed when switching modes: income tracks to the Income
-  // source either way (route_income_to_fund). The switch only changes what
+  // source either way (route_income_to_source). The switch only changes what
   // ensure_month_current does with that balance when the next month starts.
 
   revalidateLedgerPages();
@@ -74,6 +78,20 @@ export async function updateTimezone(timeZone: string): Promise<{ error: string 
 
   revalidateLedgerPages();
   revalidatePath("/settings");
-  revalidatePath("/forecast");
+  revalidatePath("/forecasts");
+  return null;
+}
+
+// The Dashboard's tile order, widths and hidden tiles, saved as the user
+// rearranges them. Checked by normalizeLayout so nothing malformed is stored.
+// No revalidation: the grid already shows the change, and the next render
+// reads it back.
+export async function saveDashboardLayout(layout: DashboardLayout): Promise<{ error: string } | null> {
+  const { supabase, user } = await requireUser();
+  const { error } = await supabase
+    .from("settings")
+    .update({ dashboard_layout: normalizeLayout(layout) })
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
   return null;
 }

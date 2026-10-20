@@ -27,7 +27,7 @@ type TypeChoice = "expense" | "deposit";
 // separate detail row underneath (see ExpandableRow, still used by the
 // Budgets rows this used to share a component with). All three fields edit
 // together rather than committing per-cell, same "explicit Save" reasoning
-// as VendorRuleRow: blurring one field to tab into the next would otherwise
+// as RuleRow: blurring one field to tab into the next would otherwise
 // fire a premature partial save.
 export function ForecastEntryRow({
   entry,
@@ -168,16 +168,16 @@ export function ForecastEntryRow({
               Cancel
             </Button>
           </div>
-          {error && <p className="mt-1 text-xs text-negative">{error}</p>}
+          {error && <p className="mt-1 text-xs text-danger">{error}</p>}
         </td>
       </tr>
     );
   }
 
   return (
-    <tr className="border-b border-border align-middle transition-colors duration-[120ms] ease-standard last:border-0 hover:bg-paper-a1">
+    <tr className="border-b border-border align-middle transition-colors duration-[120ms] ease-standard last:border-0 hover:bg-fill-hover">
       <td
-        className="cursor-pointer px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-inset"
+        className="cursor-pointer px-4 py-3 focus-visible:ring-inset"
         onClick={startEditing}
         onKeyDown={handleCellKeyDown}
         tabIndex={0}
@@ -187,7 +187,7 @@ export function ForecastEntryRow({
         {formatMonthYear(entry.month)}
       </td>
       <td
-        className="cursor-pointer px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-inset"
+        className="cursor-pointer px-4 py-3 focus-visible:ring-inset"
         onClick={startEditing}
         onKeyDown={handleCellKeyDown}
         tabIndex={0}
@@ -197,14 +197,14 @@ export function ForecastEntryRow({
         {entry.description}
       </td>
       <td
-        className="cursor-pointer px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-inset"
+        className="cursor-pointer px-4 py-3 focus-visible:ring-inset"
         onClick={startEditing}
         onKeyDown={handleCellKeyDown}
         tabIndex={0}
         role="button"
         aria-label={`Edit ${entry.description} entry amount`}
       >
-        <span className={entry.isExpense ? "text-negative" : "text-positive"}>
+        <span>
           {entry.isExpense ? "−" : "+"}
           <Money amount={entry.amount} decimalPlaces={decimalPlaces} />
         </span>

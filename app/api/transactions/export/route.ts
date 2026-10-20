@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFilteredTransactions } from "@/lib/queries/transactions";
+import { getFilteredTransactions, getSplitGroups } from "@/lib/queries/transactions";
 import { requireUser } from "@/lib/supabase/auth";
 import {
   resolveCategoryFilter,
@@ -58,7 +58,9 @@ export async function GET(request: NextRequest) {
     ...resolveSourceFilter(params.get("source_id") ?? undefined),
   };
 
-  const transactions = await getFilteredTransactions(filters);
+  // Split originals aren't exported; their pieces are, each with the
+  // original's amount in "Split from" so the pieces can be tied back.
+  const [transactions, splitGroups] = await Promise.all([getFilteredTransactions(filters), getSplitGroups()]);
 
   const header = [
     "Date",
@@ -70,6 +72,7 @@ export async function GET(request: NextRequest) {
     "Transfer",
     "Excluded from budget",
     "Notes",
+    "Split from",
   ];
 
   const rows = transactions.map((t) => [
@@ -82,6 +85,7 @@ export async function GET(request: NextRequest) {
     t.is_transfer ? "yes" : "no",
     t.exclude_from_budget ? "yes" : "no",
     csvEscapeText(t.notes ?? ""),
+    t.split_parent_id ? quoteCsv((splitGroups.get(t.split_parent_id)?.parentAmount ?? 0).toFixed(2)) : "",
   ]);
 
   const csv = [header.map(quoteCsv), ...rows]

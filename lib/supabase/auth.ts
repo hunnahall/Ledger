@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 export type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 // auth.getUser() is a network round trip to the Supabase Auth server, not a
-// local token decode — and one page render can make several (the Dashboard
-// reaches it twice: ensureBudgetCurrent and getBudgetRateData). Who the
+// local token decode — and one page render can make several (every query
+// and action on the page that checks the user). Who the
 // caller is can't change part-way through a request, so React's cache()
 // collapses them into a single round trip. Memoizing the lookup rather than
 // requireUser itself keeps redirect()'s control-flow throw out of the cached

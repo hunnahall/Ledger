@@ -34,7 +34,7 @@ export function ForecastPicker({
 
   useEffect(() => {
     if (createState && "id" in createState && createState.id) {
-      router.push(`/forecast?id=${createState.id}`);
+      router.push(`/forecasts?id=${createState.id}`);
     }
   }, [createState, router]);
 
@@ -51,7 +51,7 @@ export function ForecastPicker({
   return (
     <div className="flex flex-col gap-4">
       {dialog}
-      <div className="rounded-lg border border-border bg-surface">
+      <div className="border border-border bg-surface">
         {forecasts.length === 0 && !showCreate && (
           <p className="p-5 text-sm text-muted">No saved forecasts yet.</p>
         )}
@@ -60,7 +60,7 @@ export function ForecastPicker({
             key={f.id}
             className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-0"
           >
-            <a href={`/forecast?id=${f.id}`} className="min-w-0 flex-1">
+            <a href={`/forecasts?id=${f.id}`} className="min-w-0 flex-1">
               <p className="font-medium">{f.name}</p>
               <p className="text-xs text-muted">
                 {f.sourceName} &middot; updated {formatDate(f.updatedAt.slice(0, 10))}
@@ -111,7 +111,7 @@ export function ForecastPicker({
             >
               Cancel
             </button>
-            {createState?.error && <p className="w-full text-xs text-negative">{createState.error}</p>}
+            {createState?.error && <p className="w-full text-xs text-danger">{createState.error}</p>}
           </form>
         )}
       </div>

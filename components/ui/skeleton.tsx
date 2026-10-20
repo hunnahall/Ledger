@@ -10,13 +10,13 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       aria-hidden
-      className={cn("animate-pulse rounded-md bg-paper-a3", className)}
+      className={cn("skeleton bg-fill-active", className)}
     />
   );
 }
 
 /** A run of text-height bars, for standing in for a paragraph or a cell. */
-export function SkeletonText({
+function SkeletonText({
   lines = 1,
   className,
 }: {
@@ -51,7 +51,7 @@ export function PageHeaderSkeleton({
 }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1>{title}</h1>
       {subtitle === undefined && <Skeleton className="mt-2 h-4 w-56" />}
       {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
     </div>
@@ -69,7 +69,7 @@ export function SkeletonCard({
   return (
     <div
       className={cn(
-        "rounded-lg border border-card-border bg-surface p-6 shadow-card",
+        "border border-border bg-surface p-5",
         className,
       )}
     >
@@ -81,8 +81,8 @@ export function SkeletonCard({
 /** Stands in for a bordered list or table: header strip plus n rows. */
 export function SkeletonTable({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
-      <div className="border-b border-border bg-surface-subtle px-4 py-3">
+    <div className="overflow-hidden border border-border bg-surface">
+      <div className="border-b border-rule px-4 py-3">
         <Skeleton className="h-3 w-32" />
       </div>
       {Array.from({ length: rows }, (_, i) => (
@@ -93,6 +93,21 @@ export function SkeletonTable({ rows = 8 }: { rows?: number }) {
           <Skeleton className="h-3.5 w-24 shrink-0" />
           <Skeleton className="h-3.5 flex-1" />
           <Skeleton className="h-3.5 w-16 shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Stands in for a StatRow (components/ui/stat.tsx). */
+export function SkeletonStatRow({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 divide-y divide-border border border-border bg-surface sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none sm:divide-x sm:divide-y-0">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="px-5 py-4">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="mt-2.5 h-7 w-28" />
+          <Skeleton className="mt-2 h-3 w-20" />
         </div>
       ))}
     </div>

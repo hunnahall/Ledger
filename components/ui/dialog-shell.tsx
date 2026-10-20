@@ -41,15 +41,15 @@ export function DialogShell({
       onClick={onDismiss}
       // The pre-open state is @starting-style (Tailwind's `starting:`), so
       // the entrance is pure CSS — no mount-and-flip state to keep in sync.
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 opacity-100 backdrop-blur-sm transition-opacity duration-[120ms] ease-entrance starting:opacity-0"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--scrim)] p-4 opacity-100 transition-opacity duration-[360ms] ease-entrance starting:opacity-0"
     >
       <div
         role={role}
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "scale-100 rounded-xl border border-card-border bg-surface p-5 opacity-100 shadow-modal",
-          "transition-[opacity,transform] duration-[120ms] ease-entrance starting:scale-[0.98] starting:opacity-0",
+          "translate-y-0 border border-border-strong bg-surface-2 p-5 opacity-100 shadow-modal",
+          "transition-[opacity,transform] duration-[360ms] ease-entrance starting:translate-y-1 starting:opacity-0",
           panelClassName,
         )}
       >

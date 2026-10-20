@@ -3,44 +3,52 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import type { NAV_LINKS } from "./nav-links";
+import type { NavLinkItem } from "./nav-links";
+import { useReviewCount } from "./review-count";
+import { NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 
-// Shared with the mobile dropdown (see NavLink) so "you are here" reads the
-// same in both navs: a subtle pill, plus a gold bar pinned to the container's
-// left edge — the one place the brand colour shows while you use the app.
-export const NAV_ITEM_BASE =
-  "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-[120ms] ease-standard";
-export const NAV_ITEM_ACTIVE =
-  "bg-surface-subtle text-foreground before:absolute before:-left-2 before:top-1/2 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-mark";
-export const NAV_ITEM_IDLE = "text-muted hover:bg-paper-a2 hover:text-foreground";
+// 30px row, 16px line icon in --fg-3, 13px label. The current item gets the
+// active fill, a 2px signature marker on the left edge and a signature icon.
+const ITEM_BASE =
+  "relative flex h-[var(--control-md)] items-center gap-3 px-3 text-[13px] font-medium transition-colors duration-[120ms] ease-standard";
+const ITEM_ACTIVE =
+  "bg-fill-active text-foreground before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent";
+const ITEM_IDLE = "text-foreground-secondary hover:bg-fill-hover hover:text-foreground";
 
-export function SidebarLink({
-  href,
-  label,
-  icon: Icon,
-  collapsed,
-}: (typeof NAV_LINKS)[number] & { collapsed: boolean }) {
+export function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function SidebarLink(props: NavLinkItem & { onClick?: () => void }) {
+  const { href, label, icon: Icon, onClick } = props;
   const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = isActivePath(pathname, href);
+  const reviewCount = useReviewCount();
+  const count = "badge" in props && props.badge === "review" ? reviewCount : 0;
 
   return (
-    <Link
-      href={href}
-      aria-current={isActive ? "page" : undefined}
-      title={collapsed ? label : undefined}
-      // mx-3 + the px-3 in NAV_ITEM_BASE puts the icon 24px in from the
-      // sidebar edge — matches the logo's own left inset (see Sidebar) so the
-      // two line up. The active bar's -left-2 reaches back into that margin,
-      // leaving a 4px gutter against the sidebar edge.
-      className={cn(
-        "mx-3",
-        NAV_ITEM_BASE,
-        collapsed && "justify-center px-0",
-        isActive ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE,
+    <div className="relative">
+      <Link
+        href={href}
+        onClick={onClick}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(ITEM_BASE, isActive ? ITEM_ACTIVE : ITEM_IDLE, count > 0 && "pr-14")}
+      >
+        <Icon size={16} className={cn("shrink-0", isActive ? "text-accent" : "text-muted")} />
+        <span className="truncate">{label}</span>
+      </Link>
+      {count > 0 && (
+        // Its own link: straight to the transactions that need a Source.
+        <Link
+          href={`/transactions?source_id=${NO_SOURCE_FILTER_VALUE}`}
+          onClick={onClick}
+          aria-label={`${count} transaction${count === 1 ? "" : "s"} without a Source`}
+          title={`${count} without a Source`}
+          className="absolute right-2 top-1/2 inline-flex h-5 min-w-5 -translate-y-1/2 items-center justify-center border border-border-strong bg-surface px-1.5 font-mono text-[11px] tabular-nums text-foreground-secondary transition-colors duration-[120ms] ease-standard hover:border-muted hover:text-foreground"
+        >
+          {count > 999 ? "999+" : count}
+        </Link>
       )}
-    >
-      <Icon size={18} className="shrink-0" />
-      {!collapsed && <span className="truncate">{label}</span>}
-    </Link>
+    </div>
   );
 }

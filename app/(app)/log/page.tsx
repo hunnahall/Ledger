@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 
 // Same look as a small secondary Button — these navigate, so they're links.
 const PAGE_LINK =
-  "rounded-md border border-border bg-surface px-3 py-1.5 text-sm shadow-xs hover:border-border-strong hover:bg-paper-a1";
+  "border border-border bg-surface px-3 py-1.5 text-sm shadow-xs hover:border-border-strong hover:bg-fill-hover";
 
 export default async function LogPage({
   searchParams,
@@ -16,7 +16,7 @@ export default async function LogPage({
   const { page: rawPage } = await searchParams;
   const requested = Math.max(1, Math.floor(Number(rawPage)) || 1);
   let { entries, totalPages } = await getActivityLog(requested);
-  // A stale or hand-typed ?page= past the end (e.g. after the 60-day purge
+  // A stale or hand-typed ?page= past the end (e.g. after the nightly purge
   // shrank the log) lands on the last real page instead of an empty one.
   let page = requested;
   if (page > totalPages) {
@@ -27,7 +27,7 @@ export default async function LogPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Log</h1>
+        <h1>Log</h1>
       </div>
 
       {entries.length === 0 ? (
@@ -36,7 +36,7 @@ export default async function LogPage({
         // Same responsive-row approach as Transactions/Accounts: stacked
         // below md, reflows into one line at md+ via `contents` so it's a
         // single row layout rather than two copies to keep in sync.
-        <div className="rounded-lg border border-border text-sm">
+        <div className="border border-border text-sm">
           <div className="hidden items-center gap-3 border-b border-border bg-surface-subtle px-4 py-2 text-left text-xs text-muted md:flex">
             <span className="w-40 shrink-0 font-medium">Timestamp</span>
             <span className="w-24 shrink-0 font-medium">Page</span>

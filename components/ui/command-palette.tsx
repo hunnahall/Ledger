@@ -6,9 +6,9 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { setTheme } from "@/components/ui/theme-toggle";
-import { NAV_LINKS } from "@/components/ui/nav-links";
+import { ALL_LINKS } from "@/components/ui/nav-links";
 import {
-  BudgetsIcon,
+  BudgetIcon,
   SearchIcon,
   SettingsIcon,
   SourcesIcon,
@@ -74,7 +74,7 @@ export function CommandPalette({ targets }: { targets: PaletteTargets }) {
   const actions = useMemo<Action[]>(() => {
     const go = (href: string) => () => router.push(href);
     return [
-      ...NAV_LINKS.map((link) => ({
+      ...ALL_LINKS.map((link) => ({
         id: `nav:${link.href}`,
         group: "Go to",
         label: link.label,
@@ -101,7 +101,7 @@ export function CommandPalette({ targets }: { targets: PaletteTargets }) {
         id: `category:${category.id}`,
         group: "Categories",
         label: category.name,
-        icon: BudgetsIcon as IconComponent,
+        icon: BudgetIcon as IconComponent,
         run: go(`/transactions?category_id=${encodeURIComponent(category.id)}`),
       })),
       ...targets.sources.map((source) => ({
@@ -180,7 +180,7 @@ export function CommandPalette({ targets }: { targets: PaletteTargets }) {
           onKeyDown={handleKeyDown}
           placeholder="Search pages, categories, sources…"
           aria-label="Command palette"
-          className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-paper-7"
+          className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted"
         />
       </div>
 
@@ -205,7 +205,7 @@ export function CommandPalette({ targets }: { targets: PaletteTargets }) {
                 onClick={() => runAction(action)}
                 className={cn(
                   "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm",
-                  index === active ? "bg-paper-a2 text-foreground" : "text-foreground-secondary",
+                  index === active ? "bg-fill-hover text-foreground" : "text-foreground-secondary",
                 )}
               >
                 <Icon size={16} className="shrink-0 text-muted" />

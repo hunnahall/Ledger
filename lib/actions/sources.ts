@@ -1,7 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/supabase/auth";
-import { revalidateLedgerPages } from "@/lib/actions/revalidate";
+import { revalidateForecastPages, revalidateLedgerPages } from "@/lib/actions/revalidate";
 import { logMoney, parseMoney } from "@/lib/format";
 import {
   validateSourceInput,
@@ -154,8 +154,7 @@ export async function deleteSource(
   }
 
   // source_transfers.source_id is `not null ... on delete cascade` (unlike
-  // transactions.source_id / transaction_splits.source_id, which are `on
-  // delete set null`) — deleting a source with an active Source Transfer
+  // transactions.source_id, which is `on delete set null`) — deleting a source with an active Source Transfer
   // would silently delete that Source Transfer too, so block it instead.
   const { data: transfers, error: transfersError } = await supabase
     .from("source_transfers")
@@ -169,16 +168,17 @@ export async function deleteSource(
     };
   }
 
-  // transactions.source_id, transactions.transfer_from_source_id,
-  // transactions.transfer_to_source_id, and transaction_splits.source_id
-  // are all `on delete set null`, so affected transactions fall back to
-  // No source automatically.
+  // transactions.source_id, transfer_from_source_id and
+  // transfer_to_source_id are all `on delete set null`, so affected
+  // transactions fall back to No source automatically. Its forecasts are
+  // deleted with it (forecasts.source_id cascades); the confirm step says so.
   const { error } = await supabase.from("sources").delete().eq("id", sourceId);
   if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Sources", `Source: ${source.name}`, money(source.balance), null);
 
   revalidateLedgerPages();
+  revalidateForecastPages();
   return null;
 }
 

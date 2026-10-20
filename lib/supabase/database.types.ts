@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -265,7 +265,8 @@ export type Database = {
         Row: {
           created_at: string
           decimal_places: number
-          month_ahead: boolean
+          dashboard_layout: Json | null
+          budget_type: string
           timezone: string
           updated_at: string
           user_id: string
@@ -273,7 +274,8 @@ export type Database = {
         Insert: {
           created_at?: string
           decimal_places?: number
-          month_ahead?: boolean
+          dashboard_layout?: Json | null
+          budget_type?: string
           timezone?: string
           updated_at?: string
           user_id: string
@@ -281,7 +283,8 @@ export type Database = {
         Update: {
           created_at?: string
           decimal_places?: number
-          month_ahead?: boolean
+          dashboard_layout?: Json | null
+          budget_type?: string
           timezone?: string
           updated_at?: string
           user_id?: string
@@ -423,74 +426,9 @@ export type Database = {
         }
         Relationships: []
       }
-      transaction_splits: {
-        Row: {
-          amount: number
-          category_id: string | null
-          created_at: string
-          id: string
-          notes: string | null
-          source_id: string | null
-          transaction_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          category_id?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          source_id?: string | null
-          transaction_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          category_id?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          source_id?: string | null
-          transaction_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transaction_splits_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transaction_splits_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "sources"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transaction_splits_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "v_source_balances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transaction_splits_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       transactions: {
         Row: {
-          account_id: string
+          account_id: string | null
           amount: number
           category_id: string | null
           category_source: string | null
@@ -506,6 +444,7 @@ export type Database = {
           posted_date: string
           provider_transaction_id: string | null
           source_id: string | null
+          split_parent_id: string | null
           status: string
           transfer_from_source_id: string | null
           transfer_to_source_id: string | null
@@ -513,7 +452,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          account_id: string
+          account_id?: string | null
           amount: number
           category_id?: string | null
           category_source?: string | null
@@ -529,6 +468,7 @@ export type Database = {
           posted_date: string
           provider_transaction_id?: string | null
           source_id?: string | null
+          split_parent_id?: string | null
           status?: string
           transfer_from_source_id?: string | null
           transfer_to_source_id?: string | null
@@ -536,7 +476,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          account_id?: string
+          account_id?: string | null
           amount?: number
           category_id?: string | null
           category_source?: string | null
@@ -552,6 +492,7 @@ export type Database = {
           posted_date?: string
           provider_transaction_id?: string | null
           source_id?: string | null
+          split_parent_id?: string | null
           status?: string
           transfer_from_source_id?: string | null
           transfer_to_source_id?: string | null
@@ -588,6 +529,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_split_parent_id_fkey"
+            columns: ["split_parent_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_transfer_from_source_id_fkey"
             columns: ["transfer_from_source_id"]
             isOneToOne: false
@@ -617,7 +565,43 @@ export type Database = {
           },
         ]
       }
-      vendor_category_rules: {
+      monthly_totals: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          kind: string
+          month: string
+          ref_id: string | null
+          ref_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          kind: string
+          month: string
+          ref_id?: string | null
+          ref_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          month?: string
+          ref_id?: string | null
+          ref_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rules: {
         Row: {
           category_id: string | null
           created_at: string
@@ -659,21 +643,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "vendor_category_rules_category_id_fkey"
+            foreignKeyName: "rules_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "vendor_category_rules_source_id_fkey"
+            foreignKeyName: "rules_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "sources"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "vendor_category_rules_source_id_fkey"
+            foreignKeyName: "rules_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "v_source_balances"
@@ -695,16 +679,16 @@ export type Database = {
         Row: {
           income: number | null
           month: string | null
-          other_inflow: number | null
+          other_inflows: number | null
           user_id: string | null
         }
         Relationships: []
       }
-      v_outflow_by_bucket: {
+      v_outflows: {
         Row: {
-          amount: number | null
-          bucket: string | null
+          expense: number | null
           month: string | null
+          other_outflows: number | null
           user_id: string | null
         }
         Relationships: []
@@ -756,7 +740,7 @@ export type Database = {
       }
     }
     Functions: {
-      apply_vendor_rules: {
+      apply_rules: {
         Args: { p_user_id?: string }
         Returns: number
       }
@@ -770,7 +754,7 @@ export type Database = {
         Args: { p_connection_id: string; p_user_id: string }
         Returns: string
       }
-      learn_vendor_rule: {
+      learn_rule: {
         Args: {
           p_category_id: string | null
           p_is_exclude?: boolean
@@ -782,7 +766,6 @@ export type Database = {
       }
       match_transfer_pairs: { Args: { p_user_id: string }; Returns: number }
       purge_expired_data: { Args: never; Returns: undefined }
-      route_current_month_income_to_fund: { Args: never; Returns: undefined }
       save_transaction_splits: {
         Args: { p_rows: Json; p_transaction_id: string }
         Returns: undefined

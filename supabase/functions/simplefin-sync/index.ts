@@ -1,5 +1,5 @@
-// Syncs one SimpleFin bank connection on demand — the "Sync now" button on
-// Settings, the "Sync" button on Transactions (which fans out one call per
+// Syncs one SimpleFin bank connection on demand — a bank's "Sync" button on
+// Accounts, the "Sync" button on Transactions (which fans out one call per
 // connection), and the Import backfill on Accounts.
 //
 // Every invocation carries the caller's own JWT and a body { connection_id }.
@@ -52,6 +52,7 @@ type SimplefinAccount = {
   balance: string;
   "available-balance"?: string;
   "balance-date": number;
+  org?: { name?: string };
   transactions?: SimplefinTransaction[];
 };
 
@@ -66,6 +67,7 @@ async function syncConnection(
   importRange?: { startDate: string; endDate: string },
 ) {
   let transactionsFetched = 0;
+  let pendingRemoved = 0;
 
   try {
     const { data: accessUrl, error: rpcError } = await serviceClient.rpc(
@@ -78,16 +80,45 @@ async function syncConnection(
 
     const { requestBase, authHeader } = splitAccessUrl(accessUrl as string);
 
+    // A pending charge the bank drops, or posts again under a new id, has to
+    // be removed here: nothing else ever replaces it, and it keeps counting.
+    // So a regular sync reaches back far enough to cover the oldest pending
+    // row still held (a few days' margin, at most MAX_IMPORT_DAYS), and any
+    // pending row inside the window that the bank no longer returns is
+    // deleted below.
+    const { data: oldestPending, error: pendingError } = await serviceClient
+      .from("transactions")
+      .select("posted_date, accounts!inner(bank_connection_id)")
+      .eq("accounts.bank_connection_id", connection.id)
+      .eq("status", "pending")
+      .order("posted_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (pendingError) throw new Error(pendingError.message);
+
     const params = new URLSearchParams({ pending: "1" });
+    // The first day (YYYY-MM-DD) the bank was asked for, and the last; null
+    // when the request had no bound on that side.
+    let windowStart: string | null = null;
+    let windowEnd: string | null = null;
     if (importRange) {
       const start = new Date(`${importRange.startDate}T00:00:00Z`);
       const end = new Date(`${importRange.endDate}T23:59:59Z`);
       params.set("start-date", String(Math.floor(start.getTime() / 1000)));
       params.set("end-date", String(Math.floor(end.getTime() / 1000)));
+      windowStart = importRange.startDate;
+      windowEnd = importRange.endDate;
     } else if (connection.last_synced_at) {
       // One day of overlap so late-posting transactions aren't missed.
-      const startDate = Math.floor(new Date(connection.last_synced_at).getTime() / 1000) - 86400;
-      params.set("start-date", String(startDate));
+      let startSeconds = Math.floor(new Date(connection.last_synced_at).getTime() / 1000) - 86400;
+      if (oldestPending) {
+        const pendingSeconds = Math.floor(new Date(`${oldestPending.posted_date}T00:00:00Z`).getTime() / 1000) - 3 * 86400;
+        const floorSeconds = Math.floor(Date.now() / 1000) - MAX_IMPORT_DAYS * 86400;
+        startSeconds = Math.min(startSeconds, Math.max(pendingSeconds, floorSeconds));
+      }
+      params.set("start-date", String(startSeconds));
+      // The start lands partway through a day, so only whole days count.
+      windowStart = new Date((startSeconds + 86400) * 1000).toISOString().slice(0, 10);
     }
 
     const response = await fetch(`${requestBase}/accounts?${params.toString()}`, {
@@ -100,6 +131,39 @@ async function syncConnection(
     const accounts: SimplefinAccount[] = payload.accounts ?? [];
     const errlist: unknown[] = payload.errlist ?? [];
 
+    // The account type (checking, savings, credit card) is the user's to set
+    // on the Accounts page; SimpleFin doesn't report it. New accounts start
+    // as checking, and a re-sync leaves an existing account's type alone.
+    const { data: existingAccounts, error: existingError } = await serviceClient
+      .from("accounts")
+      .select("provider_account_id")
+      .eq("bank_connection_id", connection.id);
+    if (existingError) throw new Error(existingError.message);
+    const known = new Set((existingAccounts ?? []).map((a) => a.provider_account_id));
+
+    // Accounts left behind when this bank was disconnected keep their
+    // transactions. Reconnecting the same bank picks them back up by
+    // SimpleFin's account id, so the upsert below finds them and their
+    // transactions aren't synced in a second time under a new account.
+    const { data: detached, error: detachedError } = await serviceClient
+      .from("accounts")
+      .select("id, provider_account_id")
+      .eq("user_id", connection.user_id)
+      .is("bank_connection_id", null)
+      .eq("is_manual", false);
+    if (detachedError) throw new Error(detachedError.message);
+    for (const acct of accounts) {
+      if (known.has(acct.id)) continue;
+      const old = (detached ?? []).find((d) => d.provider_account_id === acct.id);
+      if (!old) continue;
+      const { error: reattachError } = await serviceClient
+        .from("accounts")
+        .update({ bank_connection_id: connection.id })
+        .eq("id", old.id);
+      if (reattachError) throw new Error(reattachError.message);
+      known.add(acct.id);
+    }
+
     for (const acct of accounts) {
       const { data: accountRow, error: acctError } = await serviceClient
         .from("accounts")
@@ -109,7 +173,8 @@ async function syncConnection(
             bank_connection_id: connection.id,
             provider_account_id: acct.id,
             account_name: acct.name,
-            account_type: "checking",
+            ...(known.has(acct.id) ? {} : { account_type: "checking" }),
+            ...(acct.org?.name ? { institution_name: acct.org.name } : {}),
             is_manual: false,
             status: "active",
             current_balance: Number(acct.balance),
@@ -128,6 +193,31 @@ async function syncConnection(
 
       const transactions = acct.transactions ?? [];
       transactionsFetched += transactions.length;
+
+      // Stale pending rows: pending, inside the window the bank was asked
+      // for, and missing from what it sent back. Skipped when the bank
+      // reported errors, since the list may be incomplete.
+      if (errlist.length === 0) {
+        const returned = new Set(transactions.map((tx) => tx.id));
+        let staleQuery = serviceClient
+          .from("transactions")
+          .select("id, provider_transaction_id")
+          .eq("account_id", accountRow.id)
+          .eq("status", "pending");
+        if (windowStart) staleQuery = staleQuery.gte("posted_date", windowStart);
+        if (windowEnd) staleQuery = staleQuery.lte("posted_date", windowEnd);
+        const { data: pendingRows, error: staleError } = await staleQuery;
+        if (staleError) throw new Error(staleError.message);
+        const staleIds = (pendingRows ?? [])
+          .filter((r) => r.provider_transaction_id && !returned.has(r.provider_transaction_id))
+          .map((r) => r.id);
+        if (staleIds.length > 0) {
+          const { error: deleteError } = await serviceClient.from("transactions").delete().in("id", staleIds);
+          if (deleteError) throw new Error(deleteError.message);
+          pendingRemoved += staleIds.length;
+        }
+      }
+
       if (transactions.length === 0) continue;
 
       const rows = transactions.map((tx) => ({
@@ -160,15 +250,18 @@ async function syncConnection(
     // move, a credit card payment) before auto-categorizing below, so they
     // get excluded from both categorization and — via v_inflow_outflow's
     // own is_transfer filter — the dashboard's inflow/outflow totals.
-    await serviceClient.rpc("match_transfer_pairs", { p_user_id: connection.user_id });
+    const { error: matchError } = await serviceClient.rpc("match_transfer_pairs", {
+      p_user_id: connection.user_id,
+    });
+    if (matchError) throw new Error(matchError.message);
 
     // Auto-categorize anything still uncategorized using this user's learned
-    // vendor rules (also retroactively covers older uncategorized rows if a
+    // rules (also retroactively covers older uncategorized rows if a
     // rule was learned since the last sync). This was a fetch-then-loop
     // issuing one UPDATE per transaction, with its own copy of the
-    // longest-pattern-wins matching logic; apply_vendor_rules does it as one
+    // longest-pattern-wins matching logic; apply_rules does it as one
     // set-based statement and is shared with the app's "Run rules now".
-    const { error: rulesError } = await serviceClient.rpc("apply_vendor_rules", {
+    const { error: rulesError } = await serviceClient.rpc("apply_rules", {
       p_user_id: connection.user_id,
     });
     if (rulesError) throw new Error(rulesError.message);
@@ -185,6 +278,7 @@ async function syncConnection(
       connection_id: connection.id,
       status: errlist.length > 0 ? "error" : "success",
       transactionsFetched,
+      pendingRemoved,
       error: errlist.length > 0 ? JSON.stringify(errlist) : undefined,
     };
   } catch (err) {

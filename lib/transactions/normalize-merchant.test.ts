@@ -3,7 +3,7 @@ import { normalizeMerchant } from "./normalize-merchant";
 
 // This has to stay byte-identical in behaviour to the copy the simplefin-sync
 // edge function carries (supabase/functions/simplefin-sync/merchant.ts) —
-// vendor rules are matched against whatever it produces, so a divergence
+// rules are matched against whatever it produces, so a divergence
 // would silently stop rules firing on synced transactions.
 describe("normalizeMerchant", () => {
   it("lowercases and collapses punctuation to single spaces", () => {

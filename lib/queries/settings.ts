@@ -2,10 +2,14 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TIME_ZONE } from "@/lib/dates";
 
-export type Settings = {
+export type BudgetType = "rolling" | "advanced";
+
+type Settings = {
   decimal_places: number;
-  month_ahead: boolean;
+  budget_type: BudgetType;
   timezone: string;
+  /** Raw; lib/dashboard-layout.ts's normalizeLayout makes it safe to use. */
+  dashboard_layout: unknown;
 };
 
 // RLS ("own rows") already restricts this to the signed-in user's own
@@ -21,14 +25,14 @@ export const getSettings = cache(async function getSettings(): Promise<Settings>
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("settings")
-    .select("decimal_places, month_ahead, timezone")
+    .select("decimal_places, budget_type, timezone, dashboard_layout")
     .maybeSingle();
   if (error) throw new Error(error.message);
 
   // handle_new_user provisions exactly one settings row per account, so a
   // missing row means provisioning failed rather than "new user with
   // defaults". Silently substituting defaults here hid that; every read of
-  // month_ahead in particular would then disagree with what the database
+  // budget_type in particular would then disagree with what the database
   // functions compute.
   if (!data) {
     throw new Error(
@@ -38,7 +42,8 @@ export const getSettings = cache(async function getSettings(): Promise<Settings>
 
   return {
     decimal_places: data.decimal_places,
-    month_ahead: data.month_ahead,
+    budget_type: data.budget_type === "rolling" ? "rolling" : "advanced",
     timezone: data.timezone ?? DEFAULT_TIME_ZONE,
+    dashboard_layout: data.dashboard_layout,
   };
 });

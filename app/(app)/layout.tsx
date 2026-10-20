@@ -1,13 +1,14 @@
 import { Suspense } from "react";
 import { AppNav } from "@/components/ui/app-nav";
 import { Sidebar } from "@/components/ui/sidebar";
-import { signOut } from "@/lib/actions/auth";
 import { getSettings } from "@/lib/queries/settings";
 import { TimezoneSync } from "@/components/settings/timezone-sync";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { getPaletteTargets } from "@/lib/queries/palette";
+import { getUnsourcedCount } from "@/lib/queries/transactions";
+import { ReviewCountSync } from "@/components/ui/review-count";
 
-// Neither of these renders anything on first paint — TimezoneSync returns
+// None of these renders anything on first paint — TimezoneSync returns
 // null (it's an effect that offers the browser's zone once), and the palette
 // only portals a dialog in once ⌘K opens it. Awaiting their data in the
 // layout body still held up the whole shell: uncached reads in a layout
@@ -18,40 +19,34 @@ import { getPaletteTargets } from "@/lib/queries/palette";
 // invisible chrome streams in after. Client-side navigation between (app)
 // routes reuses the already-rendered layout either way.
 async function AppChrome() {
-  const [settings, paletteTargets] = await Promise.all([getSettings(), getPaletteTargets()]);
+  const [settings, paletteTargets, unsourcedCount] = await Promise.all([
+    getSettings(),
+    getPaletteTargets(),
+    getUnsourcedCount(),
+  ]);
 
   return (
     <>
       <TimezoneSync storedTimezone={settings.timezone} />
       <CommandPalette targets={paletteTargets} />
+      {/* The Transactions nav badge (see SidebarLink). */}
+      <ReviewCountSync count={unsourcedCount} />
     </>
   );
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
+    <div className="flex min-h-dvh flex-col min-[1000px]:flex-row">
       <Suspense fallback={null}>
         <AppChrome />
       </Suspense>
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* md+ uses the Sidebar for branding/nav/logout instead. */}
-        <header className="relative z-10 border-b border-border bg-surface md:hidden">
-          <div className="flex items-center px-6 py-5">
-            <AppNav>
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  className="ml-3 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 hover:text-foreground"
-                >
-                  Log out
-                </button>
-              </form>
-            </AppNav>
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 pt-8 pb-20">{children}</main>
+        <AppNav />
+        <main className="mx-auto w-full max-w-[var(--content-max)] flex-1 px-4 pt-6 pb-20 min-[640px]:px-6 min-[1000px]:pt-8">
+          {children}
+        </main>
       </div>
     </div>
   );

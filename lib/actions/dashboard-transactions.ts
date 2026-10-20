@@ -3,17 +3,32 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/auth";
 import { nextMonthISO } from "@/lib/dates";
+import { getLegs } from "@/lib/queries/legs";
+import { addDays } from "@/lib/charts/heatmap";
+import {
+  isCategorizedIncome,
+  isExpense,
+  isIncome,
+  isInflow,
+  isOtherInflow,
+  isOtherOutflow,
+  isOutflow,
+  type Leg,
+} from "@/lib/transactions/legs";
 
 export type DashboardTileKind =
   | { type: "category"; categoryId: string }
   | { type: "income" }
-  | { type: "other_inflow" }
-  | { type: "budgeted_outflow" }
-  | { type: "other_outflow" }
+  | { type: "other_inflows" }
+  | { type: "inflows" }
+  | { type: "expense" }
+  | { type: "other_outflows" }
+  | { type: "outflows" }
   | { type: "budget_net" }
   | { type: "cash_flow" }
   | { type: "float" }
-  | { type: "source"; sourceId: string };
+  | { type: "source"; sourceId: string }
+  | { type: "day"; date: string };
 
 export type DashboardTileTransaction = {
   id: string;
@@ -22,33 +37,35 @@ export type DashboardTileTransaction = {
   amount: number;
 };
 
-// Read-only fetch backing the dashboard's clickable tiles/categories — a
-// deliberately light query (no splits, no account/category joins beyond
-// what's needed to bucket by source type) since the popup just lists
-// transactions, it doesn't edit them. Split transactions' individual line
-// items aren't broken out here (their parent row's own category_id/amount
-// is null/whole, same simplification the un-split half of
-// v_spending_by_category avoids by unioning transaction_splits — not worth
-// replicating for a read-only summary popup).
+// Read-only fetch backing the dashboard's clickable tiles/categories: the
+// popup lists the transactions behind a figure. Split originals are always
+// left out; their pieces are ordinary transactions and list like any other.
+const MONTH_RE = /^\d{4}-\d{2}-01$/;
+
 export async function getDashboardTileTransactions(
   kind: DashboardTileKind,
-  // Required rather than defaulted: "this month" depends on the account's
-  // settings.timezone, which the page already resolved to render the tile
-  // this popup is explaining.
-  monthISO: string,
+  // The months the Dashboard has selected (YYYY-MM-01), required rather
+  // than defaulted: "this month" depends on the account's settings.timezone,
+  // which the page already resolved to render the figure this explains.
+  months: string[],
 ): Promise<DashboardTileTransaction[]> {
   // RLS scopes every query below, but without this an unauthenticated call
   // returned an empty list as though the user simply had no transactions.
   const { supabase } = await requireUser();
 
-  const month = monthISO;
-  const nextMonth = nextMonthISO(month);
+  if (months.length === 0 || months.length > 12 || !months.every((m) => MONTH_RE.test(m))) {
+    throw new Error("Invalid months.");
+  }
+  const sorted = [...months].sort();
+  const selected = new Set(sorted);
+  const from = sorted[0];
+  const to = nextMonthISO(sorted[sorted.length - 1]);
+  const inSelection = (date: string) => selected.has(`${date.slice(0, 7)}-01`);
 
   // Float's tile is a running balance (never reset monthly, unlike every
   // other tile here), so its breakdown has to be all-time to actually sum
-  // to the balance shown — every other kind, "source" included, stays
-  // scoped to the current month, matching the month-scoped figure it
-  // explains (v_spending_by_source for "source").
+  // to the balance shown. Every other kind, "source" included, stays scoped
+  // to the selected months, matching the figure it explains.
   if (kind.type === "float") {
     const { data: floatSource, error: floatSourceError } = await supabase
       .from("sources")
@@ -61,201 +78,97 @@ export async function getDashboardTileTransactions(
   }
 
   if (kind.type === "source") {
-    // No amount-sign filter — v_spending_by_source nets any inflow (a
-    // refund, reimbursement, income) tied to this Source against its
-    // outflows, so this popup has to list both sides to sum to the same
-    // total the tile shows. Mirrors that view's own shape (see its latest
-    // migration): a plain, not-split transaction keyed by its own
-    // source_id, unioned with transaction_splits rows keyed by theirs — a
-    // split transaction's own source_id/amount go balance-inert the moment
-    // is_split flips true (transactions_sync_balance's "not is_split"
-    // guard), so reading only this table would both double-count a split
-    // parent whose own source_id happens to match this Source and miss any
-    // split that actually routed money to it from a different parent.
-    const [{ data: plain, error: plainError }, { data: splits, error: splitsError }] = await Promise.all([
-      supabase
-        .from("transactions")
-        .select("id, posted_date, description, amount")
-        .eq("source_id", kind.sourceId)
-        .eq("is_transfer", false)
-        .eq("exclude_from_budget", false)
-        .eq("is_split", false)
-        .gte("posted_date", month)
-        .lt("posted_date", nextMonth)
-        .order("posted_date", { ascending: false }),
-      supabase
-        .from("transaction_splits")
-        .select("id, amount, transactions!inner(posted_date, description, is_transfer, exclude_from_budget)")
-        .eq("source_id", kind.sourceId),
-    ]);
-    if (plainError) throw new Error(plainError.message);
-    if (splitsError) throw new Error(splitsError.message);
-
-    const plainRows = (plain ?? []).map((r) => ({
+    // Outflows only — Source Allocation shows gross spending per source
+    // (getDashboardData's sourceOutflows), so money coming into the source
+    // isn't listed and the popup sums to that source's slice.
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, posted_date, description, amount")
+      .eq("source_id", kind.sourceId)
+      .eq("is_transfer", false)
+      .eq("exclude_from_budget", false)
+      .eq("is_split", false)
+      .lt("amount", 0)
+      .gte("posted_date", from)
+      .lt("posted_date", to)
+      .order("posted_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).filter((r) => inSelection(r.posted_date)).map((r) => ({
       id: r.id,
       postedDate: r.posted_date,
       description: r.description,
       amount: r.amount,
     }));
-    const splitRows = (splits ?? [])
-      .map((s) => ({
-        id: s.id,
-        amount: s.amount,
-        parent: s.transactions as {
-          posted_date: string;
-          description: string;
-          is_transfer: boolean;
-          exclude_from_budget: boolean;
-        },
-      }))
-      .filter(
-        (s) =>
-          !s.parent.is_transfer &&
-          !s.parent.exclude_from_budget &&
-          s.parent.posted_date >= month &&
-          s.parent.posted_date < nextMonth,
-      )
-      .map((s) => ({
-        id: s.id,
-        postedDate: s.parent.posted_date,
-        description: s.parent.description,
-        amount: s.amount,
-      }));
-
-    return [...plainRows, ...splitRows].sort((a, b) => b.postedDate.localeCompare(a.postedDate));
   }
 
-  let query = supabase
-    .from("transactions")
-    .select("id, posted_date, description, amount, is_income, category_id, sources!source_id(type)")
-    .gte("posted_date", month)
-    .lt("posted_date", nextMonth)
-    .eq("is_transfer", false)
-    .eq("exclude_from_budget", false)
-    .order("posted_date", { ascending: false });
-
-  switch (kind.type) {
-    case "category":
-      query = query.eq("category_id", kind.categoryId);
-      break;
-    case "income":
-      query = query.eq("is_income", true).gt("amount", 0).not("source_id", "is", null);
-      break;
-    case "other_inflow":
-      // Mirrors v_inflow_outflow.other_inflow: unsourced money isn't counted.
-      query = query.eq("is_income", false).gt("amount", 0).not("source_id", "is", null);
-      break;
-    case "budgeted_outflow":
-    case "other_outflow":
-      query = query.lt("amount", 0);
-      break;
-    // budget_net (income - budgeted outflows) and cash_flow (every inflow
-    // minus every outflow) don't need an amount-sign filter at the DB level
-    // — they're unioning multiple of the kinds above, filtered in JS below
-    // instead so one query covers all of it.
-    case "budget_net":
-    case "cash_flow":
-      break;
+  // One heatmap square: that day's outflows, the same rule the heatmap
+  // counts, so the list sums to the square's amount.
+  if (kind.type === "day") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(kind.date)) throw new Error("Invalid date.");
+    const legs = await getLegs(supabase, kind.date, addDays(kind.date, 1));
+    return legs
+      .filter(isOutflow)
+      .map((l) => ({ id: l.id, postedDate: l.postedDate, description: l.description, amount: l.amount }));
   }
 
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
+  // Every other kind reads the same rows the dashboard views count, so a
+  // popup always sums to the figure it explains.
+  const legs = (await getLegs(supabase, from, to)).filter((l) => inSelection(l.postedDate));
+  const matches: Record<Exclude<DashboardTileKind["type"], "float" | "source" | "category" | "day">, (l: Leg) => boolean> = {
+    income: isIncome,
+    other_inflows: isOtherInflow,
+    inflows: isInflow,
+    expense: isExpense,
+    other_outflows: isOtherOutflow,
+    outflows: isOutflow,
+    // budgetNet = allocation - expense + categorizedIncome. Allocation is the
+    // budget's commitments, not money that moved, so only the other two terms
+    // have transactions to list.
+    budget_net: (l) => isExpense(l) || isCategorizedIncome(l),
+    // cashFlow = inflows - outflows.
+    cash_flow: (l) => isInflow(l) || isOutflow(l),
+  };
 
-  let rows = data ?? [];
-  if (kind.type === "category") {
-    // Mirrors v_spending_by_category, which scopes to the reserved Budget
-    // source — a category only applies while a row's Source is Budget (see
-    // transaction-list.tsx), so a category_id surviving on a row whose
-    // Source has since moved off Budget (stale pre-fix data, or a future
-    // regression) shouldn't leak into this popup even though it's excluded
-    // from the tile's own total already.
-    rows = rows.filter((r) => (r.sources as { type: string } | null)?.type === "budget");
-  } else if (kind.type === "budgeted_outflow" || kind.type === "other_outflow") {
-    const wantBudget = kind.type === "budgeted_outflow";
-    rows = rows.filter((r) => {
-      const isBudget = (r.sources as { type: string } | null)?.type === "budget";
-      return isBudget === wantBudget;
-    });
-  } else if (kind.type === "budget_net") {
-    // budgetNet = totalAllocation - budgetedOutflow + categorizedIncome (see
-    // computeDashboardTotals) — totalAllocation is the budget's category
-    // targets, not money that moved, so it has no transactions to list here.
-    // The two components that are transactions are budget-sourced expenses
-    // and budget-sourced positive transactions carrying a category (income
-    // filed under a category instead of flagged Income; see
-    // v_budget_category_income) — true Income transactions no longer factor
-    // into budgetNet at all, so they're left out of this popup too.
-    rows = rows.filter((r) => {
-      const isBudget = (r.sources as { type: string } | null)?.type === "budget";
-      if (!isBudget) return false;
-      return r.amount < 0 || r.category_id !== null;
-    });
-  } else if (kind.type === "cash_flow") {
-    // cashFlow = inflows - outflows, and unsourced money counts on neither
-    // side (v_outflow_by_bucket and v_inflow_outflow both require a source;
-    // Income rows carry the Income source). Mirror that here so this sums to
-    // the exact figure the tile shows.
-    rows = rows.filter((r) => r.sources !== null);
-  }
+  // v_spending_by_category scopes to the Budget source, so a category only
+  // counts while the leg is sourced from it.
+  const keep =
+    kind.type === "category"
+      ? (l: Leg) => l.categoryId === kind.categoryId && l.sourceType === "budget"
+      : matches[kind.type];
 
-  return rows.map((r) => ({
-    id: r.id,
-    postedDate: r.posted_date,
-    description: r.description,
-    amount: r.amount,
-  }));
+  return legs
+    .filter(keep)
+    .sort((a, b) => b.postedDate.localeCompare(a.postedDate))
+    .map((l) => ({ id: l.id, postedDate: l.postedDate, description: l.description, amount: l.amount }));
 }
 
-// All-time transaction list for the Float source's running balance — every
-// transaction booked to it plus any transfer in/out, since sources.balance
-// is kept in sync with both by the DB triggers in
-// transactions_sync_transfer_balance/transaction_splits_sync_balance. A
-// split transaction's own source_id/amount go balance-inert the moment
-// is_split flips true (transactions_sync_balance's "not is_split" guard) —
-// each split row counts individually against *its own* source_id instead
-// (transaction_splits_sync_balance) — so this has to union both tables the
-// same way v_spending_by_source does, or a split that routed money to this
-// source (of either sign) would silently be missing from the list even
-// though it's already counted in the balance the list is supposed to explain.
+// All-time transaction list for the Float source's running balance: every
+// transaction booked to it plus any transfer in or out, since
+// sources.balance is kept in sync with both by the DB triggers. Split
+// originals are skipped (their balance moves with their pieces, which are
+// listed like any other transaction).
 async function getSourceTransactions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   sourceId: string,
 ): Promise<DashboardTileTransaction[]> {
-  const [{ data: plain, error: plainError }, { data: splits, error: splitsError }] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select(
-        "id, posted_date, description, amount, is_split, is_transfer, transfer_from_source_id, transfer_to_source_id",
-      )
-      .or(`source_id.eq.${sourceId},transfer_from_source_id.eq.${sourceId},transfer_to_source_id.eq.${sourceId}`)
-      .order("posted_date", { ascending: false }),
-    supabase
-      .from("transaction_splits")
-      .select("id, amount, transactions!inner(posted_date, description)")
-      .eq("source_id", sourceId),
-  ]);
-  if (plainError) throw new Error(plainError.message);
-  if (splitsError) throw new Error(splitsError.message);
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, posted_date, description, amount, is_transfer, transfer_from_source_id, transfer_to_source_id")
+    .or(`source_id.eq.${sourceId},transfer_from_source_id.eq.${sourceId},transfer_to_source_id.eq.${sourceId}`)
+    .eq("is_split", false)
+    .order("posted_date", { ascending: false });
+  if (error) throw new Error(error.message);
 
   // A transfer row's own `amount` is an unsigned magnitude (direction is in
   // transfer_from/to_source_id) — sign it relative to this source so the
   // list reads the same way "amount < 0 ? negative : positive" does
   // everywhere else.
-  const plainRows = (plain ?? [])
-    .filter((r) => !r.is_split)
-    .map((r) => {
-      const amount = r.is_transfer
-        ? r.transfer_to_source_id === sourceId
-          ? Math.abs(r.amount)
-          : -Math.abs(r.amount)
-        : r.amount;
-      return { id: r.id, postedDate: r.posted_date, description: r.description, amount };
-    });
-
-  const splitRows = (splits ?? []).map((s) => {
-    const parent = s.transactions as { posted_date: string; description: string };
-    return { id: s.id, postedDate: parent.posted_date, description: parent.description, amount: s.amount };
+  return (data ?? []).map((r) => {
+    const amount = r.is_transfer
+      ? r.transfer_to_source_id === sourceId
+        ? Math.abs(r.amount)
+        : -Math.abs(r.amount)
+      : r.amount;
+    return { id: r.id, postedDate: r.posted_date, description: r.description, amount };
   });
-
-  return [...plainRows, ...splitRows].sort((a, b) => b.postedDate.localeCompare(a.postedDate));
 }

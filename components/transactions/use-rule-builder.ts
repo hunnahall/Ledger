@@ -14,13 +14,13 @@ export const EXCLUDE = "__exclude__";
 type Option = { id: string; name: string };
 
 // The "Add Rule" flow, lifted out of TransactionRow: deciding whether a
-// category/Income/Exclude pick should also teach a vendor rule, and asking
+// category/Income/Exclude pick should also teach a rule, and asking
 // the user about it. Three call sites shared this and each carried part of
 // the reasoning.
 //
 // `resolveRuleAction` returns what to send as rule_action on the next save:
 //   "write"  — user said yes, learn a rule for this merchant
-//   "skip"   — user said no, leave vendor_category_rules alone
+//   "skip"   — user said no, leave rules alone
 //   undefined — a rule already covers this merchant; assignTransaction
 //               reinforces it by default, so there's nothing to decide.
 export function useRuleBuilder({

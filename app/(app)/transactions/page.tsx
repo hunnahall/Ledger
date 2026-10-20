@@ -1,14 +1,25 @@
-import { getFilteredTransactions, getFilterOptions } from "@/lib/queries/transactions";
 import {
+  getFilteredTransactions,
+  getFilterOptions,
+  getSpendingRows,
+  getSplitGroups,
+} from "@/lib/queries/transactions";
+import Link from "next/link";
+import {
+  NO_SOURCE_FILTER_VALUE,
   resolveCategoryFilter,
   resolveSourceFilter,
+  summarizeTransactions,
   type TransactionFilters,
 } from "@/lib/transactions/filters";
+import { formatMoney } from "@/lib/format";
 import { getSettings } from "@/lib/queries/settings";
 import { TransactionList, type TransactionRowData } from "@/components/transactions/transaction-list";
-import { ManualTransactionForm } from "@/components/transactions/manual-transaction-form";
+import { AddTransactionButton } from "@/components/transactions/manual-transaction-form";
 import { ExportMenu } from "@/components/transactions/export-menu";
 import { SyncButton } from "@/components/transactions/sync-button";
+import { SpendingByDayChart } from "@/components/transactions/spending-by-day-chart";
+import { spendingByDay } from "@/lib/transactions/spending-by-day";
 
 type SearchParams = {
   date_from?: string;
@@ -35,10 +46,12 @@ export default async function TransactionsPage({
     ...resolveSourceFilter(params.source_id),
   };
 
-  const [transactions, filterOptions, settings] = await Promise.all([
+  const [transactions, filterOptions, settings, spendingRows, splitGroups] = await Promise.all([
     getFilteredTransactions(filters),
     getFilterOptions(),
     getSettings(),
+    getSpendingRows(),
+    getSplitGroups(),
   ]);
   const decimalPlaces = settings.decimal_places;
 
@@ -57,43 +70,52 @@ export default async function TransactionsPage({
     isIncome: txn.is_income,
     excludeFromBudget: txn.exclude_from_budget,
     notes: txn.notes,
-    isSplit: txn.is_split,
     hasProviderTransactionId: Boolean(txn.provider_transaction_id),
-    splits: txn.transaction_splits.map((s) => ({
-      id: s.id,
-      categoryId: s.category_id,
-      sourceId: s.source_id,
-      amount: s.amount,
-    })),
+    split: txn.split_parent_id ? (splitGroups.get(txn.split_parent_id) ?? null) : null,
   }));
+
+  const days = spendingByDay(spendingRows);
+
+  const summary = summarizeTransactions(transactionRows);
+  const noSourceHref = `/transactions?${new URLSearchParams({
+    ...Object.fromEntries(Object.entries(params).filter(([k, v]) => k !== "source_id" && v)),
+    source_id: NO_SOURCE_FILTER_VALUE,
+  }).toString()}`;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
+          <h1>Transactions</h1>
+          <p className="mt-1 font-mono text-xs text-muted tabular-nums">
+            {summary.count === 1 ? "1 transaction" : `${summary.count.toLocaleString("en-US")} transactions`}
+            {summary.withoutSource > 0 && (
+              <>
+                {" · "}
+                <Link href={noSourceHref} className="text-accent underline underline-offset-2">
+                  {summary.withoutSource} without a Source
+                </Link>
+              </>
+            )}
+            {" · "}Net {formatMoney(summary.net, decimalPlaces, { symbol: false })}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <SyncButton />
           <ExportMenu />
+          <AddTransactionButton
+            categories={filterOptions.categories}
+            sources={filterOptions.sources}
+            defaultSourceId={filterOptions.defaultSourceId}
+            defaultAccountId={filterOptions.defaultAccountId}
+            advanced={settings.budget_type === "advanced"}
+          />
         </div>
       </div>
 
-      <section className="flex flex-col gap-3">
-        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">
-          Manual transactions
-        </p>
-        <ManualTransactionForm
-          categories={filterOptions.categories}
-          sources={filterOptions.sources}
-          defaultSourceId={filterOptions.defaultSourceId}
-          defaultAccountId={filterOptions.defaultAccountId}
-          monthAhead={settings.month_ahead}
-        />
-      </section>
+      <SpendingByDayChart days={days} decimalPlaces={decimalPlaces} />
 
-      <section className="flex flex-col gap-3 border-t-2 border-border pt-6">
-        <p className="font-label text-xs font-semibold uppercase tracking-wide text-muted">Transactions</p>
+      <section>
         <TransactionList
           transactions={transactionRows}
           categories={filterOptions.categories}

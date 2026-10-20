@@ -41,7 +41,7 @@ export function NameEditControl({ action, name }: { action: RenameAction; name: 
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="rounded px-1 -mx-1 font-medium hover:bg-background"
+        className="px-1 -mx-1 font-medium hover:bg-background"
         aria-label={`Rename ${name}`}
       >
         {name}
@@ -62,7 +62,7 @@ export function NameEditControl({ action, name }: { action: RenameAction; name: 
         onFocus={(e) => e.currentTarget.select()}
         className="w-40 text-sm font-medium"
       />
-      {error && <p className="text-xs text-negative">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

@@ -1,218 +1,129 @@
 @import "tailwindcss";
+@import "./covenant/tokens.css";
+@import "./covenant/components.css";
 
 /* ---------------------------------------------------------------------------
-   Palette
-
-   One warm neutral ramp, paper (1) through ink (12), plus a parallel alpha
-   ramp. Every semantic token below is an alias onto a step, so interaction
-   states (hover, selected, pressed) are picked off the ramp rather than
-   invented per component.
-
-   Light and dark values live together in light-dark(), which resolves against
-   the computed `color-scheme` — so each value is written once and the theme
-   override further down is a single `color-scheme` line rather than a second
-   copy of the whole palette.
+   Covenant Works Design System v2 (see ~/Drive/Projects/covenant_works/).
+   tokens.css and components.css are copies of that folder's files; edit them
+   there and re-copy. This file only maps the tokens onto Tailwind's theme so
+   utility classes (bg-surface, text-muted, border-border, ...) resolve to the
+   v2 palette, and wires the fonts next/font loads in app/layout.tsx.
 --------------------------------------------------------------------------- */
 
 :root {
-  /* Default: follow the OS. [data-theme] below pins it. */
-  color-scheme: light dark;
-
-  --paper-1: light-dark(#faf9f7, #191816); /* page background */
-  --paper-2: light-dark(#ffffff, #201f1c); /* raised surface: cards, panels, menus */
-  --paper-3: light-dark(#f4f2ee, #272622); /* subtle fill: table header, selected row */
-  --paper-4: light-dark(#eae7e0, #2f2e29); /* stronger fill: pressed, active segment */
-  --paper-5: light-dark(#e1ddd4, #353430); /* hairline border */
-  --paper-6: light-dark(#d2cdc1, #454339); /* strong border, input border on hover */
-  --paper-7: light-dark(#96907f, #767369); /* placeholder, disabled text */
-  --paper-8: light-dark(#726c5d, #98958b); /* muted text */
-  --paper-9: light-dark(#57524a, #b7b4ab); /* secondary text */
-  --paper-10: light-dark(#3a362f, #d4d1c8);
-  --paper-11: light-dark(#23201b, #e7e4dc);
-  --paper-12: light-dark(#12110f, #f2f1ec); /* primary text */
-
-  /* Alpha fills compose correctly over both the page and a raised surface, so
-     one hover class works everywhere. Flips black→white with the theme. */
-  --paper-a1: light-dark(rgb(0 0 0 / 0.03), rgb(255 255 255 / 0.03));
-  --paper-a2: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.05));
-  --paper-a3: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08));
-  --paper-a4: light-dark(rgb(0 0 0 / 0.12), rgb(255 255 255 / 0.12));
-
-  /* Semantic aliases. Existing call sites (text-muted, border-border,
-     bg-surface, …) keep working; only the values behind them changed. */
-  --background: var(--paper-1);
-  --surface: var(--paper-2);
-  --surface-subtle: var(--paper-3);
-  --foreground: var(--paper-12);
-  --foreground-secondary: var(--paper-9);
-  --muted: var(--paper-8);
-  --border: var(--paper-5);
-  --border-strong: var(--paper-6);
-  --card-border: var(--paper-5);
-
-  --accent: light-dark(#364156, #8b97b3);
-  --positive: light-dark(#4f7358, #7ea888);
-  --negative: light-dark(#a24a4a, #c17b7b);
-
-  /* The mark's gold stays constant across themes, so anything painted on top
-     of it needs a fixed ink too, not --foreground (which flips to near-white
-     in dark mode and would vanish on gold). */
-  --mark: #e9d985;
-  --mark-foreground: #131418;
-
-  /* --- Elevation -----------------------------------------------------------
-     Each tier is a stack of near-transparent layers rather than one blur, and
-     anything that floats gets a 1px ring underneath it so the edge stays
-     crisp at every scale. Dark mode deepens the layers and adds a top-edge
-     highlight, without which dark surfaces read flat. */
-  --sh-1: light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0.28));
-  --sh-2: light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.36));
-  --sh-ring: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.07));
-  --sh-bevel: light-dark(rgb(0 0 0 / 0), rgb(255 255 255 / 0.045));
-
-  --ring: 0 0 0 1px var(--sh-ring);
-  --shadow-xs: 0 1px 1px var(--sh-1), inset 0 1px 0 var(--sh-bevel);
-  --shadow-sm: 0 1px 2px var(--sh-1), 0 2px 4px -2px var(--sh-1),
-    inset 0 1px 0 var(--sh-bevel);
-  --shadow-md: 0 2px 4px -2px var(--sh-1), 0 8px 16px -6px var(--sh-2),
-    inset 0 1px 0 var(--sh-bevel);
-  --shadow-lg: 0 1px 1px var(--sh-1), 0 8px 16px -4px var(--sh-1),
-    0 24px 32px -8px var(--sh-2), inset 0 1px 0 var(--sh-bevel);
-
-  --shadow-popover: var(--ring), var(--shadow-md);
-  --shadow-modal: var(--ring), var(--shadow-lg);
-
-  /* Pre-ramp names, kept so existing shadow-card / shadow-elevated call sites
-     migrate without edits. */
-  --shadow-card: var(--shadow-sm);
-  --shadow-elevated: var(--shadow-popover);
-}
-
-/* An explicit choice pins the scheme; every light-dark() above follows. */
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
+  --font-sans: var(--font-hanken-grotesk), "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @theme inline {
-  --color-paper-1: var(--paper-1);
-  --color-paper-2: var(--paper-2);
-  --color-paper-3: var(--paper-3);
-  --color-paper-4: var(--paper-4);
-  --color-paper-5: var(--paper-5);
-  --color-paper-6: var(--paper-6);
-  --color-paper-7: var(--paper-7);
-  --color-paper-8: var(--paper-8);
-  --color-paper-9: var(--paper-9);
-  --color-paper-10: var(--paper-10);
-  --color-paper-11: var(--paper-11);
-  --color-paper-12: var(--paper-12);
-  --color-paper-a1: var(--paper-a1);
-  --color-paper-a2: var(--paper-a2);
-  --color-paper-a3: var(--paper-a3);
-  --color-paper-a4: var(--paper-a4);
-
-  --color-background: var(--background);
+  --color-background: var(--bg);
   --color-surface: var(--surface);
-  --color-surface-subtle: var(--surface-subtle);
-  --color-foreground: var(--foreground);
-  --color-foreground-secondary: var(--foreground-secondary);
-  --color-muted: var(--muted);
+  --color-surface-2: var(--surface-2);
+  --color-surface-subtle: var(--fill-hover);
+  --color-foreground: var(--fg);
+  --color-foreground-secondary: var(--fg-2);
+  --color-muted: var(--fg-3);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-rule: var(--rule);
+  --color-fill-hover: var(--fill-hover);
+  --color-fill-active: var(--fill-active);
   --color-accent: var(--accent);
-  --color-positive: var(--positive);
-  --color-negative: var(--negative);
-  --color-mark: var(--mark);
-  --color-mark-foreground: var(--mark-foreground);
-  --color-card-border: var(--card-border);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-neutral: var(--fg-3);
 
-  /* Named per role rather than per size: controls, surfaces, and dialogs each
-     have one radius and never drift apart. */
-  --radius-sm: 5px; /* chips, badges, elements nested inside a control */
-  --radius-md: 6px; /* controls: buttons, inputs, select triggers */
-  --radius-lg: 10px; /* cards, panels, dropdowns */
-  --radius-xl: 14px; /* modals */
+  /* Square corners everywhere. Circles (rounded-full) stay for radios,
+     avatars and status dots. */
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
 
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-popover: var(--shadow-popover);
-  --shadow-modal: var(--shadow-modal);
-  --shadow-card: var(--shadow-card);
-  --shadow-elevated: var(--shadow-elevated);
+  /* Shadows exist only on things that float. */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: var(--shadow-overlay);
+  --shadow-lg: var(--shadow-overlay);
+  --shadow-popover: var(--shadow-overlay);
+  --shadow-modal: var(--shadow-overlay);
+  --shadow-elevated: var(--shadow-overlay);
 
-  /* One easing for state changes, one for things entering the screen. */
-  --ease-standard: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-entrance: cubic-bezier(0.2, 0, 0, 1);
 
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-hanken-grotesk);
-  /* Inter carries labels and numerals too — it has both the uppercase
-     tracking range and the tabular/slashed-zero figures the Money component
-     asks for, so neither role needs a typeface of its own. */
-  --font-label: var(--font-inter);
-  --font-data: var(--font-inter);
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --font-label: var(--font-mono);
+  --font-data: var(--font-mono);
+  --font-mono: var(--font-mono);
 }
 
 @layer base {
-  body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-    /* Inter sets slightly wide by default at UI sizes; a touch of negative
-       tracking is what keeps body copy from looking loose next to the
-       headings. */
-    letter-spacing: -0.006em;
-  }
-
-  /* Every page title and section heading is a raw h1-h4 (see app/(app)/*
-     pages) — one rule here keeps the heading typeface consistent without
-     threading a className through every call site. Tracking tightens as size
-     grows, since letterforms need proportionally less air the larger they get. */
   h1,
   h2,
   h3,
   h4 {
-    font-family: var(--font-heading), var(--font-sans), Arial, Helvetica, sans-serif;
+    font-family: var(--font-sans);
+    font-weight: 600;
   }
 
   h1 {
-    letter-spacing: -0.02em;
+    font-size: var(--text-2xl);
+    line-height: var(--leading-snug);
+    letter-spacing: var(--tracking-title);
   }
 
   h2 {
-    letter-spacing: -0.015em;
+    font-size: var(--text-lg);
+    line-height: var(--leading-snug);
+    letter-spacing: var(--tracking-title);
   }
 
   h3,
   h4 {
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 
-  ::selection {
-    background: var(--foreground);
-    color: var(--surface);
-  }
-
-  /* Components paint their own ring (see Button/Input); this is the fallback for
-     anything that doesn't. */
-  :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+  /* Figures use tabular digits so amounts line up. */
+  .tabular-nums,
+  input,
+  td {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+/* Square corners everywhere except radios, avatars and status dots. Utility
+   classes live in a cascade layer, so this unlayered rule wins over every
+   rounded-* in the codebase, including plain `rounded`. */
+[class*="rounded"]:not(.rounded-full) {
+  border-radius: 0;
+}
+
+/* Loading blocks are flat (no shimmer) and stay hidden for the first 300ms so
+   fast loads never flash a skeleton. */
+@keyframes skeleton-in {
+  from {
+    opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
+.skeleton {
+  animation: skeleton-in 1ms linear 300ms backwards;
 }

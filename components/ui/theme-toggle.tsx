@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export type Theme = "system" | "light" | "dark";
+type Theme = "system" | "light" | "dark";
 
 const STORAGE_KEY = "ledger-theme";
 const THEME_EVENT = "ledger-theme-change";
@@ -43,16 +43,16 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, readTheme, getServerTheme);
 
   return (
-    <div className={`flex w-fit gap-1 rounded-md border border-border p-1 ${className}`}>
+    <div className={`flex w-fit gap-1 border border-border p-1 ${className}`}>
       {OPTIONS.map((option) => (
         <button
           key={option}
           type="button"
           onClick={() => setTheme(option)}
-          className={`rounded-sm px-3 py-1.5 text-sm font-medium capitalize transition-colors duration-[120ms] ease-standard ${
+          className={`px-3 py-1.5 text-sm font-medium capitalize transition-colors duration-[120ms] ease-standard ${
             theme === option
-              ? "bg-mark text-mark-foreground"
-              : "text-foreground hover:bg-paper-a2"
+              ? "bg-accent text-on-accent"
+              : "text-foreground hover:bg-fill-hover"
           }`}
         >
           {option}
