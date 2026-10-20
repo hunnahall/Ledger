@@ -44,6 +44,7 @@
   --color-chart-5: var(--chart-5);
   --color-chart-6: var(--chart-6);
   --color-chart-neutral: var(--fg-3);
+  --color-chart-caution: var(--chart-caution);
 
   /* Square corners everywhere. Circles (rounded-full) stay for radios,
      avatars and status dots. */
@@ -126,4 +127,21 @@
 }
 .skeleton {
   animation: skeleton-in 1ms linear 300ms backwards;
+}
+
+/* "Ahead of pace" in charts. On dark, the warning yellow (#E2B04A) at 70% of
+   its saturation, same lightness: it reads as caution without glaring, and
+   stays clear of Umber (below pace) and the danger red. Toning it toward
+   the panel instead landed too close to Umber. On light, warning is already
+   a dark ochre and is used as is. Text statuses keep --warning. */
+:root {
+  --chart-caution: #d6b373;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --chart-caution: var(--warning);
+  }
+}
+:root[data-theme="light"] {
+  --chart-caution: var(--warning);
 }
