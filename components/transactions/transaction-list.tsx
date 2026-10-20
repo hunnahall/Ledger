@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { memo, useActionState, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { defaultRangeExtractor, useWindowVirtualizer, type Range } from "@tanstack/react-virtual";
 import {
   assignTransaction,
   bulkUpdateTransactions,
@@ -76,6 +76,52 @@ function accountLast4(name: string | null): string | null {
   return name?.match(/\((\d{4})\)\s*$/)?.[1] ?? null;
 }
 
+type ListItem =
+  | { kind: "header"; date: string; net: number }
+  | { kind: "row"; txn: TransactionRowData; txnIndex: number; lastOfDay: boolean };
+
+// Interleaves a date header before each run of same-day transactions. The
+// list arrives sorted by date, newest first.
+function buildListItems(transactions: TransactionRowData[]): ListItem[] {
+  const items: ListItem[] = [];
+  let header: Extract<ListItem, { kind: "header" }> | null = null;
+  transactions.forEach((txn, txnIndex) => {
+    if (!header || header.date !== txn.postedDate) {
+      const last = items[items.length - 1];
+      if (last?.kind === "row") last.lastOfDay = true;
+      header = { kind: "header", date: txn.postedDate, net: 0 };
+      items.push(header);
+    }
+    header.net = Math.round((header.net + txn.amount) * 100) / 100;
+    items.push({ kind: "row", txn, txnIndex, lastOfDay: false });
+  });
+  const last = items[items.length - 1];
+  if (last?.kind === "row") last.lastOfDay = true;
+  return items;
+}
+
+// The last header at or above `startIndex`: the date the top row belongs to.
+function activeHeader(headerIndexes: number[], startIndex: number) {
+  let active = 0;
+  for (const i of headerIndexes) {
+    if (i <= startIndex) active = i;
+    else break;
+  }
+  return active;
+}
+
+// "OCT 14", with the year added when it isn't this year.
+function dayHeaderLabel(date: string) {
+  const d = new Date(`${date}T00:00:00Z`);
+  const sameYear = d.getUTCFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+    timeZone: "UTC",
+  });
+}
+
 export function TransactionList({
   transactions,
   categories,
@@ -131,19 +177,44 @@ export function TransactionList({
   // dynamic sizing (rather than a fixed estimate) because a row's real
   // height varies by breakpoint (stacked card vs. single line) and by
   // whether it's expanded.
+  // Rows grouped under a header per posted date ("OCT 14 · −123.40"). The
+  // headers are virtual items of their own, so the flat list interleaves
+  // them; `txnIndex` maps a row back to its place in `transactions` (what
+  // shift-click range selection walks).
+  const items = useMemo(() => buildListItems(transactions), [transactions]);
+  const headerIndexes = useMemo(
+    () => items.flatMap((item, i) => (item.kind === "header" ? [i] : [])),
+    [items],
+  );
+  // The header for whatever date is at the top of the viewport. Always kept
+  // in the rendered range and drawn position: sticky, so it stays pinned.
+  const rangeExtractor = useCallback(
+    (range: Range) => {
+      const next = new Set([activeHeader(headerIndexes, range.startIndex), ...defaultRangeExtractor(range)]);
+      return [...next].sort((a, b) => a - b);
+    },
+    [headerIndexes],
+  );
+
   const rowVirtualizer = useWindowVirtualizer({
-    count: transactions.length,
+    count: items.length,
     // Keyed by transaction id rather than the default (array index) — an
     // edit that reorders the list (e.g. changing a row's date moves it to
     // a new index) would otherwise leave the measurement cache mapping the
     // old index's cached height/position onto whatever transaction now
     // sits there, which is what produced the blank-row/overlapping-row
     // glitch on a date change.
-    getItemKey: (index) => transactions[index].id,
-    estimateSize: () => 48,
+    getItemKey: (index) => {
+      const item = items[index];
+      return item.kind === "header" ? `h:${item.date}` : item.txn.id;
+    },
+    estimateSize: (index) => (items[index].kind === "header" ? 28 : 48),
     overscan: 10,
     scrollMargin: listEl?.offsetTop ?? 0,
+    rangeExtractor,
   });
+
+  const pinnedHeader = activeHeader(headerIndexes, rowVirtualizer.range?.startIndex ?? 0);
 
   // Anchor for shift+click range selection — a ref rather than state since
   // it's only read inside the click handler below, never during render.
@@ -327,10 +398,38 @@ export function TransactionList({
           </div>
           <div ref={setListEl} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const txn = transactions[virtualRow.index];
+              const item = items[virtualRow.index];
+              if (item.kind === "header") {
+                const pinned = virtualRow.index === pinnedHeader;
+                return (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
+                    className={cn(
+                      "z-[5] flex h-7 items-center border-b border-border bg-surface-2 px-3 font-mono text-[11px] uppercase tracking-[0.08em] text-muted tabular-nums md:px-2",
+                      pinned && "top-0 md:top-9",
+                    )}
+                    style={
+                      pinned
+                        ? { position: "sticky", width: "100%" }
+                        : {
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                          }
+                    }
+                  >
+                    {dayHeaderLabel(item.date)} &middot; {formatMoney(item.net, decimalPlaces, { symbol: false })}
+                  </div>
+                );
+              }
+              const txn = item.txn;
               return (
                 <div
-                  key={txn.id}
+                  key={virtualRow.key}
                   data-index={virtualRow.index}
                   ref={rowVirtualizer.measureElement}
                   style={{
@@ -348,7 +447,7 @@ export function TransactionList({
                     decimalPlaces={decimalPlaces}
                     budgetSourceId={budgetSourceId}
                     incomeSourceId={incomeSourceId}
-                    index={virtualRow.index}
+                    index={item.txnIndex}
                     selected={selectedIds.has(txn.id)}
                     onToggleSelect={toggleSelect}
                     selectedCount={selectedIds.size}
@@ -358,7 +457,7 @@ export function TransactionList({
                     onBulkApplyIncome={applyBulkIncome}
                     buildRule={buildRuleIds.has(txn.id)}
                     onToggleBuildRule={toggleBuildRule}
-                    isLastRow={virtualRow.index === transactions.length - 1}
+                    isLastRow={item.lastOfDay}
                   />
                 </div>
               );
