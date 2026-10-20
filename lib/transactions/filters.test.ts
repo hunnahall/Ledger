@@ -4,6 +4,7 @@ import {
   UNCATEGORIZED_FILTER_VALUE,
   resolveCategoryFilter,
   resolveSourceFilter,
+  summarizeTransactions,
 } from "./filters";
 
 // Both sentinels have to be translated before they reach a query — passing
@@ -35,5 +36,36 @@ describe("resolveSourceFilter", () => {
 
   it("never returns the sentinel as an id", () => {
     expect(resolveSourceFilter(NO_SOURCE_FILTER_VALUE)).not.toHaveProperty("sourceId");
+  });
+});
+
+describe("summarizeTransactions", () => {
+  const row = (amount: number, over: Partial<{ sourceId: string | null; excludeFromBudget: boolean; isIncome: boolean }> = {}) => ({
+    amount,
+    sourceId: "budget",
+    excludeFromBudget: false,
+    isIncome: false,
+    ...over,
+  });
+
+  it("counts rows and nets every amount", () => {
+    expect(summarizeTransactions([row(-20.1), row(-5.2), row(100)])).toEqual({
+      count: 3,
+      withoutSource: 0,
+      net: 74.7,
+    });
+  });
+
+  it("counts only rows that need a Source, like the No source filter", () => {
+    const summary = summarizeTransactions([
+      row(-10, { sourceId: null }),
+      row(-10, { sourceId: null, excludeFromBudget: true }),
+      row(50, { sourceId: null, isIncome: true }),
+    ]);
+    expect(summary.withoutSource).toBe(1);
+  });
+
+  it("is empty with no rows", () => {
+    expect(summarizeTransactions([])).toEqual({ count: 0, withoutSource: 0, net: 0 });
   });
 });

@@ -259,7 +259,7 @@ export function TransactionList({
               Change a category or source on any selected row to apply it to all
             </span>
             {isPending && <SpinnerIcon className="animate-spin shrink-0" size={14} />}
-            {bulkError && <span className="text-xs text-negative">{bulkError}</span>}
+            {bulkError && <span className="text-xs text-danger">{bulkError}</span>}
             <button
               type="button"
               onClick={() => setSelectedIds(new Set())}
@@ -285,8 +285,8 @@ export function TransactionList({
         // into a single-line table on wider screens without duplicating any
         // fields, so there's one row layout, not two parallel ones to keep in
         // sync.
-        <div className="overflow-hidden rounded-lg border border-border bg-surface text-sm shadow-card">
-          <div className="sticky top-0 z-10 hidden items-center gap-1.5 border-b border-border bg-surface-subtle/85 px-2 py-2 text-left text-sm text-muted backdrop-blur md:flex">
+        <div className="border border-border bg-surface text-sm">
+          <div className="sticky top-[env(safe-area-inset-top,0px)] z-10 hidden h-9 items-center gap-1.5 border-b border-border bg-surface px-2 text-left font-mono text-[11px] uppercase tracking-[0.08em] text-muted md:flex">
             <span className="flex w-8 shrink-0 items-center">
               <input
                 ref={selectAllRef}
@@ -299,7 +299,7 @@ export function TransactionList({
             </span>
             <DateRangeColumnFilter label="Date" className="w-28 shrink-0 font-medium" />
             <span className="md:max-w-[260px] md:flex-1 text-left font-medium">Description</span>
-            <span className="md:ml-4 w-24 shrink-0 text-center font-medium">Amount</span>
+            <span className="md:ml-4 w-24 shrink-0 text-right font-medium">Amount</span>
             <SelectColumnFilter
               label="Source"
               paramKey="source_id"
@@ -789,7 +789,7 @@ const TransactionRow = memo(function TransactionRow({
         className={cn(
           "transition-colors duration-[120ms] ease-standard",
           isLastRow ? "" : "border-b border-border",
-          selected ? "bg-accent/8" : "hover:bg-paper-a1",
+          selected ? "bg-accent-soft" : "hover:bg-fill-hover",
         )}
       >
         {/* Below md this is a stacked card (each inner group is its own
@@ -832,7 +832,7 @@ const TransactionRow = memo(function TransactionRow({
                   type="button"
                   onClick={() => setEditingDate(true)}
                   title={`Account: ${accountDisplay}`}
-                  className="w-full rounded-sm px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-paper-a2"
+                  className="w-full rounded-sm px-1 py-0.5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-active"
                 >
                   {formatShortDate(postedDate)}
                 </button>
@@ -903,14 +903,14 @@ const TransactionRow = memo(function TransactionRow({
                     Cancel
                   </Button>
                 </div>
-                {descError && <p className="text-xs text-negative">{descError}</p>}
+                {descError && <p className="text-xs text-danger">{descError}</p>}
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setEditingDescription(true)}
                 title={notes ? `${description} — ${notes}` : description}
-                className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-paper-a2 md:max-w-[260px] md:flex-1"
+                className="min-w-0 truncate rounded-sm px-1 text-left font-medium transition-colors duration-[120ms] ease-standard hover:bg-fill-active md:max-w-[260px] md:flex-1"
               >
                 {description}
                 {typeLabel && (
@@ -920,12 +920,8 @@ const TransactionRow = memo(function TransactionRow({
                 )}
               </button>
             )}
-            <span
-              className={`shrink-0 whitespace-nowrap font-medium md:ml-4 md:w-24 md:text-center ${
-                txn.amount < 0 ? "text-negative" : "text-positive"
-              }`}
-            >
-              <Money amount={txn.amount} decimalPlaces={decimalPlaces} />
+            <span className="shrink-0 whitespace-nowrap font-medium md:ml-4 md:w-24 md:text-right">
+              <Money amount={txn.amount} decimalPlaces={decimalPlaces} symbol={false} />
             </span>
           </div>
 
@@ -1039,7 +1035,7 @@ const TransactionRow = memo(function TransactionRow({
               aria-label={splitOpen ? "Hide split" : "Split this transaction"}
               title="Split into multiple categories/sources"
               className={`rounded-sm p-1 transition-colors duration-[120ms] ease-standard md:order-2 md:flex md:w-10 md:items-center md:justify-center ${
-                splitOpen ? "text-accent" : "text-muted hover:bg-paper-a2 hover:text-foreground"
+                splitOpen ? "text-accent" : "text-muted hover:bg-fill-active hover:text-foreground"
               }`}
             >
               <SplitIcon size={14} />
@@ -1049,7 +1045,7 @@ const TransactionRow = memo(function TransactionRow({
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="rounded p-1.5 text-negative hover:bg-background"
+                  className="rounded p-1.5 text-danger hover:bg-background"
                   aria-label="Delete transaction"
                   title="Delete"
                 >
@@ -1060,7 +1056,7 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         </div>
 
-        {rowError && <p className="px-3 pb-2 text-xs text-negative md:px-2">{rowError}</p>}
+        {rowError && <p className="px-3 pb-2 text-xs text-danger md:px-2">{rowError}</p>}
 
         {/* Triggered by picking "+ Add source" in the Source select above
             (see ADD_SOURCE) rather than a separate toggle — mirrors the
@@ -1104,7 +1100,7 @@ const TransactionRow = memo(function TransactionRow({
                 Cancel
               </button>
               {createSourceState?.error && (
-                <p className="w-full text-xs text-negative">{createSourceState.error}</p>
+                <p className="w-full text-xs text-danger">{createSourceState.error}</p>
               )}
             </form>
           </div>

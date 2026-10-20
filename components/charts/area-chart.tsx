@@ -18,6 +18,7 @@ export function AreaChart({
   ariaLabel,
   reference,
   selectedKey,
+  height = 140,
 }: {
   data: AreaPoint[];
   onSelect?: (key: string) => void;
@@ -26,6 +27,8 @@ export function AreaChart({
   /** A budget or target drawn as a 1px dashed line with a mono label. */
   reference?: { value: number; label: string };
   selectedKey?: string | null;
+  /** Plot height in px. */
+  height?: number;
 }) {
   const max = niceCeiling(Math.max(1, reference?.value ?? 0, ...data.map((d) => d.value)));
   const n = Math.max(data.length, 1);
@@ -37,13 +40,13 @@ export function AreaChart({
 
   return (
     <div className="flex gap-2.5">
-      <div className="flex h-[140px] flex-col justify-between text-right font-mono text-[11px] tabular-nums text-muted">
+      <div className="flex flex-col justify-between text-right font-mono text-[11px] tabular-nums text-muted" style={{ height }}>
         {ticks.map((t) => (
           <span key={t}>{compactMoney(t)}</span>
         ))}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="relative h-[140px]">
+        <div className="relative" style={{ height }}>
           <svg
             viewBox={`0 0 ${W} ${H}`}
             preserveAspectRatio="none"

@@ -8,8 +8,8 @@ import { RefreshIcon } from "@/components/ui/icons";
 // on the Accounts page; Transactions has no single connection to scope to.
 export function SyncButton() {
   return (
-    <ActionButtonForm action={syncAllBankConnections} variant="accent" size="sm">
-      <RefreshIcon size={14} />
+    <ActionButtonForm action={syncAllBankConnections} pendingLabel="Syncing">
+      <RefreshIcon size={16} />
       Sync
     </ActionButtonForm>
   );

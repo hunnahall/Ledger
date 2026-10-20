@@ -1,13 +1,13 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import { useModal } from "@/components/ui/modal";
 import { createManualTransaction, suggestCategoryForDescription } from "@/lib/actions/transactions";
 import { stepAmountByDollar } from "@/lib/dollar-step";
-import { formatShortDate } from "@/lib/format";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AddIcon, CalendarIcon } from "@/components/ui/icons";
+import { AddIcon } from "@/components/ui/icons";
 
 type Option = { id: string; name: string };
 // No "transfer" choice here — Source Transfers on the Budgets page cover
@@ -16,15 +16,15 @@ type Option = { id: string; name: string };
 type TypeChoice = "expense" | "income" | "exclude";
 type IncomeAction = "include_in_budget" | "add_to_source" | "create_source";
 
-const fieldLabel = "flex flex-col gap-1 text-xs text-muted";
+const fieldLabel = "flex flex-col gap-1 text-sm";
 
-export function ManualTransactionForm({
-  categories,
-  sources,
-  defaultSourceId,
-  defaultAccountId,
-  advanced,
-}: {
+function localToday() {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+type FormProps = {
   categories: Option[];
   sources: Option[];
   defaultSourceId: string | null;
@@ -35,7 +35,18 @@ export function ManualTransactionForm({
   // off txn.accounts, just decided once here instead of picked per row.
   defaultAccountId: string | null;
   advanced: boolean;
-}) {
+};
+
+// The "Add transaction" dialog's form. Closes itself once the add succeeds.
+function ManualTransactionForm({
+  categories,
+  sources,
+  defaultSourceId,
+  defaultAccountId,
+  advanced,
+  onDone,
+}: FormProps & { onDone: () => void }) {
+  const [pending, setPending] = useState(false);
   const [typeChoice, setTypeChoice] = useState<TypeChoice>("expense");
   const [incomeAction, setIncomeAction] = useState<IncomeAction>("include_in_budget");
   const [categoryId, setCategoryId] = useState("");
@@ -46,12 +57,8 @@ export function ManualTransactionForm({
   // suggestion lookup's await).
   const [categorySource, setCategorySource] = useState<"manual" | "auto" | null>(null);
   const categorySourceRef = useRef<"manual" | "auto" | null>(null);
-  // Controlled (unlike the rest of this form's plain/uncontrolled inputs)
-  // because the picker trigger below needs the current value to render its
-  // tooltip — reset explicitly in handleSubmit alongside categoryId/etc.
-  // rather than trusting form.reset() to reach a controlled field.
-  const [postedDate, setPostedDate] = useState("");
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  // Starts on today so a quick entry needs no date pick.
+  const [postedDate, setPostedDate] = useState(() => localToday());
   const [error, setError] = useState<string | null>(null);
 
   function setCategory(value: string, source: "manual" | "auto" | null) {
@@ -78,148 +85,101 @@ export function ManualTransactionForm({
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    // The gold "+" adds the transaction outright — it no longer pauses to
-    // confirm saving a rule the way a fresh manual category pick
-    // used to (that confirm() prompt broke the "click + and you're done"
-    // flow this form is for). Rules still get managed their own
-    // way: Settings, or the rule-builder toggle on an already-posted row
-    // in the table below.
+    // Adding never pauses to offer saving a rule (a confirm prompt there
+    // broke the "fill it in and you're done" flow). Rules are managed on the
+    // Rules page, or from the rule builder on a posted row.
     formData.set("rule_action", "skip");
 
+    setPending(true);
     const result = await createManualTransaction(formData);
+    setPending(false);
     if (result?.error) {
       setError(result.error);
       return;
     }
     setError(null);
     form.reset();
-    setTypeChoice("expense");
-    setIncomeAction("include_in_budget");
-    setCategory("", null);
-    setPostedDate("");
+    onDone();
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-nowrap items-end gap-3 overflow-x-auto rounded-lg border border-border bg-surface p-4"
-    >
-      <label className={fieldLabel}>
-        Date
-        <span className="relative inline-flex">
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            onClick={() => dateInputRef.current?.showPicker?.()}
-            title={postedDate ? formatShortDate(postedDate) : "Pick a date"}
-            aria-label={postedDate ? `Date: ${formatShortDate(postedDate)}` : "Pick a date"}
-            className={postedDate ? "text-foreground" : "text-muted"}
-          >
-            <CalendarIcon size={16} />
-          </Button>
-          {/* Real input, just visually hidden (not display:none) — it stays
-              focusable/connected so showPicker() above can open it, and it's
-              still what actually carries posted_date into the form submit. */}
-          <input
-            ref={dateInputRef}
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <h2 className="text-xl font-semibold">Add Transaction</h2>
+      {/* No visible Account field — see defaultAccountId above. */}
+      <input type="hidden" name="account_id" value={defaultAccountId ?? ""} />
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+        <label className={fieldLabel}>
+          Description
+          <Input
+            type="text"
+            name="description"
+            required
+            autoFocus
+            placeholder="e.g. Trader Joe's"
+            onBlur={(e) => handleDescriptionBlur(e.target.value)}
+          />
+        </label>
+        <label className={fieldLabel}>
+          Date
+          <Input
             type="date"
             name="posted_date"
             required
             value={postedDate}
             onChange={(e) => setPostedDate(e.target.value)}
-            className="sr-only"
           />
-        </span>
-      </label>
-      {/* No visible Account field — see defaultAccountId above. */}
-      <input type="hidden" name="account_id" value={defaultAccountId ?? ""} />
-      <label className={`flex flex-1 min-w-40 flex-col gap-1 text-xs text-muted`}>
-        Description
-        <Input
-          type="text"
-          name="description"
-          required
-          placeholder="e.g. Trader Joe's"
-          onBlur={(e) => handleDescriptionBlur(e.target.value)}
-        />
-      </label>
-      <label className={fieldLabel}>
-        Amount
-        <Input
-          type="number"
-          name="amount"
-          step="0.01"
-          min="0"
-          required
-          onKeyDown={stepAmountByDollar}
-          className="w-28"
-        />
-      </label>
-
-      <label className={fieldLabel}>
-        Type
-        <Select
-          name="type_choice"
-          uiSize="sm"
-          className="w-32"
-          value={typeChoice}
-          onChange={(value) => setTypeChoice(value as TypeChoice)}
-        >
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="exclude">Exclude</option>
-        </Select>
-      </label>
+        </label>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className={fieldLabel}>
+          Amount
+          <Input type="number" name="amount" step="0.01" min="0" required onKeyDown={stepAmountByDollar} />
+        </label>
+        <label className={fieldLabel}>
+          Type
+          <Select name="type_choice" value={typeChoice} onChange={(value) => setTypeChoice(value as TypeChoice)}>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+            <option value="exclude">Exclude</option>
+          </Select>
+        </label>
+      </div>
 
       {/* Source before Category, mirroring the Transactions table's column
-          order below (see its Source/Category header pair). */}
-      {typeChoice === "expense" && (
-        <label className={fieldLabel}>
-          Source
-          <Select
-            name="source_id"
-            uiSize="sm"
-            className="w-36"
-            defaultValue={defaultSourceId ?? ""}
-            placeholder="No source"
-          >
-            <option value="">No source</option>
-            {sources.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-      )}
-
+          order. */}
       {(typeChoice === "expense" || typeChoice === "income") && (
-        <label className={fieldLabel}>
-          Category
-          <Select
-            name="category_id"
-            uiSize="sm"
-            className="w-36"
-            value={categoryId}
-            onChange={handleCategoryChange}
-            placeholder="Uncategorized"
-          >
-            <option value="">Uncategorized</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-          <input type="hidden" name="category_source" value={categorySource ?? ""} />
-        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {typeChoice === "expense" && (
+            <label className={fieldLabel}>
+              Source
+              <Select name="source_id" defaultValue={defaultSourceId ?? ""} placeholder="No source">
+                <option value="">No source</option>
+                {sources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
+          <label className={fieldLabel}>
+            Category
+            <Select name="category_id" value={categoryId} onChange={handleCategoryChange} placeholder="Uncategorized">
+              <option value="">Uncategorized</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+            <input type="hidden" name="category_source" value={categorySource ?? ""} />
+          </label>
+        </div>
       )}
 
       {typeChoice === "income" && advanced && (
-        <p className="max-w-xs pb-2 text-xs text-muted">
-          Tracked to the Income source — swept into the budget at the start
-          of next month.
+        <p className="text-xs text-muted">
+          Tracked to the Income source, then moved into the Budget at the start of next month.
         </p>
       )}
 
@@ -227,44 +187,33 @@ export function ManualTransactionForm({
         <>
           <fieldset className={fieldLabel}>
             <legend className="mb-1">Income</legend>
-            <div className="flex flex-wrap gap-3 pb-2">
-              <label className="flex items-center gap-1.5 text-foreground">
-                <input
-                  type="radio"
-                  name="income_action"
-                  value="include_in_budget"
-                  checked={incomeAction === "include_in_budget"}
-                  onChange={() => setIncomeAction("include_in_budget")}
-                />
-                Add to Income
-              </label>
-              <label className="flex items-center gap-1.5 text-foreground">
-                <input
-                  type="radio"
-                  name="income_action"
-                  value="add_to_source"
-                  checked={incomeAction === "add_to_source"}
-                  onChange={() => setIncomeAction("add_to_source")}
-                />
-                Add to Source
-              </label>
-              <label className="flex items-center gap-1.5 text-foreground">
-                <input
-                  type="radio"
-                  name="income_action"
-                  value="create_source"
-                  checked={incomeAction === "create_source"}
-                  onChange={() => setIncomeAction("create_source")}
-                />
-                Create a Source
-              </label>
+            <div className="flex flex-wrap gap-4">
+              {(
+                [
+                  ["include_in_budget", "Add to Income"],
+                  ["add_to_source", "Add to Source"],
+                  ["create_source", "Create a Source"],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value} className="flex items-center gap-1.5 text-sm text-foreground">
+                  <input
+                    type="radio"
+                    name="income_action"
+                    value={value}
+                    checked={incomeAction === value}
+                    onChange={() => setIncomeAction(value)}
+                    className="accent-[var(--accent)]"
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
           </fieldset>
 
           {incomeAction === "add_to_source" && (
             <label className={fieldLabel}>
               Source
-              <Select name="source_id" uiSize="sm" className="w-36" placeholder="Choose a source">
+              <Select name="source_id" placeholder="Choose a source">
                 <option value="">Choose a source</option>
                 {sources.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -276,38 +225,49 @@ export function ManualTransactionForm({
           )}
 
           {incomeAction === "create_source" && (
-            <>
+            <div className="grid gap-4 sm:grid-cols-2">
               <label className={fieldLabel}>
                 New source name
-                <Input
-                  type="text"
-                  name="new_source_name"
-                  required
-                  placeholder="e.g. Bonus"
-                  className="w-36"
-                />
+                <Input type="text" name="new_source_name" required placeholder="e.g. Bonus" />
               </label>
               <label className={fieldLabel}>
                 Source type
-                <Select name="new_source_type" uiSize="sm" className="w-36" defaultValue="reimbursement">
+                <Select name="new_source_type" defaultValue="reimbursement">
                   <option value="reimbursement">Reimbursement</option>
                 </Select>
               </label>
-            </>
+            </div>
           )}
         </>
       )}
 
       {typeChoice === "exclude" && (
-        <p className="max-w-xs pb-2 text-xs text-muted">
-          Disregarded entirely — no category, source, or budget tracking.
-        </p>
+        <p className="text-xs text-muted">Left out of every figure: no category, source or budget tracking.</p>
       )}
 
-      <Button type="submit" variant="accent" size="icon" aria-label="Add transaction">
-        <AddIcon />
-      </Button>
-      {error && <p className="w-full text-xs text-negative">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" size="sm" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" size="sm" disabled={pending}>
+          {pending ? "Adding" : "Add transaction"}
+        </Button>
+      </div>
     </form>
+  );
+}
+
+// The Transactions page's one accent button.
+export function AddTransactionButton(props: FormProps) {
+  const { open, close, modal } = useModal();
+  return (
+    <>
+      <Button type="button" variant="accent" onClick={() => open(<ManualTransactionForm {...props} onDone={close} />)}>
+        <AddIcon size={16} />
+        Add transaction
+      </Button>
+      {modal}
+    </>
   );
 }

@@ -35,6 +35,7 @@ export function SpendingByDayChart({
         formatValue={(v) => formatMoney(v, decimalPlaces)}
         ariaLabel={`Spending per day from ${formatDate(days[0].date)} to ${formatDate(days[days.length - 1].date)}, ${formatMoney(total, decimalPlaces)} in total.`}
         selectedKey={selected}
+        height={120}
         onSelect={(date) => setParams(selected === date ? { date_from: null, date_to: null } : { date_from: date, date_to: date })}
       />
     </section>
