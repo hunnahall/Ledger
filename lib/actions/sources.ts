@@ -1,7 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/supabase/auth";
-import { revalidateLedgerPages } from "@/lib/actions/revalidate";
+import { revalidateForecastPages, revalidateLedgerPages } from "@/lib/actions/revalidate";
 import { logMoney, parseMoney } from "@/lib/format";
 import {
   validateSourceInput,
@@ -170,13 +170,15 @@ export async function deleteSource(
 
   // transactions.source_id, transfer_from_source_id and
   // transfer_to_source_id are all `on delete set null`, so affected
-  // transactions fall back to No source automatically.
+  // transactions fall back to No source automatically. Its forecasts are
+  // deleted with it (forecasts.source_id cascades); the confirm step says so.
   const { error } = await supabase.from("sources").delete().eq("id", sourceId);
   if (error) return { error: error.message };
 
   await logChange(supabase, user.id, "Sources", `Source: ${source.name}`, money(source.balance), null);
 
   revalidateLedgerPages();
+  revalidateForecastPages();
   return null;
 }
 

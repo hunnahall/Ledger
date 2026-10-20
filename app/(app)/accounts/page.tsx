@@ -20,6 +20,9 @@ export default async function AccountsPage() {
   const money = (n: number) => formatMoney(n, decimalPlaces);
   const totals = accountTotals(accounts);
   const manual = accounts.filter((a) => a.is_manual);
+  // Bank accounts whose bank was disconnected: kept, with their
+  // transactions, until deleted.
+  const disconnected = accounts.filter((a) => !a.is_manual && a.bank_connection_id === null);
 
   const rows = (list: typeof accounts) =>
     list.map((account) => (
@@ -72,6 +75,15 @@ export default async function AccountsPage() {
           </p>
         )}
       </Card>
+
+      {disconnected.length > 0 && (
+        <Card title="Disconnected Accounts">
+          <p className="border-b border-border px-5 py-3 text-xs text-muted">
+            No longer syncing. Balances are as of the last sync. Connect the bank again to pick them back up.
+          </p>
+          {rows(disconnected)}
+        </Card>
+      )}
 
       {connections.length === 0 && (
         <p className="text-sm text-muted">No banks connected yet. Use Connect bank to add one through SimpleFin.</p>

@@ -26,10 +26,13 @@ type FormAction = (prev: { error: string } | null, formData: FormData) => Promis
 export function SourceCard({
   source,
   monthChange,
+  forecastCount,
   decimalPlaces,
 }: {
   source: Source;
   monthChange: number;
+  /** Forecasts built on this Source; deleting it deletes them. */
+  forecastCount: number;
   decimalPlaces: number;
 }) {
   const { confirm, dialog } = useConfirm();
@@ -53,10 +56,14 @@ export function SourceCard({
   }
 
   async function handleDelete() {
-    const ok = await confirm(`Delete "${source.name}"? This can't be undone.`, {
-      confirmLabel: "Delete",
-      destructive: true,
-    });
+    const forecasts =
+      forecastCount === 0
+        ? ""
+        : ` ${forecastCount === 1 ? "Its forecast is" : `Its ${forecastCount} forecasts are`} deleted too.`;
+    const ok = await confirm(
+      `Delete "${source.name}"? This can't be undone.${forecasts} Its transactions stay, with no Source.`,
+      { confirmLabel: "Delete", destructive: true },
+    );
     if (ok) run(deleteSource.bind(null, source.id));
   }
 

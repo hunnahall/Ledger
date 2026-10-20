@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getSourceMonthChange, getSourcesWithBalance } from "@/lib/queries/sources";
+import { getForecastCountsBySource, getSourceMonthChange, getSourcesWithBalance } from "@/lib/queries/sources";
 import { getSettings } from "@/lib/queries/settings";
 import { ensureBudgetCurrent } from "@/lib/queries/budgets";
 import { currentMonthISO } from "@/lib/dates";
@@ -19,9 +19,10 @@ export default async function SourcesPage() {
   // getSourcesWithBalance must see that write.
   await ensureBudgetCurrent();
   const settings = await getSettings();
-  const [sources, monthChange] = await Promise.all([
+  const [sources, monthChange, forecastCounts] = await Promise.all([
     getSourcesWithBalance(),
     getSourceMonthChange(currentMonthISO(settings.timezone)),
+    getForecastCountsBySource(),
   ]);
   const decimalPlaces = settings.decimal_places;
   const money = (n: number) => formatMoney(n, decimalPlaces);
@@ -82,6 +83,7 @@ export default async function SourcesPage() {
                 key={source.id}
                 source={source}
                 monthChange={monthChange.get(source.id) ?? 0}
+                forecastCount={forecastCounts.get(source.id) ?? 0}
                 decimalPlaces={decimalPlaces}
               />
             ))}

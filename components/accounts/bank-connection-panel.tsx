@@ -37,7 +37,7 @@ export function BankConnectionPanel({
 
   async function handleDisconnect() {
     const ok = await confirm(
-      `Disconnect ${bankName}? Its accounts and their transactions are deleted. You can connect it again with a new setup token.`,
+      `Disconnect ${bankName}? Its accounts and transactions stay, and no Source balance changes, but nothing new syncs. Connecting it again with a new setup token picks the same accounts back up.`,
       { confirmLabel: "Disconnect", destructive: true },
     );
     if (!ok) return;

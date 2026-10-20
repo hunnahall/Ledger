@@ -141,6 +141,29 @@ async function syncConnection(
     if (existingError) throw new Error(existingError.message);
     const known = new Set((existingAccounts ?? []).map((a) => a.provider_account_id));
 
+    // Accounts left behind when this bank was disconnected keep their
+    // transactions. Reconnecting the same bank picks them back up by
+    // SimpleFin's account id, so the upsert below finds them and their
+    // transactions aren't synced in a second time under a new account.
+    const { data: detached, error: detachedError } = await serviceClient
+      .from("accounts")
+      .select("id, provider_account_id")
+      .eq("user_id", connection.user_id)
+      .is("bank_connection_id", null)
+      .eq("is_manual", false);
+    if (detachedError) throw new Error(detachedError.message);
+    for (const acct of accounts) {
+      if (known.has(acct.id)) continue;
+      const old = (detached ?? []).find((d) => d.provider_account_id === acct.id);
+      if (!old) continue;
+      const { error: reattachError } = await serviceClient
+        .from("accounts")
+        .update({ bank_connection_id: connection.id })
+        .eq("id", old.id);
+      if (reattachError) throw new Error(reattachError.message);
+      known.add(acct.id);
+    }
+
     for (const acct of accounts) {
       const { data: accountRow, error: acctError } = await serviceClient
         .from("accounts")

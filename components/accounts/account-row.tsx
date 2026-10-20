@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { deleteManualAccount, setAccountType, setIncludeInCash } from "@/lib/actions/accounts";
+import { deleteAccount, setAccountType, setIncludeInCash } from "@/lib/actions/accounts";
 import { ACCOUNT_TYPE_LABELS as TYPE_LABELS } from "@/lib/accounts/types";
 import { formatDate } from "@/lib/format";
-import { ActionButtonForm } from "@/components/ui/action-button-form";
+import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Tag } from "@/components/ui/badge";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
@@ -21,6 +22,7 @@ type AccountRowData = {
   current_balance: number;
   is_manual: boolean;
   include_in_cash: boolean;
+  bank_connection_id: string | null;
 };
 
 type RecentTransaction = { id: string; posted_date: string; description: string; amount: number };
@@ -39,6 +41,22 @@ export function AccountRow({
   const [typeError, setTypeError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const types = account.is_manual ? Object.keys(TYPE_LABELS) : SYNCED_TYPES;
+  const { confirm, dialog } = useConfirm();
+  // A manual account, or a bank account whose bank was disconnected. One
+  // still syncing goes away by disconnecting its bank.
+  const deletable = account.is_manual || account.bank_connection_id === null;
+
+  async function handleDelete() {
+    const ok = await confirm(
+      `Delete ${account.account_name}? Its transactions stay, with no account, and no Source balance changes.`,
+      { confirmLabel: "Delete", destructive: true },
+    );
+    if (!ok) return;
+    startTransition(async () => {
+      const result = await deleteAccount(account.id, null, new FormData());
+      setTypeError(result?.error ?? null);
+    });
+  }
 
   function changeType(next: string) {
     startTransition(async () => {
@@ -107,16 +125,11 @@ export function AccountRow({
             />
             Count as cash
           </label>
-          {account.is_manual && (
+          {deletable && (
             <div className="ml-auto">
-              <ActionButtonForm
-                action={deleteManualAccount.bind(null, account.id)}
-                tone="negative"
-                size="sm"
-                pendingLabel="Deleting"
-              >
+              <Button type="button" tone="negative" size="sm" disabled={isPending} onClick={handleDelete}>
                 Delete account
-              </ActionButtonForm>
+              </Button>
             </div>
           )}
           {typeError && <p className="w-full text-xs text-danger">{typeError}</p>}
@@ -138,6 +151,7 @@ export function AccountRow({
           </ul>
         )}
       </div>
+      {dialog}
     </details>
   );
 }
