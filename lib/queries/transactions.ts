@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { searchOrFilter, type TransactionFilters } from "@/lib/transactions/filters";
 import { buildSplitGroups } from "@/lib/transactions/splits";
@@ -35,6 +36,7 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
   // route_income_to_fund); is_income stays in the filter as a guard. A
   // still-unresolved Transfer *does* show "No source" in that same select
   // (it has no sentinel of its own), so it stays included here.
+  // Keep in step with getUnsourcedCount below and needsSource.
   if (filters.sourceIsNull) {
     query = query.is("source_id", null).eq("exclude_from_budget", false).eq("is_income", false);
   }
@@ -188,3 +190,19 @@ export async function getFilterOptions() {
     defaultAccountId,
   };
 }
+
+// How many transactions still need a Source: the nav badge on Transactions.
+// Same rule as the "No source" filter above (and needsSource), split
+// originals left out since their pieces are what's listed.
+export const getUnsourcedCount = cache(async function getUnsourcedCount(): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .is("source_id", null)
+    .eq("exclude_from_budget", false)
+    .eq("is_income", false)
+    .eq("is_split", false);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+});

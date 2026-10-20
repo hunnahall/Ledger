@@ -12,7 +12,8 @@ import {
 
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
-  { href: "/transactions", label: "Transactions", icon: TransactionsIcon },
+  // badge: shows how many transactions still need a Source.
+  { href: "/transactions", label: "Transactions", icon: TransactionsIcon, badge: "review" },
   { href: "/budget", label: "Budget", icon: BudgetsIcon },
   { href: "/sources", label: "Sources", icon: SourcesIcon },
   { href: "/accounts", label: "Accounts", icon: AccountsIcon },

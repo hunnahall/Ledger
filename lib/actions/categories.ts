@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateLedgerPages } from "@/lib/actions/revalidate";
 import { logChange } from "@/lib/actions/log";
@@ -30,7 +29,6 @@ export async function createCategory(
   await logChange(supabase, user.id, "Budgets", `Category: ${name}`, null, money(monthlyAmount));
 
   revalidateLedgerPages();
-  revalidatePath("/settings");
   return null;
 }
 
@@ -83,7 +81,6 @@ export async function updateCategory(
   }
 
   revalidateLedgerPages();
-  revalidatePath("/settings");
   return null;
 }
 
@@ -118,6 +115,5 @@ export async function deleteCategory(
   }
 
   revalidateLedgerPages();
-  revalidatePath("/settings");
   return null;
 }

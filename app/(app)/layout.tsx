@@ -5,8 +5,10 @@ import { getSettings } from "@/lib/queries/settings";
 import { TimezoneSync } from "@/components/settings/timezone-sync";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { getPaletteTargets } from "@/lib/queries/palette";
+import { getUnsourcedCount } from "@/lib/queries/transactions";
+import { ReviewCountSync } from "@/components/ui/review-count";
 
-// Neither of these renders anything on first paint — TimezoneSync returns
+// None of these renders anything on first paint — TimezoneSync returns
 // null (it's an effect that offers the browser's zone once), and the palette
 // only portals a dialog in once ⌘K opens it. Awaiting their data in the
 // layout body still held up the whole shell: uncached reads in a layout
@@ -17,12 +19,18 @@ import { getPaletteTargets } from "@/lib/queries/palette";
 // invisible chrome streams in after. Client-side navigation between (app)
 // routes reuses the already-rendered layout either way.
 async function AppChrome() {
-  const [settings, paletteTargets] = await Promise.all([getSettings(), getPaletteTargets()]);
+  const [settings, paletteTargets, unsourcedCount] = await Promise.all([
+    getSettings(),
+    getPaletteTargets(),
+    getUnsourcedCount(),
+  ]);
 
   return (
     <>
       <TimezoneSync storedTimezone={settings.timezone} />
       <CommandPalette targets={paletteTargets} />
+      {/* The Transactions nav badge (see SidebarLink). */}
+      <ReviewCountSync count={unsourcedCount} />
     </>
   );
 }

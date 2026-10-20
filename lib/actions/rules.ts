@@ -32,7 +32,7 @@ export async function createRule(
     target.isExclude,
   );
 
-  revalidatePath("/settings");
+  revalidatePath("/rules");
   return null;
 }
 
@@ -72,7 +72,7 @@ export async function updateRule(
     return { error: error.message };
   }
 
-  revalidatePath("/settings");
+  revalidatePath("/rules");
   return null;
 }
 
@@ -134,6 +134,6 @@ export async function deleteRule(
     await logChange(supabase, user.id, "Rules", `Rule: ${deleted.merchant_normalized}`, target, null);
   }
 
-  revalidatePath("/settings");
+  revalidatePath("/rules");
   return null;
 }
