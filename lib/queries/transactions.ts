@@ -45,7 +45,20 @@ export async function getFilteredTransactions(filters: TransactionFilters) {
       .eq("is_transfer", false);
   }
   if (filters.uncategorizedOnly) {
-    query = query.is("category_id", null).eq("is_transfer", false);
+    // Only Budget money (or money with no Source) can carry a Category (see
+    // transactions_tidy), so a row on any other Source isn't waiting for
+    // one. Excluded rows never take a Category either.
+    const { data: budgetSource, error: budgetError } = await supabase
+      .from("sources")
+      .select("id")
+      .eq("type", "budget")
+      .maybeSingle();
+    if (budgetError) throw new Error(budgetError.message);
+    query = query
+      .is("category_id", null)
+      .eq("is_transfer", false)
+      .eq("exclude_from_budget", false)
+      .or(budgetSource ? `source_id.is.null,source_id.eq.${budgetSource.id}` : "source_id.is.null");
   }
   const search = filters.search?.trim();
   if (search) {
