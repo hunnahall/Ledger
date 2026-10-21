@@ -12,7 +12,6 @@ import {
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { SplitEditor } from "@/components/transactions/split-editor";
 import type { SplitGroup } from "@/lib/transactions/splits";
-import { TRANSFER_TARGET_PREFIX } from "@/lib/transactions/rule-target";
 import { EXCLUDE, INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -67,6 +66,8 @@ const ADD_SOURCE = "__add_source__";
 // did; see handleSourceChange. There's no Transfer equivalent — Source
 // Transfers on the Budget page cover that now.
 const EXCLUDE_SOURCE = "__exclude__";
+// The Source select's "Transfer to" option: opens a second select for the destination.
+const TRANSFER_PICK = "__transfer__";
 
 // Income is not a sentinel: it's the real system Income source (its id
 // arrives as incomeSourceId). Picking it marks the row Income and clears
@@ -557,6 +558,7 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [transferTo, setTransferTo] = useState(txn.transferToSourceId);
+  const [pickingTransfer, setPickingTransfer] = useState(false);
   const [isIncome, setIsIncome] = useState(txn.isIncome);
   const [postedDate, setPostedDate] = useState(txn.postedDate);
   const [excludeFromBudget, setExcludeFromBudget] = useState(txn.excludeFromBudget);
@@ -646,7 +648,7 @@ const TransactionRow = memo(function TransactionRow({
     const formData = new FormData(form);
     // A transfer's Source select shows "Transfer to <Source>", but the row
     // itself sits on the Budget source: save that, not the option's value.
-    if (String(formData.get("source_id") ?? "").startsWith(TRANSFER_TARGET_PREFIX)) {
+    if (String(formData.get("source_id") ?? "") === TRANSFER_PICK) {
       formData.set("source_id", sourceId);
     }
     for (const [key, value] of Object.entries(overrides)) {
@@ -748,7 +750,24 @@ const TransactionRow = memo(function TransactionRow({
     return ruleAction === "skip" ? "skip" : "write";
   }
 
+  async function handleTransferDestination(destination: string) {
+    if (!destination) return;
+    setPickingTransfer(false);
+    setIsTransfer(false);
+    setTransferTo(destination);
+    setExcludeFromBudget(false);
+    if (budgetSourceId) setSourceId(budgetSourceId);
+    setIsIncome(false);
+    const result = await markTransfer(txn.id, destination);
+    setRowError(result?.error ?? null);
+  }
+
   async function handleSourceChange(newSourceId: string) {
+    if (newSourceId === TRANSFER_PICK) {
+      setPickingTransfer(true);
+      return;
+    }
+    setPickingTransfer(false);
     if (newSourceId === ADD_SOURCE) {
       setAddingSource(true);
       return;
@@ -766,18 +785,6 @@ const TransactionRow = memo(function TransactionRow({
     // that Source through a copy (markTransfer). Changing the row's Source
     // or Category afterward removes the copy in the database. A
     // match_transfer_pairs false positive gets out by picking a real value.
-    if (newSourceId.startsWith(TRANSFER_TARGET_PREFIX)) {
-      const destination = newSourceId.slice(TRANSFER_TARGET_PREFIX.length);
-      setIsTransfer(false);
-      setTransferTo(destination);
-      setExcludeFromBudget(false);
-      if (budgetSourceId) setSourceId(budgetSourceId);
-      setIsIncome(false);
-      const result = await markTransfer(txn.id, destination);
-      setRowError(result?.error ?? null);
-      return;
-    }
-
     if (newSourceId === EXCLUDE_SOURCE) {
       setIsTransfer(false);
       setTransferTo(null);
@@ -930,8 +937,8 @@ const TransactionRow = memo(function TransactionRow({
   // moment between picking Income and the save returning.
   const sourceSelectValue = excludeFromBudget
     ? EXCLUDE_SOURCE
-    : transferTo
-      ? `${TRANSFER_TARGET_PREFIX}${transferTo}`
+    : transferTo || pickingTransfer
+      ? TRANSFER_PICK
       : isIncome && !sourceId
         ? (incomeSourceId ?? "")
         : sourceId;
@@ -1124,20 +1131,32 @@ const TransactionRow = memo(function TransactionRow({
                   </option>
                 ))}
               <option value={EXCLUDE_SOURCE}>Exclude</option>
-              {!txn.isTransferCopy &&
-                !txn.split &&
-                txn.amount < 0 &&
-                sources
-                  .filter((s) => s.id !== incomeSourceId && s.id !== budgetSourceId)
-                  .map((s) => (
-                    <option key={s.id} value={`${TRANSFER_TARGET_PREFIX}${s.id}`}>
-                      Transfer to {s.name}
-                    </option>
-                  ))}
+              {!txn.isTransferCopy && !txn.split && txn.amount < 0 && (
+                <option value={TRANSFER_PICK}>Transfer to</option>
+              )}
               {!isTransfer && !excludeFromBudget && txn.amount > 0 && (
                 <option value={ADD_SOURCE}>+ Add source</option>
               )}
             </Select>
+            {(transferTo || pickingTransfer) && (
+              <Select
+                uiSize="sm"
+                className="min-w-0 flex-1 md:max-w-40"
+                value={transferTo ?? ""}
+                onChange={handleTransferDestination}
+                placeholder="Choose source"
+                disabled={txn.isTransferCopy}
+              >
+                <option value="">Choose source</option>
+                {sources
+                  .filter((s) => s.id !== incomeSourceId && s.id !== budgetSourceId)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </Select>
+            )}
             <div className="flex min-w-0 flex-1 items-center gap-1.5 md:max-w-48">
               <Select
                 form={`txn-${txn.id}`}
