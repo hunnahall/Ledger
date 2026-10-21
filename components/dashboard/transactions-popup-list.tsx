@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   getDashboardTileTransactions,
   type DashboardTileKind,
@@ -11,7 +12,8 @@ import { Money } from "@/components/ui/money";
 
 // Read-only transaction list rendered inside the dashboard's tile-click
 // popup (components/ui/modal.tsx) — deliberately not the heavy, editable
-// TransactionList used on the Transactions page.
+// TransactionList used on the Transactions page. Each row links there: the
+// Transactions page scrolls to it and flags it for a moment.
 export function TransactionsPopupList({
   title,
   kind,
@@ -66,14 +68,17 @@ export function TransactionsPopupList({
       {transactions && transactions.length > 0 && (
         <ul className="flex flex-col divide-y divide-border">
           {transactions.map((t) => (
-            <li key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <span className="shrink-0 text-xs text-muted">{formatDate(t.postedDate)}</span>
-              <span className="min-w-0 flex-1 truncate">{t.description}</span>
-              <span
-                className={"shrink-0 font-medium"}
+            <li key={t.id}>
+              <Link
+                href={`/transactions?txn=${t.id}`}
+                className="flex items-center justify-between gap-3 py-2 text-sm transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
               >
-                <Money amount={t.amount} decimalPlaces={decimalPlaces} />
-              </span>
+                <span className="shrink-0 text-xs text-muted">{formatDate(t.postedDate)}</span>
+                <span className="min-w-0 flex-1 truncate">{t.description}</span>
+                <span className="shrink-0 font-medium">
+                  <Money amount={t.amount} decimalPlaces={decimalPlaces} />
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

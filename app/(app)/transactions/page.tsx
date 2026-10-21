@@ -29,6 +29,7 @@ type SearchParams = {
   category_id?: string;
   source_id?: string;
   search?: string;
+  txn?: string;
 };
 
 export default async function TransactionsPage({
@@ -125,6 +126,7 @@ export default async function TransactionsPage({
           decimalPlaces={decimalPlaces}
           budgetSourceId={filterOptions.defaultSourceId}
           incomeSourceId={filterOptions.incomeSourceId}
+          focusId={params.txn}
         />
       </section>
     </div>

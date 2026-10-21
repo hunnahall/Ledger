@@ -130,6 +130,7 @@ export function TransactionList({
   decimalPlaces,
   budgetSourceId,
   incomeSourceId,
+  focusId,
 }: {
   transactions: TransactionRowData[];
   categories: Option[];
@@ -142,6 +143,9 @@ export function TransactionList({
   budgetSourceId: string | null;
   // The system Income source's id — picking it is how a row is marked Income.
   incomeSourceId: string | null;
+  // A transaction to scroll to and flag for a few seconds (?txn=, set by the
+  // links in the Dashboard and Budget popups).
+  focusId?: string;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Which rows have "Add Rule" toggled on — lifted up here (keyed by
@@ -214,6 +218,23 @@ export function TransactionList({
     scrollMargin: listEl?.offsetTop ?? 0,
     rangeExtractor,
   });
+
+  // Scroll to the linked transaction once, after the list has measured its
+  // own offset. The virtualizer's sizes are estimates until rows render, so
+  // the scroll is repeated once they have.
+  const [flashId, setFlashId] = useState<string | undefined>(focusId);
+  const scrolledToRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusId || !listEl || scrolledToRef.current === focusId) return;
+    const index = items.findIndex((item) => item.kind === "row" && item.txn.id === focusId);
+    if (index < 0) return;
+    scrolledToRef.current = focusId;
+    rowVirtualizer.scrollToIndex(index, { align: "center" });
+    // Timers are left running on purpose: the effect re-runs as `items`
+    // change, and cleaning them up then would leave the flag on forever.
+    setTimeout(() => rowVirtualizer.scrollToIndex(index, { align: "center" }), 150);
+    setTimeout(() => setFlashId(undefined), 3000);
+  }, [focusId, listEl, items, rowVirtualizer]);
 
   const pinnedHeader = activeHeader(headerIndexes, rowVirtualizer.range?.startIndex ?? 0);
 
@@ -432,6 +453,7 @@ export function TransactionList({
                   key={virtualRow.key}
                   data-index={virtualRow.index}
                   ref={rowVirtualizer.measureElement}
+                  className={cn(txn.id === flashId && "bg-accent-soft outline outline-1 -outline-offset-1 outline-accent")}
                   style={{
                     position: "absolute",
                     top: 0,
