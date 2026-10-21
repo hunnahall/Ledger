@@ -46,6 +46,14 @@ describe("layout edits", () => {
     expect(moved.tiles[1].id).toBe("money-map");
   });
 
+  it("moves a tile to a chosen side of another", () => {
+    const ids = (l: ReturnType<typeof moveTile>) => l.tiles.map((t) => t.id);
+    const base = ids(DEFAULT_LAYOUT);
+    const i = base.indexOf("heatmap");
+    expect(ids(moveTile(DEFAULT_LAYOUT, "float", "heatmap", true)).indexOf("float")).toBe(i + 1);
+    expect(ids(moveTile(DEFAULT_LAYOUT, "float", "heatmap", false)).indexOf("float")).toBe(i);
+  });
+
   it("keeps a resized tile between a third and full width", () => {
     expect(clampSpan(1)).toBe(2);
     expect(clampSpan(9)).toBe(6);

@@ -8,6 +8,7 @@ import {
   closestCenter,
   pointerWithin,
   type CollisionDetection,
+  type UniqueIdentifier,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -30,13 +31,24 @@ import { GripIcon, HideIcon, LayoutIcon, ResizeIcon } from "@/components/ui/icon
 import { ChartsMenu } from "@/components/dashboard/charts-menu";
 import { cn } from "@/lib/cn";
 
-// Where a dragged tile lands. The tile under the pointer wins. Closest center
-// alone sends a small tile back home when it's dropped beside a tall one,
-// because the tall tile's center is far away, so it only decides when the
-// pointer is over no tile (a gap, or empty space in a row).
+// Where a dragged tile lands. The tile under the pointer wins. Over empty
+// space in a row (a free third beside a two-thirds tile), the tile in that row
+// nearest the pointer wins. Anywhere else, the closest center decides.
 const collisionDetection: CollisionDetection = (args) => {
   const within = pointerWithin(args);
-  return within.length > 0 ? within : closestCenter(args);
+  if (within.length > 0) return within;
+  const { x, y } = args.pointerCoordinates ?? {};
+  if (x !== undefined && y !== undefined) {
+    let best: { id: UniqueIdentifier; distance: number } | null = null;
+    for (const container of args.droppableContainers) {
+      const rect = args.droppableRects.get(container.id);
+      if (!rect || y < rect.top || y > rect.top + rect.height) continue;
+      const distance = x < rect.left ? rect.left - x : x - (rect.left + rect.width);
+      if (!best || distance < best.distance) best = { id: container.id, distance };
+    }
+    if (best) return [{ id: best.id }];
+  }
+  return closestCenter(args);
 };
 
 /** Gap between tiles, px (gap-4). */
@@ -111,7 +123,15 @@ export function DashboardGrid({
   const visible = layout.tiles.filter((t) => !layout.hidden.includes(t.id));
 
   function onDragEnd({ active, over }: DragEndEvent) {
-    if (over && active.id !== over.id) setLayout((l) => moveTile(l, active.id as TileId, over.id as TileId));
+    if (!over || active.id === over.id) return;
+    // Level with the tile it was dropped on (the same row), the dragged
+    // tile's side of that tile's center decides before or after. Dropped
+    // above or below it, the tile takes that tile's place.
+    const dragged = active.rect.current.translated;
+    const level =
+      dragged && dragged.top + dragged.height / 2 >= over.rect.top && dragged.top + dragged.height / 2 <= over.rect.top + over.rect.height;
+    const after = dragged && level ? dragged.left + dragged.width / 2 > over.rect.left + over.rect.width / 2 : undefined;
+    setLayout((l) => moveTile(l, active.id as TileId, over.id as TileId, after));
   }
 
   /** One column's width plus a gap, in px: what a resize drag snaps to. */

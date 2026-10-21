@@ -84,14 +84,19 @@ export function normalizeLayout(raw: unknown): DashboardLayout {
   return { tiles: out, hidden: hiddenIds };
 }
 
-/** Moves the tile `id` to where `overId` sits. */
-export function moveTile(layout: DashboardLayout, id: TileId, overId: TileId): DashboardLayout {
+/**
+ * Moves the tile `id` next to `overId`. `after` says which side: true puts it
+ * right after, false right before. Left out, it lands where `overId` sat (so
+ * a tile moved down goes after, one moved up goes before).
+ */
+export function moveTile(layout: DashboardLayout, id: TileId, overId: TileId, after?: boolean): DashboardLayout {
   const from = layout.tiles.findIndex((t) => t.id === id);
   const to = layout.tiles.findIndex((t) => t.id === overId);
   if (from === -1 || to === -1 || from === to) return layout;
   const tiles = [...layout.tiles];
   const [tile] = tiles.splice(from, 1);
-  tiles.splice(to, 0, tile);
+  const overIndex = tiles.findIndex((t) => t.id === overId);
+  tiles.splice(after === undefined ? to : overIndex + (after ? 1 : 0), 0, tile);
   return { ...layout, tiles };
 }
 
