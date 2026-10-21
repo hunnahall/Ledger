@@ -40,7 +40,7 @@ export function CategoriesTable({
     <Card
       title="Categories"
       action={
-        <Button type="button" variant="primary" size="sm" onClick={() => setShowAdd(true)}>
+        <Button type="button" size="sm" onClick={() => setShowAdd(true)}>
           <AddIcon size={16} />
           Add category
         </Button>

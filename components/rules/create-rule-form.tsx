@@ -68,7 +68,7 @@ export function CreateRuleForm({
           ))}
         </Select>
       </label>
-      <Button type="submit" variant="accent" size="sm">
+      <Button type="submit" variant="primary" size="sm">
         Add rule
       </Button>
       {state?.error && <p className="w-full text-xs text-danger">{state.error}</p>}

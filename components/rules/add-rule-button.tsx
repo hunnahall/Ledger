@@ -20,12 +20,11 @@ export function AddRuleButton({
     <>
       <Button
         type="button"
-        variant="accent"
-        size="icon"
-        aria-label="Add rule"
+        size="sm"
         onClick={() => open(<CreateRuleForm categories={categories} sources={sources} onDone={close} />)}
       >
-        <AddIcon />
+        <AddIcon size={16} />
+        Add rule
       </Button>
       {modal}
     </>

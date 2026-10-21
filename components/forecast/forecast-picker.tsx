@@ -101,7 +101,7 @@ export function ForecastPicker({
                 ))}
               </Select>
             </label>
-            <Button type="submit" variant="accent" size="sm">
+            <Button type="submit" variant="primary" size="sm">
               Create
             </Button>
             <button

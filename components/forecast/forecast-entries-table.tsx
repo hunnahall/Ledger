@@ -127,7 +127,7 @@ export function ForecastEntriesTable({
                 />
               </label>
 
-              <Button type="submit" variant="accent" size="sm" disabled={adding}>
+              <Button type="submit" variant="primary" size="sm" disabled={adding}>
                 Add
               </Button>
               <button
