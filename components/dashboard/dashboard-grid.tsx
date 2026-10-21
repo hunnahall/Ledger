@@ -131,6 +131,7 @@ export function DashboardGrid({
     const dragged = start && { left: start.left + delta.x, top: start.top + delta.y, width: start.width, height: start.height };
     const level =
       dragged && dragged.top + dragged.height / 2 >= over.rect.top && dragged.top + dragged.height / 2 <= over.rect.top + over.rect.height;
+    console.log('DNDDBG', JSON.stringify({ start, delta, over: over.id, rect: over.rect, level }));
     const after = dragged && level ? dragged.left + dragged.width / 2 > over.rect.left + over.rect.width / 2 : undefined;
     setLayout((l) => moveTile(l, active.id as TileId, over.id as TileId, after));
   }
