@@ -8,14 +8,14 @@ export function RunRulesButton() {
   const [state, formAction, isPending] = useActionState(runRulesNow, null);
 
   return (
-    <form action={formAction} className="flex flex-col items-end gap-1">
+    <form action={formAction} className="relative">
       <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
         {isPending ? "Running" : "Run rules now"}
       </Button>
       {state?.error ? (
-        <p className="text-xs text-danger">{state.error}</p>
+        <p className="absolute right-0 top-full mt-1 whitespace-nowrap text-xs text-danger">{state.error}</p>
       ) : state ? (
-        <p className="text-xs text-muted">
+        <p className="absolute right-0 top-full mt-1 whitespace-nowrap text-xs text-muted">
           {state.count === 0
             ? "No matching transactions found."
             : `Categorized ${state.count} transaction${state.count === 1 ? "" : "s"}.`}
