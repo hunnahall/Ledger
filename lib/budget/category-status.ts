@@ -1,10 +1,7 @@
-// The Transfers category is a plain row with a $0 monthly amount. Money
-// moving to the Sinking Fund or a Source Transfer is spent from it, so its
-// real budget is the Sinking Expenses plus Source Transfers total. Matched
-// by name, since categories carry no "special" marker; renaming it breaks
-// the override (Dashboard and Budget page both use this).
-export const TRANSFERS_CATEGORY_NAME = "Transfers";
-
+// The Transfers category is a row with a $0 monthly amount and
+// `is_transfers` set. Money moving to the Sinking Fund or a Source Transfer
+// is spent from it, so its real budget is the Sinking Expenses plus Source
+// Transfers total (Dashboard and Budget page both use this).
 export type CategoryStatus = "on_track" | "near_limit" | "spent" | "over";
 
 export const CATEGORY_STATUS_LABELS: Record<CategoryStatus, string> = {
@@ -26,7 +23,7 @@ export function categoryStatus(spent: number, budget: number): CategoryStatus {
   return spentCents >= budgetCents * 0.9 ? "near_limit" : "on_track";
 }
 
-type CategoryInput = { id: string; name: string; monthly_amount: number; spent: number };
+type CategoryInput = { id: string; name: string; monthly_amount: number; spent: number; is_transfers: boolean };
 
 export type CategoryLine = {
   id: string;
@@ -44,7 +41,7 @@ export type CategoryLine = {
 // (categories + sinking expenses + source transfers).
 export function categoryLines(categories: CategoryInput[], transfersMonthlyTotal: number) {
   const lines: CategoryLine[] = categories.map((c) => {
-    const isTransfers = c.name === TRANSFERS_CATEGORY_NAME;
+    const isTransfers = c.is_transfers;
     const budget = isTransfers ? transfersMonthlyTotal : c.monthly_amount;
     return {
       id: c.id,

@@ -45,9 +45,9 @@ export function SearchToggle() {
         onClick={() => setOpen((o) => !o)}
         aria-label="Search transactions"
         aria-expanded={open}
-        className="relative flex items-center justify-center p-2 text-muted transition-colors duration-[120ms] ease-standard hover:bg-fill-hover hover:text-foreground"
+        className="relative flex items-center justify-center p-1 text-muted transition-colors duration-[120ms] ease-standard hover:bg-fill-hover hover:text-foreground"
       >
-        <SearchIcon size={24} />
+        <SearchIcon size={16} />
         {currentSearch && (
           <span
             className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-accent"

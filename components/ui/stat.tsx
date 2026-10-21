@@ -31,12 +31,21 @@ export function Stat({
   );
 }
 
-export function StatRow({ children, className }: { children: ReactNode; className?: string }) {
+export function StatRow({
+  children,
+  className,
+  stacked,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** One figure per line at every width, instead of side by side from 640px. */
+  stacked?: boolean;
+}) {
   return (
     <div
       className={cn(
         "grid grid-cols-1 divide-y divide-border border border-border bg-surface",
-        "sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none sm:divide-x sm:divide-y-0",
+        !stacked && "sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none sm:divide-x sm:divide-y-0",
         className,
       )}
     >

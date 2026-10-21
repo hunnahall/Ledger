@@ -267,7 +267,7 @@ export function AddTransactionButton(props: FormProps) {
   const { open, close, modal } = useModal();
   return (
     <>
-      <Button type="button" variant="accent" onClick={() => open(<ManualTransactionForm {...props} onDone={close} />)}>
+      <Button type="button" variant="primary" onClick={() => open(<ManualTransactionForm {...props} onDone={close} />)}>
         <AddIcon size={16} />
         Add transaction
       </Button>

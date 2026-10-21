@@ -141,6 +141,7 @@ export type Database = {
           archived_at: string | null
           created_at: string
           id: string
+          is_transfers: boolean
           monthly_amount: number
           name: string
           sort_order: number
@@ -151,6 +152,7 @@ export type Database = {
           archived_at?: string | null
           created_at?: string
           id?: string
+          is_transfers?: boolean
           monthly_amount?: number
           name: string
           sort_order?: number
@@ -161,6 +163,7 @@ export type Database = {
           archived_at?: string | null
           created_at?: string
           id?: string
+          is_transfers?: boolean
           monthly_amount?: number
           name?: string
           sort_order?: number

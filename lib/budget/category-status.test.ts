@@ -33,9 +33,9 @@ describe("categoryStatus", () => {
 
 describe("categoryLines", () => {
   const categories = [
-    { id: "a", name: "Food", monthly_amount: 650, spent: 54.37 },
-    { id: "b", name: "Fixed", monthly_amount: 50, spent: 680 },
-    { id: "c", name: "Transfers", monthly_amount: 0, spent: 5780 },
+    { id: "a", name: "Food", monthly_amount: 650, spent: 54.37, is_transfers: false },
+    { id: "b", name: "Fixed", monthly_amount: 50, spent: 680, is_transfers: false },
+    { id: "c", name: "Moves", monthly_amount: 0, spent: 5780, is_transfers: true },
   ];
 
   it("gives Transfers the sinking plus source transfer total as its budget", () => {

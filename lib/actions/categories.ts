@@ -53,9 +53,22 @@ export async function updateCategory(
   if (fetchError) return { error: fetchError.message };
   if (!existing) return { error: "Category not found." };
 
+  // One category per user carries the Transfers flag, so setting it here
+  // first takes it off any other.
+  const isTransfers = formData.get("is_transfers") === "on";
+  if (isTransfers) {
+    const { error: clearError } = await supabase
+      .from("categories")
+      .update({ is_transfers: false })
+      .eq("user_id", user.id)
+      .eq("is_transfers", true)
+      .neq("id", categoryId);
+    if (clearError) return { error: clearError.message };
+  }
+
   const { error } = await supabase
     .from("categories")
-    .update({ name, monthly_amount: monthlyAmount })
+    .update({ name, monthly_amount: monthlyAmount, is_transfers: isTransfers })
     .eq("id", categoryId);
   if (error) return { error: error.message };
 

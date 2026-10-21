@@ -40,33 +40,35 @@ export default async function BudgetPage() {
         </p>
       </div>
 
-      <StatRow>
-        <Stat label="Allocated" value={money(totals.budget)} caption="per month" />
-        <Stat label="Spent" value={money(totals.spent)} caption={`${lines.length} categories`} />
-        <Stat
-          label="Left"
-          value={money(totals.left)}
-          tone={totals.left < 0 ? "danger" : undefined}
-          caption={daysLeft > 0 ? `${money(Math.max(totals.left, 0) / daysLeft)} a day` : undefined}
-        />
-        <Stat
-          label="Over"
-          value={over.length}
-          tone={over.length > 0 ? "danger" : undefined}
-          caption={over.length > 0 ? over.map((l) => l.name).join(", ") : "None"}
-        />
-      </StatRow>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <StatRow stacked className="h-full">
+          <Stat label="Allocated" value={money(totals.budget)} caption="per month" />
+          <Stat label="Spent" value={money(totals.spent)} caption={`${lines.length} categories`} />
+          <Stat
+            label="Left"
+            value={money(totals.left)}
+            tone={totals.left < 0 ? "danger" : undefined}
+            caption={daysLeft > 0 ? `${money(Math.max(totals.left, 0) / daysLeft)} a day` : undefined}
+          />
+          <Stat
+            label="Over"
+            value={over.length}
+            tone={over.length > 0 ? "danger" : undefined}
+            caption={over.length > 0 ? over.map((l) => l.name).join(", ") : "None"}
+          />
+        </StatRow>
 
-      <BudgetCharts
-        categories={lines.map((l) => {
-          const category = categories.find((c) => c.id === l.id)!;
-          return { id: l.id, name: l.name, monthlyAmount: category.monthly_amount, budget: l.budget, spent: l.spent };
-        })}
-        sinkingExpensesTotal={sinkingMonthly}
-        sourceTransfersTotal={sourceTransfersMonthly}
-        monthISO={monthISO}
-        decimalPlaces={decimalPlaces}
-      />
+        <BudgetCharts
+          categories={lines.map((l) => {
+            const category = categories.find((c) => c.id === l.id)!;
+            return { id: l.id, name: l.name, monthlyAmount: category.monthly_amount };
+          })}
+          sinkingExpensesTotal={sinkingMonthly}
+          sourceTransfersTotal={sourceTransfersMonthly}
+          monthISO={monthISO}
+          decimalPlaces={decimalPlaces}
+        />
+      </div>
 
       {/* The Budget page always shows the current month, so the pace tick always shows. */}
       <CategoriesTable
@@ -74,6 +76,7 @@ export default async function BudgetPage() {
         lines={lines}
         totals={totals}
         monthProgress={dayOfMonth / daysInMonth}
+        monthISO={monthISO}
         decimalPlaces={decimalPlaces}
       />
 

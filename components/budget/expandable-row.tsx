@@ -22,6 +22,7 @@ export function ExpandableRow({
   updateAction,
   deleteAction,
   deleteMessage,
+  onRowClick,
   children,
 }: {
   compactCells: ReactNode;
@@ -32,6 +33,8 @@ export function ExpandableRow({
   deleteAction: RowAction;
   /** What the confirm step asks before deleting. */
   deleteMessage: string;
+  /** When set, clicking the row runs this and only the chevron opens the edit form. */
+  onRowClick?: () => void;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -50,7 +53,7 @@ export function ExpandableRow({
   return (
     <>
       <tr
-        onClick={() => setExpanded((e) => !e)}
+        onClick={onRowClick ?? (() => setExpanded((e) => !e))}
         className="h-9 cursor-pointer border-b border-border align-middle transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
       >
         {compactCells}

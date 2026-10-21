@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AddIcon } from "@/components/ui/icons";
 import { Money } from "@/components/ui/money";
+import { useModal } from "@/components/ui/modal";
+import { TransactionsPopupList } from "@/components/dashboard/transactions-popup-list";
 import { SortableHeader, useSortDirection } from "@/components/ui/sortable-header";
 import { TableShell, TableEmptyRow } from "@/components/ui/table-shell";
 import { Input } from "@/components/ui/input";
@@ -18,14 +20,17 @@ export function CategoriesTable({
   lines,
   totals,
   monthProgress,
+  monthISO,
   decimalPlaces,
 }: {
   categories: EditableCategory[];
   lines: CategoryLine[];
   totals: { budget: number; spent: number; left: number };
   monthProgress: number | null;
+  monthISO: string;
   decimalPlaces: number;
 }) {
+  const { open, modal } = useModal();
   const [showAdd, setShowAdd] = useState(false);
   const [createState, createAction] = useActionState(createCategory, null);
   const rows = lines.map((line) => ({ line, category: categories.find((c) => c.id === line.id)! }));
@@ -35,7 +40,7 @@ export function CategoriesTable({
     <Card
       title="Categories"
       action={
-        <Button type="button" variant="accent" size="sm" onClick={() => setShowAdd(true)}>
+        <Button type="button" variant="primary" size="sm" onClick={() => setShowAdd(true)}>
           <AddIcon size={16} />
           Add category
         </Button>
@@ -106,11 +111,28 @@ export function CategoriesTable({
         )}
 
         {sorted.map(({ line, category }) => (
-          <CategoryRow key={line.id} category={category} line={line} monthProgress={monthProgress} decimalPlaces={decimalPlaces} />
+          <CategoryRow
+            key={line.id}
+            category={category}
+            line={line}
+            monthProgress={monthProgress}
+            decimalPlaces={decimalPlaces}
+            onOpen={() =>
+              open(
+                <TransactionsPopupList
+                  title={line.name}
+                  kind={{ type: "category", categoryId: line.id }}
+                  months={[monthISO]}
+                  decimalPlaces={decimalPlaces}
+                />,
+              )
+            }
+          />
         ))}
 
         {lines.length === 0 && !showAdd && <TableEmptyRow colSpan={7} label="No categories yet." />}
       </TableShell>
+      {modal}
       {createState?.error && <p className="px-5 py-2 text-xs text-danger">{createState.error}</p>}
     </Card>
   );

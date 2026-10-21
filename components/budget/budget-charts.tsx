@@ -2,19 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { PieChart } from "@/components/charts/pie-chart";
-import { HBarChart } from "@/components/charts/hbar-chart";
 import { formatMoney } from "@/lib/format";
 import { ChartTitle } from "@/components/charts/chart-title";
 
 const SINKING_ID = "block:sinking-expenses";
 const TRANSFERS_ID = "block:source-transfers";
 
-// The two Budget page graphs. The pie splits the whole Allocation (every
-// Category, plus Sinking Expenses and Source Transfers as one slice each);
-// the bars show this month's spending in each Category against its monthly
-// amount. A Category slice or bar opens that Category's transactions for the
-// month; the two allocation-only slices scroll to their block instead, since
-// they're commitments with no transactions of their own.
+// The Budget page's Allocation ring. It splits the whole Allocation (every
+// Category, plus Sinking Expenses and Source Transfers as one slice each).
+// A Category slice opens that Category's transactions for the month; the two
+// allocation-only slices scroll to their block instead, since they're
+// commitments with no transactions of their own.
 export function BudgetCharts({
   categories,
   sinkingExpensesTotal,
@@ -22,9 +20,7 @@ export function BudgetCharts({
   monthISO,
   decimalPlaces,
 }: {
-  /** monthlyAmount is the category's own amount (the pie's slices); budget is
-   * what its bar measures against (Transfers gets its override). */
-  categories: { id: string; name: string; monthlyAmount: number; budget: number; spent: number }[];
+  categories: { id: string; name: string; monthlyAmount: number }[];
   sinkingExpensesTotal: number;
   sourceTransfersTotal: number;
   monthISO: string;
@@ -51,8 +47,8 @@ export function BudgetCharts({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <section className="border border-border bg-surface p-5">
+    <div className="h-full">
+      <section className="h-full border border-border bg-surface p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <ChartTitle>Allocation</ChartTitle>
           <span className="font-mono text-xs text-muted">{formatMoney(total, decimalPlaces)} per month</span>
@@ -65,27 +61,6 @@ export function BudgetCharts({
         />
       </section>
 
-      <section className="border border-border bg-surface p-5">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <ChartTitle>Spending by Category</ChartTitle>
-          <span className="font-mono text-xs text-muted">Dashed line is the monthly amount</span>
-        </div>
-        {categories.length === 0 ? (
-          <p className="text-sm text-muted">No categories yet.</p>
-        ) : (
-          <HBarChart
-            ariaLabel="Spending this month by category against each category's monthly amount"
-            rows={categories.map((c) => ({
-              key: c.id,
-              label: c.name,
-              value: c.spent,
-              target: c.budget,
-              valueLabel: `${formatMoney(c.spent, decimalPlaces)} / ${formatMoney(c.budget, decimalPlaces)}`,
-            }))}
-            onSelect={openCategory}
-          />
-        )}
-      </section>
     </div>
   );
 }

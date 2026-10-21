@@ -5,7 +5,6 @@ import { ensureBudgetCurrent, getCommitmentRows, sinkingAndTransferTotal } from 
 import { daysInMonthISO, nextMonthISO } from "@/lib/dates";
 import { getLegs } from "@/lib/queries/legs";
 import { cumulativeExpenseByDay } from "@/lib/transactions/legs";
-import { TRANSFERS_CATEGORY_NAME } from "@/lib/budget/category-status";
 import { dailySpending } from "@/lib/charts/daily-spending";
 import { computeMoneyMap } from "@/lib/charts/money-map";
 import { sourceTones, type ChartTone } from "@/lib/charts/source-tones";
@@ -68,7 +67,7 @@ export async function getDashboardData(
     supabase.from("v_outflows").select("month, expense, other_outflows").in("month", allMonths),
     supabase.from("v_budget_category_income").select("amount").in("month", months),
     supabase.from("sources").select("id, name, type, balance, is_system, created_at, archived_at").order("created_at"),
-    supabase.from("categories").select("id, name, monthly_amount").is("archived_at", null).order("sort_order"),
+    supabase.from("categories").select("id, name, monthly_amount, is_transfers").is("archived_at", null).order("sort_order"),
     supabase.from("monthly_totals").select("month, amount").eq("kind", "allocation").in("month", allocationMonths),
     userId ? getCommitmentRows(userId) : Promise.resolve({ sinking: [], transfers: [] }),
   ]);
@@ -111,7 +110,7 @@ export async function getDashboardData(
   const categorySpending = (categories ?? []).map((c) => ({
     id: c.id,
     name: c.name,
-    monthly_amount: c.name === TRANSFERS_CATEGORY_NAME ? transfersBudget : c.monthly_amount * months.length,
+    monthly_amount: c.is_transfers ? transfersBudget : c.monthly_amount * months.length,
     spent: spentByCategory.get(c.id) ?? 0,
   }));
 

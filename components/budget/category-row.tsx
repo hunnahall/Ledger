@@ -25,6 +25,7 @@ export type EditableCategory = {
   id: string;
   name: string;
   monthly_amount: number;
+  is_transfers: boolean;
   updated_at: string;
 };
 
@@ -33,15 +34,19 @@ export function CategoryRow({
   line,
   monthProgress,
   decimalPlaces,
+  onOpen,
 }: {
   category: EditableCategory;
   line: CategoryLine;
   /** dayOfMonth / daysInMonth when showing the current month, else null. */
   monthProgress: number | null;
   decimalPlaces: number;
+  /** Opens this category's transactions for the month. */
+  onOpen: () => void;
 }) {
   return (
     <ExpandableRow
+      onRowClick={onOpen}
       colSpan={7}
       expandLabel={`Edit ${category.name}`}
       collapseLabel="Collapse details"
@@ -94,6 +99,15 @@ export function CategoryRow({
         aria-label="Monthly amount"
         className="w-28"
       />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={`transfers-${category.updated_at}`}
+          type="checkbox"
+          name="is_transfers"
+          defaultChecked={category.is_transfers}
+        />
+        Transfers category
+      </label>
       {line.isTransfers && (
         <span className="text-xs text-muted">
           Its budget is your Sinking expenses plus Source transfers.
