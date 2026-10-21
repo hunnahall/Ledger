@@ -61,16 +61,16 @@ const SIZES: { span: number; label: string; name: string }[] = [
   { span: 6, label: "Full", name: "Full width" },
 ];
 
-// Column span per screen width: 6 columns from 1280px (every width
+// Column span per screen width: 6 columns from 1000px (every width
 // available), 2 from 640px (a tile two thirds or wider takes the row), and
 // one below that.
 function spanClass(span: number) {
   const wide = {
-    2: "min-[1280px]:col-span-2",
-    3: "min-[1280px]:col-span-3",
-    4: "min-[1280px]:col-span-4",
-    5: "min-[1280px]:col-span-5",
-    6: "min-[1280px]:col-span-6",
+    2: "min-[1000px]:col-span-2",
+    3: "min-[1000px]:col-span-3",
+    4: "min-[1000px]:col-span-4",
+    5: "min-[1000px]:col-span-5",
+    6: "min-[1000px]:col-span-6",
   }[span];
   return cn(span >= 4 ? "min-[640px]:col-span-2" : "min-[640px]:col-span-1", wide);
 }
@@ -175,7 +175,7 @@ export function DashboardGrid({
       ) : (
         <DndContext id="dashboard-grid" sensors={sensors} collisionDetection={collisionDetection} onDragEnd={onDragEnd}>
           <SortableContext items={visible.map((t) => t.id)} strategy={rectSortingStrategy}>
-            <div ref={gridRef} className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2 min-[1280px]:grid-cols-6">
+            <div ref={gridRef} className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-6">
               {visible.map((t) => (
                 <Tile
                   key={t.id}
@@ -300,7 +300,7 @@ function Tile({
               onResize(span + (e.key === "ArrowRight" ? 1 : -1));
             }
           }}
-          className="absolute -right-2 bottom-1/2 z-10 hidden h-10 w-4 translate-y-1/2 cursor-ew-resize touch-none items-center justify-center border border-border-strong bg-surface-2 text-foreground-secondary shadow-overlay hover:text-foreground min-[1280px]:flex"
+          className="absolute -right-2 bottom-1/2 z-10 hidden h-10 w-4 translate-y-1/2 cursor-ew-resize touch-none items-center justify-center border border-border-strong bg-surface-2 text-foreground-secondary shadow-overlay hover:text-foreground min-[1000px]:flex"
         >
           <ResizeIcon size={12} />
         </button>
