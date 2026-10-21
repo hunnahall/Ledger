@@ -122,12 +122,13 @@ export function DashboardGrid({
 
   const visible = layout.tiles.filter((t) => !layout.hidden.includes(t.id));
 
-  function onDragEnd({ active, over }: DragEndEvent) {
+  function onDragEnd({ active, over, delta }: DragEndEvent) {
     if (!over || active.id === over.id) return;
     // Level with the tile it was dropped on (the same row), the dragged
     // tile's side of that tile's center decides before or after. Dropped
     // above or below it, the tile takes that tile's place.
-    const dragged = active.rect.current.translated;
+    const start = active.rect.current.initial;
+    const dragged = start && { left: start.left + delta.x, top: start.top + delta.y, width: start.width, height: start.height };
     const level =
       dragged && dragged.top + dragged.height / 2 >= over.rect.top && dragged.top + dragged.height / 2 <= over.rect.top + over.rect.height;
     const after = dragged && level ? dragged.left + dragged.width / 2 > over.rect.left + over.rect.width / 2 : undefined;
