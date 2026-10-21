@@ -6,6 +6,8 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  pointerWithin,
+  type CollisionDetection,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -27,6 +29,15 @@ import { Button } from "@/components/ui/button";
 import { GripIcon, HideIcon, LayoutIcon, ResizeIcon } from "@/components/ui/icons";
 import { ChartsMenu } from "@/components/dashboard/charts-menu";
 import { cn } from "@/lib/cn";
+
+// Where a dragged tile lands. The tile under the pointer wins. Closest center
+// alone sends a small tile back home when it's dropped beside a tall one,
+// because the tall tile's center is far away, so it only decides when the
+// pointer is over no tile (a gap, or empty space in a row).
+const collisionDetection: CollisionDetection = (args) => {
+  const within = pointerWithin(args);
+  return within.length > 0 ? within : closestCenter(args);
+};
 
 /** Gap between tiles, px (gap-4). */
 const GAP = 16;
@@ -142,7 +153,7 @@ export function DashboardGrid({
           No charts shown. Pick some from Charts, top right.
         </p>
       ) : (
-        <DndContext id="dashboard-grid" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext id="dashboard-grid" sensors={sensors} collisionDetection={collisionDetection} onDragEnd={onDragEnd}>
           <SortableContext items={visible.map((t) => t.id)} strategy={rectSortingStrategy}>
             <div ref={gridRef} className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2 min-[1280px]:grid-cols-6">
               {visible.map((t) => (
