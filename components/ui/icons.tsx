@@ -1,6 +1,7 @@
 import {
   Plus,
   ChevronDown,
+  ChevronRight,
   Check,
   Share2,
   LayoutDashboard,
@@ -38,6 +39,7 @@ function make(Icon: React.ComponentType<LucideProps>) {
 
 export const AddIcon = make(Plus);
 export const ChevronDownIcon = make(ChevronDown);
+export const ChevronRightIcon = make(ChevronRight);
 export const CheckIcon = make(Check);
 export const ShareIcon = make(Share2);
 export const DashboardIcon = make(LayoutDashboard);

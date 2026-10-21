@@ -17,6 +17,7 @@ import { formatMoney, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { TRANSFER_TARGET_PREFIX } from "@/lib/transactions/rule-target";
 import { Select } from "@/components/ui/select";
 import { Money } from "@/components/ui/money";
 import { AddIcon, SplitIcon } from "@/components/ui/icons";
@@ -66,7 +67,7 @@ const ADD_SOURCE = "__add_source__";
 // did; see handleSourceChange. There's no Transfer equivalent — Source
 // Transfers on the Budget page cover that now.
 const EXCLUDE_SOURCE = "__exclude__";
-// The Source select's "Transfer to" option: opens a second select for the destination.
+// The Source select's "Transfer to" option: hovering it opens a flyout of destination Sources.
 const TRANSFER_PICK = "__transfer__";
 
 // Income is not a sentinel: it's the real system Income source (its id
@@ -558,7 +559,6 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
   const [transferTo, setTransferTo] = useState(txn.transferToSourceId);
-  const [pickingTransfer, setPickingTransfer] = useState(false);
   const [isIncome, setIsIncome] = useState(txn.isIncome);
   const [postedDate, setPostedDate] = useState(txn.postedDate);
   const [excludeFromBudget, setExcludeFromBudget] = useState(txn.excludeFromBudget);
@@ -750,24 +750,8 @@ const TransactionRow = memo(function TransactionRow({
     return ruleAction === "skip" ? "skip" : "write";
   }
 
-  async function handleTransferDestination(destination: string) {
-    if (!destination) return;
-    setPickingTransfer(false);
-    setIsTransfer(false);
-    setTransferTo(destination);
-    setExcludeFromBudget(false);
-    if (budgetSourceId) setSourceId(budgetSourceId);
-    setIsIncome(false);
-    const result = await markTransfer(txn.id, destination);
-    setRowError(result?.error ?? null);
-  }
-
   async function handleSourceChange(newSourceId: string) {
-    if (newSourceId === TRANSFER_PICK) {
-      setPickingTransfer(true);
-      return;
-    }
-    setPickingTransfer(false);
+    if (newSourceId === TRANSFER_PICK) return;
     if (newSourceId === ADD_SOURCE) {
       setAddingSource(true);
       return;
@@ -785,6 +769,18 @@ const TransactionRow = memo(function TransactionRow({
     // that Source through a copy (markTransfer). Changing the row's Source
     // or Category afterward removes the copy in the database. A
     // match_transfer_pairs false positive gets out by picking a real value.
+    if (newSourceId.startsWith(TRANSFER_TARGET_PREFIX)) {
+      const destination = newSourceId.slice(TRANSFER_TARGET_PREFIX.length);
+      setIsTransfer(false);
+      setTransferTo(destination);
+      setExcludeFromBudget(false);
+      if (budgetSourceId) setSourceId(budgetSourceId);
+      setIsIncome(false);
+      const result = await markTransfer(txn.id, destination);
+      setRowError(result?.error ?? null);
+      return;
+    }
+
     if (newSourceId === EXCLUDE_SOURCE) {
       setIsTransfer(false);
       setTransferTo(null);
@@ -937,7 +933,7 @@ const TransactionRow = memo(function TransactionRow({
   // moment between picking Income and the save returning.
   const sourceSelectValue = excludeFromBudget
     ? EXCLUDE_SOURCE
-    : transferTo || pickingTransfer
+    : transferTo
       ? TRANSFER_PICK
       : isIncome && !sourceId
         ? (incomeSourceId ?? "")
@@ -1113,6 +1109,11 @@ const TransactionRow = memo(function TransactionRow({
               onChange={handleSourceChange}
               placeholder="No source"
               disabled={txn.isTransferCopy}
+              submenus={{
+                [TRANSFER_PICK]: sources
+                  .filter((s) => s.id !== incomeSourceId && s.id !== budgetSourceId)
+                  .map((s) => ({ value: `${TRANSFER_TARGET_PREFIX}${s.id}`, label: s.name })),
+              }}
             >
               <option value="">No source</option>
               {sources
@@ -1132,31 +1133,16 @@ const TransactionRow = memo(function TransactionRow({
                 ))}
               <option value={EXCLUDE_SOURCE}>Exclude</option>
               {!txn.isTransferCopy && !txn.split && txn.amount < 0 && (
-                <option value={TRANSFER_PICK}>Transfer to</option>
+                <option value={TRANSFER_PICK}>
+                  {transferTo
+                    ? `Transfer to ${sources.find((s) => s.id === transferTo)?.name ?? ""}`
+                    : "Transfer to"}
+                </option>
               )}
               {!isTransfer && !excludeFromBudget && txn.amount > 0 && (
                 <option value={ADD_SOURCE}>+ Add source</option>
               )}
             </Select>
-            {(transferTo || pickingTransfer) && (
-              <Select
-                uiSize="sm"
-                className="min-w-0 flex-1 md:max-w-40"
-                value={transferTo ?? ""}
-                onChange={handleTransferDestination}
-                placeholder="Choose source"
-                disabled={txn.isTransferCopy}
-              >
-                <option value="">Choose source</option>
-                {sources
-                  .filter((s) => s.id !== incomeSourceId && s.id !== budgetSourceId)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-              </Select>
-            )}
             <div className="flex min-w-0 flex-1 items-center gap-1.5 md:max-w-48">
               <Select
                 form={`txn-${txn.id}`}
@@ -1176,7 +1162,7 @@ const TransactionRow = memo(function TransactionRow({
                 value={categoryId}
                 onChange={handleCategoryChange}
                 placeholder={isBudgetSource ? "Uncategorized" : "—"}
-                disabled={excludeFromBudget || isIncome}
+                disabled={excludeFromBudget || isIncome || Boolean(transferTo)}
               >
                 {isBudgetSource && <option value="">Uncategorized</option>}
                 {isBudgetSource &&

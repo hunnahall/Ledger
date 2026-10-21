@@ -13,6 +13,12 @@ interface Options {
   alignEnd?: boolean;
 }
 
+// A flyout portaled out of the panel (a Select's submenu) is marked with
+// data-popover-child so pointing at it doesn't count as an outside pointer.
+function isInsideChildPanel(target: EventTarget | null) {
+  return target instanceof Element && target.closest("[data-popover-child]") !== null;
+}
+
 // Positioning and dismissal shared by Select and RowMenu: a panel portaled
 // to <body> at fixed coordinates next to its trigger. It flips upward when
 // there's no room below, stays 8px inside the viewport, and closes on an
@@ -54,6 +60,7 @@ export function useAnchoredPopover<T extends HTMLElement, P extends HTMLElement>
       const target = event.target as Node;
       if (triggerRef.current?.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
+      if (isInsideChildPanel(target)) return;
       setOpen(false);
     }
     function handleScroll(event: Event) {
@@ -62,6 +69,7 @@ export function useAnchoredPopover<T extends HTMLElement, P extends HTMLElement>
       if (panelRef.current && target instanceof Node && panelRef.current.contains(target)) {
         return;
       }
+      if (isInsideChildPanel(target)) return;
       setOpen(false);
     }
     function handleResize() {
