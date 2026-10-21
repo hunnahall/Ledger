@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import Link from "next/link";
 import type { getSourcesWithBalance } from "@/lib/queries/sources";
 import { archiveSource, deleteSource, renameSource, setSourceBalance } from "@/lib/actions/sources";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -14,6 +13,7 @@ import { Money } from "@/components/ui/money";
 import { RowMenu, type RowMenuItem } from "@/components/ui/row-menu";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useModal } from "@/components/ui/modal";
+import { SourcePopup } from "@/components/sources/source-popup";
 import { SOURCE_TYPE_LABELS as TYPE_LABELS } from "@/lib/sources/validate-source";
 import { cn } from "@/lib/cn";
 
@@ -21,7 +21,7 @@ type Source = Awaited<ReturnType<typeof getSourcesWithBalance>>[number];
 type FormAction = (prev: { error: string } | null, formData: FormData) => Promise<{ error: string } | null>;
 
 // One Source: name and type, its balance, and this month's change. The
-// whole card opens Transactions filtered to the Source (a stretched link);
+// whole card opens the Source's popup (a stretched button);
 // every edit lives in the ⋯ menu.
 export function SourceCard({
   source,
@@ -114,12 +114,15 @@ export function SourceCard({
     <Card interactive className="relative flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Link
-            href={`/transactions?source_id=${source.id}`}
-            className="truncate font-medium after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-accent"
+          <button
+            type="button"
+            onClick={() =>
+              open(<SourcePopup sourceId={source.id} name={source.name} decimalPlaces={decimalPlaces} />)
+            }
+            className="truncate text-left font-medium after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-accent"
           >
             {source.name}
-          </Link>
+          </button>
           <Tag>{TYPE_LABELS[source.type] ?? source.type}</Tag>
         </div>
         <RowMenu items={items} label={`Actions for ${source.name}`} className="relative z-10 -mr-2 -mt-1" />

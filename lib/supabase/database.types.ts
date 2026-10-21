@@ -387,6 +387,35 @@ export type Database = {
           },
         ]
       }
+      source_balance_days: {
+        Row: {
+          balance: number
+          day: string
+          source_id: string
+          user_id: string
+        }
+        Insert: {
+          balance: number
+          day: string
+          source_id: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          day?: string
+          source_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_balance_days_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sources: {
         Row: {
           archived_at: string | null
