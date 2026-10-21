@@ -80,6 +80,8 @@ export function SourceCard({
           />,
         ),
     },
+    ...(source.type !== "income"
+      ? [
     {
       label: "Edit balance",
       onSelect: () =>
@@ -102,6 +104,8 @@ export function SourceCard({
           />,
         ),
     },
+        ]
+      : []),
     ...(!source.is_system
       ? [
           { label: "Archive", onSelect: handleArchive, destructive: true },

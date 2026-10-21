@@ -198,11 +198,12 @@ export async function setSourceBalance(
 
   const { data: source, error: fetchError } = await supabase
     .from("sources")
-    .select("name, balance")
+    .select("name, balance, type")
     .eq("id", sourceId)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
   if (!source) return { error: "Source not found." };
+  if (source.type === "income") return { error: "Income's balance is this month's Income and can't be edited." };
 
   const { error } = await supabase
     .from("sources")
