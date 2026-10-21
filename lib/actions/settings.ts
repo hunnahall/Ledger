@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateLedgerPages } from "@/lib/actions/revalidate";
+import { logChange } from "@/lib/actions/log";
 import { normalizeLayout, type DashboardLayout } from "@/lib/dashboard-layout";
 
 export async function updateDecimalPlaces(
@@ -14,11 +15,16 @@ export async function updateDecimalPlaces(
 
   const { supabase, user } = await requireUser();
 
+  const { data: before } = await supabase.from("settings").select("decimal_places").eq("user_id", user.id).maybeSingle();
   const { error } = await supabase
     .from("settings")
     .update({ decimal_places: decimalPlaces })
     .eq("user_id", user.id);
   if (error) return { error: error.message };
+
+  if (before && before.decimal_places !== decimalPlaces) {
+    await logChange(supabase, user.id, "Settings", "Decimal places", String(before.decimal_places), String(decimalPlaces));
+  }
 
   revalidateLedgerPages();
   revalidatePath("/settings");
@@ -37,11 +43,16 @@ export async function updateBudgetType(
 
   const { supabase, user } = await requireUser();
 
+  const { data: before } = await supabase.from("settings").select("budget_type").eq("user_id", user.id).maybeSingle();
   const { error } = await supabase
     .from("settings")
     .update({ budget_type: budgetType })
     .eq("user_id", user.id);
   if (error) return { error: error.message };
+
+  if (before && before.budget_type !== budgetType) {
+    await logChange(supabase, user.id, "Settings", "Budget type", before.budget_type, budgetType);
+  }
 
   // No catch-up needed when switching modes: income tracks to the Income
   // source either way (route_income_to_source). The switch only changes what
@@ -70,11 +81,16 @@ export async function updateTimezone(timeZone: string): Promise<{ error: string 
 
   const { supabase, user } = await requireUser();
 
+  const { data: before } = await supabase.from("settings").select("timezone").eq("user_id", user.id).maybeSingle();
   const { error } = await supabase
     .from("settings")
     .update({ timezone: timeZone })
     .eq("user_id", user.id);
   if (error) return { error: error.message };
+
+  if (before && before.timezone !== timeZone) {
+    await logChange(supabase, user.id, "Settings", "Time zone", before.timezone, timeZone);
+  }
 
   revalidateLedgerPages();
   revalidatePath("/settings");

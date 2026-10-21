@@ -479,6 +479,7 @@ export type Database = {
           split_parent_id: string | null
           status: string
           transfer_from_source_id: string | null
+          transfer_of: string | null
           transfer_to_source_id: string | null
           updated_at: string
           user_id: string
@@ -503,6 +504,7 @@ export type Database = {
           split_parent_id?: string | null
           status?: string
           transfer_from_source_id?: string | null
+          transfer_of?: string | null
           transfer_to_source_id?: string | null
           updated_at?: string
           user_id: string
@@ -527,6 +529,7 @@ export type Database = {
           split_parent_id?: string | null
           status?: string
           transfer_from_source_id?: string | null
+          transfer_of?: string | null
           transfer_to_source_id?: string | null
           updated_at?: string
           user_id?: string
@@ -805,6 +808,10 @@ export type Database = {
       store_bank_connection_secret: {
         Args: { p_access_url: string }
         Returns: string
+      }
+      mark_transfer: {
+        Args: { p_source_id: string; p_transaction_id: string }
+        Returns: undefined
       }
       sync_bank_transactions: { Args: { p_rows: Json }; Returns: undefined }
       user_month_start: { Args: { p_user_id: string }; Returns: string }

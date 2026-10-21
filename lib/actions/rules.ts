@@ -8,6 +8,23 @@ import { resolveRuleTarget } from "@/lib/transactions/rule-target";
 import { learnRule } from "@/lib/actions/transactions";
 import { logChange } from "@/lib/actions/log";
 
+const RULE_SELECT = "merchant_normalized, category_id, is_income, is_exclude, categories(name), sources(name)";
+
+type RuleRow = {
+  category_id: string | null;
+  is_income: boolean;
+  is_exclude: boolean;
+  categories: unknown;
+  sources: unknown;
+};
+
+function ruleTargetLabel(rule: RuleRow): string {
+  if (rule.is_income) return "Income";
+  if (rule.is_exclude) return "Excluded";
+  if (rule.category_id) return (rule.categories as { name: string } | null)?.name ?? "Category";
+  return `Source: ${(rule.sources as { name: string } | null)?.name ?? "—"}`;
+}
+
 export async function createRule(
   _prevState: { error: string } | null,
   formData: FormData,
@@ -53,6 +70,8 @@ export async function updateRule(
 
   const { supabase, user } = await requireUser();
 
+  const { data: before } = await supabase.from("rules").select(RULE_SELECT).eq("id", ruleId).maybeSingle();
+
   const { error } = await supabase
     .from("rules")
     .update({
@@ -73,6 +92,13 @@ export async function updateRule(
     return { error: error.message };
   }
 
+  const { data: after } = await supabase.from("rules").select(RULE_SELECT).eq("id", ruleId).maybeSingle();
+  if (before && after) {
+    const was = `${before.merchant_normalized} → ${ruleTargetLabel(before)}`;
+    const now = `${after.merchant_normalized} → ${ruleTargetLabel(after)}`;
+    if (was !== now) await logChange(supabase, user.id, "Rules", `Rule: ${before.merchant_normalized}`, was, now);
+  }
+
   revalidatePath("/rules");
   return null;
 }
@@ -90,7 +116,7 @@ export async function runRulesNow(
   _prevState: { error: string; count: number } | null,
   _formData: FormData,
 ): Promise<{ error: string; count: number } | null> {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   // One set-based UPDATE in the database rather than a fetch-then-loop that
   // issued an UPDATE per transaction — and that aborted the whole batch on
@@ -101,6 +127,10 @@ export async function runRulesNow(
   // which used to carry its own copy of the same loop.
   const { data, error } = await supabase.rpc("apply_rules");
   if (error) return { error: error.message, count: 0 };
+
+  if (data) {
+    await logChange(supabase, user.id, "Rules", "Run rules now", null, `${data} transaction${data === 1 ? "" : "s"} updated`);
+  }
 
   revalidateRulePages();
   return { error: "", count: data ?? 0 };
@@ -118,21 +148,14 @@ export async function deleteRule(
     .from("rules")
     .delete()
     .eq("id", ruleId)
-    .select("merchant_normalized, category_id, is_income, is_exclude, categories(name), sources(name)")
+    .select(RULE_SELECT)
     .maybeSingle();
   if (error) return { error: error.message };
 
   // New rules are logged inside learn_rule itself (every way a rule
   // gets made goes through it); deletes only ever happen here.
   if (deleted) {
-    const target = deleted.is_income
-      ? "Income"
-      : deleted.is_exclude
-        ? "Excluded"
-        : deleted.category_id
-          ? ((deleted.categories as { name: string } | null)?.name ?? "Category")
-          : `Source: ${(deleted.sources as { name: string } | null)?.name ?? "—"}`;
-    await logChange(supabase, user.id, "Rules", `Rule: ${deleted.merchant_normalized}`, target, null);
+    await logChange(supabase, user.id, "Rules", `Rule: ${deleted.merchant_normalized}`, ruleTargetLabel(deleted), null);
   }
 
   revalidatePath("/rules");

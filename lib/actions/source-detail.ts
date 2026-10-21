@@ -42,7 +42,7 @@ export async function getSourceDetail(sourceId: string): Promise<SourceDetail> {
     supabase.from("source_balance_days").select("day, balance").eq("source_id", sourceId).gte("day", windowStart),
     supabase
       .from("transactions")
-      .select("id, posted_date, description, amount, is_transfer, transfer_to_source_id")
+      .select("id, posted_date, description, amount, is_transfer, transfer_of, transfer_to_source_id")
       .or(`source_id.eq.${sourceId},transfer_from_source_id.eq.${sourceId},transfer_to_source_id.eq.${sourceId}`)
       .eq("is_split", false)
       .gte("posted_date", windowStart)
@@ -64,7 +64,7 @@ export async function getSourceDetail(sourceId: string): Promise<SourceDetail> {
     id: r.id,
     postedDate: r.posted_date,
     description: r.description,
-    amount: r.is_transfer
+    amount: r.is_transfer && !r.transfer_of
       ? r.transfer_to_source_id === sourceId
         ? Math.abs(r.amount)
         : -Math.abs(r.amount)

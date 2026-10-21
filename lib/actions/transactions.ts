@@ -5,7 +5,7 @@ import { revalidateLedgerPages, revalidateRulePages } from "@/lib/actions/revali
 import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
 import { findMatchingRule } from "@/lib/transactions/match-rule";
 import { validateSplitRows, type SplitRowInput } from "@/lib/transactions/splits";
-import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET } from "@/lib/transactions/rule-target";
+import { INCOME_RULE_TARGET, EXCLUDE_RULE_TARGET, TRANSFER_TARGET_PREFIX } from "@/lib/transactions/rule-target";
 import { logMoney, parseMoney } from "@/lib/format";
 import { logChange } from "@/lib/actions/log";
 
@@ -252,8 +252,16 @@ export async function assignTransaction(
   // read it straight off the DOM and tried to write it into this uuid
   // column, which Postgres rejects.
   const rawSourceId = String(formData.get("source_id") ?? "");
+  // The row form swaps this for the real Source before it saves; reaching
+  // here would blank the Source and remove the transfer's copy.
+  if (rawSourceId.startsWith(TRANSFER_TARGET_PREFIX)) {
+    return { error: "Pick a Source for this row, not a transfer option." };
+  }
   const sourceId =
-    rawSourceId && rawSourceId !== INCOME_RULE_TARGET && rawSourceId !== EXCLUDE_RULE_TARGET
+    rawSourceId &&
+    rawSourceId !== INCOME_RULE_TARGET &&
+    rawSourceId !== EXCLUDE_RULE_TARGET &&
+    !rawSourceId.startsWith(TRANSFER_TARGET_PREFIX)
       ? rawSourceId
       : null;
   const postedDate = String(formData.get("posted_date") ?? "") || null;
@@ -313,10 +321,13 @@ export async function assignTransaction(
       notes,
     })
     .eq("id", transactionId)
+    // A transfer's copy is owned by its original: saving it from the row form
+    // would blank its Source and take the amount back off the balance.
+    .is("transfer_of", null)
     .select("merchant_normalized")
     .maybeSingle();
   if (error) return { error: error.message };
-  if (!updated) return { error: "Transaction not found." };
+  if (!updated) return { error: "Transaction not found, or it's the copy of a transfer (change the original)." };
 
   const merchantNormalized = updated.merchant_normalized;
 
@@ -529,6 +540,26 @@ export async function bulkUpdateTransactions(
   }
 
   if (patch.category_id) revalidateRulePages();
+  revalidateLedgerPages();
+  return null;
+}
+
+// Marks outgoing money as a transfer to a Source. The transaction becomes a
+// Budget expense in the Transfers category, and the database adds a copy with
+// the absolute amount on that Source (mark_transfer), which moves the Source's
+// balance but isn't Income or an inflow. Changing the original's Source or
+// Category removes the copy again.
+export async function markTransfer(
+  transactionId: string,
+  sourceId: string,
+): Promise<{ error: string } | null> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("mark_transfer", {
+    p_transaction_id: transactionId,
+    p_source_id: sourceId,
+  });
+  if (error) return { error: error.message };
+
   revalidateLedgerPages();
   return null;
 }

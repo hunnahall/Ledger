@@ -164,7 +164,7 @@ async function getSourceTransactions(
 ): Promise<DashboardTileTransaction[]> {
   const { data, error } = await supabase
     .from("transactions")
-    .select("id, posted_date, description, amount, is_transfer, transfer_from_source_id, transfer_to_source_id")
+    .select("id, posted_date, description, amount, is_transfer, transfer_of, transfer_from_source_id, transfer_to_source_id")
     .or(`source_id.eq.${sourceId},transfer_from_source_id.eq.${sourceId},transfer_to_source_id.eq.${sourceId}`)
     .eq("is_split", false)
     .order("posted_date", { ascending: false });
@@ -175,7 +175,7 @@ async function getSourceTransactions(
   // list reads the same way "amount < 0 ? negative : positive" does
   // everywhere else.
   return (data ?? []).map((r) => {
-    const amount = r.is_transfer
+    const amount = r.is_transfer && !r.transfer_of
       ? r.transfer_to_source_id === sourceId
         ? Math.abs(r.amount)
         : -Math.abs(r.amount)

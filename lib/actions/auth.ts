@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logChange } from "@/lib/actions/log";
 import { requireUser } from "@/lib/supabase/auth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/messages";
 
@@ -102,9 +103,11 @@ export async function changePassword(
   }
   if (password !== confirmPassword) return { error: "The two passwords don't match." };
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: "That password can't be used. Try a longer or less common one." };
+
+  await logChange(supabase, user.id, "Settings", "Password", null, "Changed");
 
   return { notice: "Password updated." };
 }

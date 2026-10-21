@@ -7,10 +7,12 @@ import {
   bulkUpdateTransactions,
   createSourceFromTransaction,
   deleteTransaction,
+  markTransfer,
 } from "@/lib/actions/transactions";
 import { UNCATEGORIZED_FILTER_VALUE, NO_SOURCE_FILTER_VALUE } from "@/lib/transactions/filters";
 import { SplitEditor } from "@/components/transactions/split-editor";
 import type { SplitGroup } from "@/lib/transactions/splits";
+import { TRANSFER_TARGET_PREFIX } from "@/lib/transactions/rule-target";
 import { EXCLUDE, INCOME, useRuleBuilder } from "@/components/transactions/use-rule-builder";
 import { formatMoney, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -35,10 +37,15 @@ export type TransactionRowData = {
   categoryId: string | null;
   categorySource: string | null;
   sourceId: string | null;
-  // Still read-only here (the "Transfer" badge) — set by match_transfer_pairs
-  // during sync, not by anything in this row anymore. No transfer_from/to
-  // bucket fields: Source Transfers on the Budget page own that now.
+  // Set by match_transfer_pairs during sync (left out of every figure). A
+  // row marked with "Transfer to <Source>" isn't one of these: it's a Budget
+  // expense in the Transfers category, and transferToSourceId below says
+  // where its copy sits.
   isTransfer: boolean;
+  /** The copy that books a transfer's amount to a Source (a transfer row, left out of every figure): edited through its original. */
+  isTransferCopy: boolean;
+  /** Where the transfer's copy sits, once the row has been marked a transfer to a Source. */
+  transferToSourceId: string | null;
   isIncome: boolean;
   excludeFromBudget: boolean;
   notes: string | null;
@@ -549,6 +556,7 @@ const TransactionRow = memo(function TransactionRow({
   isLastRow: boolean;
 }) {
   const [isTransfer, setIsTransfer] = useState(txn.isTransfer);
+  const [transferTo, setTransferTo] = useState(txn.transferToSourceId);
   const [isIncome, setIsIncome] = useState(txn.isIncome);
   const [postedDate, setPostedDate] = useState(txn.postedDate);
   const [excludeFromBudget, setExcludeFromBudget] = useState(txn.excludeFromBudget);
@@ -590,6 +598,7 @@ const TransactionRow = memo(function TransactionRow({
   const [prevTxn, setPrevTxn] = useState(txn);
   if (
     txn.isTransfer !== prevTxn.isTransfer ||
+    txn.transferToSourceId !== prevTxn.transferToSourceId ||
     txn.isIncome !== prevTxn.isIncome ||
     txn.categoryId !== prevTxn.categoryId ||
     txn.sourceId !== prevTxn.sourceId ||
@@ -601,6 +610,7 @@ const TransactionRow = memo(function TransactionRow({
   ) {
     setPrevTxn(txn);
     setIsTransfer(txn.isTransfer);
+    setTransferTo(txn.transferToSourceId);
     setIsIncome(txn.isIncome);
     setCategoryId(txn.categoryId ?? "");
     setSourceId(txn.sourceId ?? "");
@@ -634,6 +644,11 @@ const TransactionRow = memo(function TransactionRow({
     const form = formRef.current;
     if (!form) return;
     const formData = new FormData(form);
+    // A transfer's Source select shows "Transfer to <Source>", but the row
+    // itself sits on the Budget source: save that, not the option's value.
+    if (String(formData.get("source_id") ?? "").startsWith(TRANSFER_TARGET_PREFIX)) {
+      formData.set("source_id", sourceId);
+    }
     for (const [key, value] of Object.entries(overrides)) {
       formData.set(key, value);
     }
@@ -746,17 +761,26 @@ const TransactionRow = memo(function TransactionRow({
     // also clears source_id; Income sets the Income source), and — like any
     // source pick — both participate in the multi-select bulk-apply below.
     //
-    // There's no Transfer option here — Source Transfers on the Budgets
-    // page now cover recurring/manual movement between a user's own
-    // sources, so marking an individual bank transaction as a transfer is
-    // handled entirely by match_transfer_pairs during sync (or by picking
-    // "Transfer" on the manual-entry form), never from this row. Picking
-    // any real value here on a match_transfer_pairs-flagged row (isTransfer)
-    // clears that flag instead — match_transfer_pairs is a same-day/same-
-    // amount heuristic (see its own comment), so this is this row's way out
-    // of a false-positive match.
+    // "Transfer to <Source>" (outgoing money only) makes the row a Budget
+    // expense in the Transfers category and books its absolute amount to
+    // that Source through a copy (markTransfer). Changing the row's Source
+    // or Category afterward removes the copy in the database. A
+    // match_transfer_pairs false positive gets out by picking a real value.
+    if (newSourceId.startsWith(TRANSFER_TARGET_PREFIX)) {
+      const destination = newSourceId.slice(TRANSFER_TARGET_PREFIX.length);
+      setIsTransfer(false);
+      setTransferTo(destination);
+      setExcludeFromBudget(false);
+      if (budgetSourceId) setSourceId(budgetSourceId);
+      setIsIncome(false);
+      const result = await markTransfer(txn.id, destination);
+      setRowError(result?.error ?? null);
+      return;
+    }
+
     if (newSourceId === EXCLUDE_SOURCE) {
       setIsTransfer(false);
+      setTransferTo(null);
       setExcludeFromBudget(true);
       setSourceId("");
       const clearCategory = Boolean(categoryId);
@@ -782,6 +806,7 @@ const TransactionRow = memo(function TransactionRow({
 
     if (incomeSourceId && newSourceId === incomeSourceId) {
       setIsTransfer(false);
+      setTransferTo(null);
       setExcludeFromBudget(false);
       setSourceId(incomeSourceId);
       setIsIncome(true);
@@ -808,6 +833,7 @@ const TransactionRow = memo(function TransactionRow({
     const wasTransfer = isTransfer;
     setExcludeFromBudget(false);
     setIsTransfer(false);
+      setTransferTo(null);
     setSourceId(newSourceId);
 
     // Any source change clears a picked category — a category picked under
@@ -880,7 +906,9 @@ const TransactionRow = memo(function TransactionRow({
     setRowError(result?.error ?? null);
   }
 
-  const typeLabel = isTransfer
+  const typeLabel = txn.isTransferCopy
+    ? "Transfer in"
+    : isTransfer
     ? "Transfer"
     : txn.excludeFromBudget
       ? "Excluded"
@@ -902,9 +930,11 @@ const TransactionRow = memo(function TransactionRow({
   // moment between picking Income and the save returning.
   const sourceSelectValue = excludeFromBudget
     ? EXCLUDE_SOURCE
-    : isIncome && !sourceId
-      ? (incomeSourceId ?? "")
-      : sourceId;
+    : transferTo
+      ? `${TRANSFER_TARGET_PREFIX}${transferTo}`
+      : isIncome && !sourceId
+        ? (incomeSourceId ?? "")
+        : sourceId;
 
   const [createSourceState, createSourceAction] = useActionState(
     createSourceFromTransaction.bind(null, txn.id),
@@ -1063,13 +1093,10 @@ const TransactionRow = memo(function TransactionRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:contents">
-            {/* Not disabled for isTransfer — match_transfer_pairs is a
-                same-day/same-amount sync heuristic (see its own comment)
-                and can mismatch, so this row's one way out of a false
-                positive is picking a real value here, which clears the
-                flag (see handleSourceChange). There's still no Transfer
-                option to switch *into*: Source Transfers on the Budgets
-                page own recording an intentional one. */}
+            {/* A transfer row isn't locked: picking a real value here unmarks it
+                (handleSourceChange), the way out of a false positive from
+                match_transfer_pairs. "Transfer to <Source>" marks it. The
+                copy of a transfer is edited through its original. */}
             <Select
               form={`txn-${txn.id}`}
               name="source_id"
@@ -1078,6 +1105,7 @@ const TransactionRow = memo(function TransactionRow({
               value={sourceSelectValue}
               onChange={handleSourceChange}
               placeholder="No source"
+              disabled={txn.isTransferCopy}
             >
               <option value="">No source</option>
               {sources
@@ -1096,6 +1124,16 @@ const TransactionRow = memo(function TransactionRow({
                   </option>
                 ))}
               <option value={EXCLUDE_SOURCE}>Exclude</option>
+              {!txn.isTransferCopy &&
+                !txn.split &&
+                txn.amount < 0 &&
+                sources
+                  .filter((s) => s.id !== incomeSourceId && s.id !== budgetSourceId)
+                  .map((s) => (
+                    <option key={s.id} value={`${TRANSFER_TARGET_PREFIX}${s.id}`}>
+                      Transfer to {s.name}
+                    </option>
+                  ))}
               {!isTransfer && !excludeFromBudget && txn.amount > 0 && (
                 <option value={ADD_SOURCE}>+ Add source</option>
               )}

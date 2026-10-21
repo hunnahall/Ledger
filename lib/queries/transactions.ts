@@ -1,5 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { currentMonthISO } from "@/lib/dates";
+import { getSettings } from "@/lib/queries/settings";
 import { searchOrFilter, type TransactionFilters } from "@/lib/transactions/filters";
 import { buildSplitGroups } from "@/lib/transactions/splits";
 
@@ -210,12 +212,16 @@ export async function getFilterOptions() {
 
 // How many transactions still need a Source: the nav badge on Transactions.
 // Same rule as the "No source" filter above (and needsSource), split
-// originals left out since their pieces are what's listed.
+// originals left out since their pieces are what's listed. Only the current
+// month counts (in the user's time zone); the "No source" filter still lists
+// every kept month.
 export const getUnsourcedCount = cache(async function getUnsourcedCount(): Promise<number> {
   const supabase = await createClient();
+  const settings = await getSettings();
   const { count, error } = await supabase
     .from("transactions")
     .select("id", { count: "exact", head: true })
+    .gte("posted_date", currentMonthISO(settings.timezone))
     .is("source_id", null)
     .eq("exclude_from_budget", false)
     .eq("is_income", false)
@@ -224,3 +230,19 @@ export const getUnsourcedCount = cache(async function getUnsourcedCount(): Promi
   if (error) throw new Error(error.message);
   return count ?? 0;
 });
+
+// Each transfer's copy: original transaction id -> the Source it was booked
+// to. The Transactions list shows it as "Transfer to <Source>" on the original.
+export async function getTransferDestinations(): Promise<Map<string, string>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("transfer_of, source_id")
+    .not("transfer_of", "is", null);
+  if (error) throw new Error(error.message);
+  const map = new Map<string, string>();
+  for (const r of data ?? []) {
+    if (r.transfer_of && r.source_id) map.set(r.transfer_of, r.source_id);
+  }
+  return map;
+}

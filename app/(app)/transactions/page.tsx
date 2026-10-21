@@ -3,6 +3,7 @@ import {
   getFilterOptions,
   getSpendingRows,
   getSplitGroups,
+  getTransferDestinations,
 } from "@/lib/queries/transactions";
 import Link from "next/link";
 import {
@@ -48,12 +49,13 @@ export default async function TransactionsPage({
     ...resolveSourceFilter(params.source_id),
   };
 
-  const [transactions, filterOptions, settings, spendingRows, splitGroups] = await Promise.all([
+  const [transactions, filterOptions, settings, spendingRows, splitGroups, transferDestinations] = await Promise.all([
     getFilteredTransactions(filters),
     getFilterOptions(),
     getSettings(),
     getSpendingRows(),
     getSplitGroups(),
+    getTransferDestinations(),
   ]);
   const decimalPlaces = settings.decimal_places;
 
@@ -69,6 +71,8 @@ export default async function TransactionsPage({
     categorySource: txn.category_source,
     sourceId: txn.source_id,
     isTransfer: txn.is_transfer,
+    isTransferCopy: Boolean(txn.transfer_of),
+    transferToSourceId: transferDestinations.get(txn.id) ?? null,
     isIncome: txn.is_income,
     excludeFromBudget: txn.exclude_from_budget,
     notes: txn.notes,

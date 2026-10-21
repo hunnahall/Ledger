@@ -47,7 +47,7 @@ export async function updateCategory(
 
   const { data: existing, error: fetchError } = await supabase
     .from("categories")
-    .select("name, monthly_amount")
+    .select("name, monthly_amount, is_transfers")
     .eq("id", categoryId)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
@@ -90,6 +90,17 @@ export async function updateCategory(
       `${name} — Monthly amount`,
       money(existing.monthly_amount),
       money(monthlyAmount),
+    );
+  }
+
+  if (existing.is_transfers !== isTransfers) {
+    await logChange(
+      supabase,
+      user.id,
+      "Budgets",
+      `${name} — Transfers category`,
+      existing.is_transfers ? "Yes" : "No",
+      isTransfers ? "Yes" : "No",
     );
   }
 

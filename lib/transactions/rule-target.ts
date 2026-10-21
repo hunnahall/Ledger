@@ -41,3 +41,7 @@ export function ruleTargetValue(rule: RuleTarget): string {
   if (rule.categoryId) return rule.categoryId;
   return rule.sourceId ? SOURCE_RULE_TARGET_PREFIX + rule.sourceId : "";
 }
+
+// The Transactions Source select's "Transfer to <Source>" options: this
+// prefix plus the destination Source's id (see markTransfer).
+export const TRANSFER_TARGET_PREFIX = "transfer:";

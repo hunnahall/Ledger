@@ -2,6 +2,7 @@
 
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateBankPages } from "@/lib/actions/revalidate";
+import { logChange } from "@/lib/actions/log";
 import { MAX_IMPORT_DAYS, daysBetween } from "@/lib/sources/import-range";
 
 // A setup token is base64 of a URL this server then POSTs to. Without an
@@ -58,7 +59,7 @@ export async function connectBankConnection(
   const setupToken = String(formData.get("setup_token") ?? "").trim();
   if (!setupToken) return { error: "Paste a setup token." };
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   let accessUrl: string;
   try {
@@ -90,6 +91,8 @@ export async function connectBankConnection(
     // Initial sync failing shouldn't block the connection from being saved;
     // the user can retry with "Sync now" on the Accounts page.
   });
+
+  await logChange(supabase, user.id, "Accounts", "Bank connection", null, "Connected");
 
   revalidateBankPages();
   return null;
@@ -208,11 +211,13 @@ export async function disconnectBankConnection(
   _prevState: { error: string } | null,
   _formData: FormData,
 ): Promise<{ error: string } | null> {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   const { error } = await supabase.rpc("delete_bank_connection", {
     p_connection_id: connectionId,
   });
   if (error) return { error: error.message };
+
+  await logChange(supabase, user.id, "Accounts", "Bank connection", "Connected", "Disconnected");
 
   revalidateBankPages();
   return null;
