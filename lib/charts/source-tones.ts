@@ -3,10 +3,10 @@
 // follows the Source's place in a fixed order (system Sources first, then
 // the rest oldest first), never how much it spent.
 
-export type ChartTone = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type ChartTone = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
-/** --chart-1..8 (the Covenant Works chart palette). Any Source past the eighth is grouped as Other in --fg-3. */
-export const MAX_TONES = 8;
+/** --chart-1..12 (the Covenant Works chart palette). Any Source past the twelfth is grouped as Other in --fg-3. */
+export const MAX_TONES = 12;
 
 const SYSTEM_ORDER = ["budget", "income", "sinking_fund", "float"];
 

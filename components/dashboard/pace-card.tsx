@@ -112,13 +112,13 @@ export function PaceCard({
           )}
         </div>
 
-        <div className="flex w-full gap-2.5">
-          <div className="flex h-40 flex-col justify-between text-right text-[11px] tabular-nums text-muted">
+        <div className="flex w-full flex-1 gap-2.5">
+          <div className="flex min-h-40 flex-col justify-between text-right text-[11px] tabular-nums text-muted">
             {ticks.map((t) => (
               <span key={t}>{compactMoney(t)}</span>
             ))}
           </div>
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-h-40 min-w-0 flex-1">
             {hoverDay !== null && (
               <PaceTooltip
                 day={hoverDay}
@@ -138,7 +138,8 @@ export function PaceCard({
             )}
             <svg
               viewBox={`0 0 ${W} ${H}`}
-              className="block h-40 w-full overflow-visible"
+              preserveAspectRatio="none"
+              className="absolute inset-0 block h-full w-full overflow-visible"
               role="img"
               aria-label={`Budget spending in ${label(main)}: ${compactMoney(mainSpent)} by day ${main.throughDay} against an even pace of ${compactMoney(paceToday)}.${others
                 .map((m) => ` ${label(m)}: ${compactMoney(valueOnDay(m.expenseByDay, compareDay))} by day ${compareDay}.`)

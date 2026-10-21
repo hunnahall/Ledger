@@ -14,6 +14,10 @@ const TONE_STROKE: Record<NonNullable<PieSlice["tone"]> | "none", string> = {
   6: "stroke-chart-6",
   7: "stroke-chart-7",
   8: "stroke-chart-8",
+  9: "stroke-chart-9",
+  10: "stroke-chart-10",
+  11: "stroke-chart-11",
+  12: "stroke-chart-12",
   none: "stroke-chart-neutral",
 };
 
@@ -26,6 +30,10 @@ export const TONE_SWATCH: Record<NonNullable<PieSlice["tone"]> | "none", string>
   6: "bg-chart-6",
   7: "bg-chart-7",
   8: "bg-chart-8",
+  9: "bg-chart-9",
+  10: "bg-chart-10",
+  11: "bg-chart-11",
+  12: "bg-chart-12",
   none: "bg-chart-neutral",
 };
 

@@ -28,9 +28,9 @@ export function BudgetFundingCard({
   const filled = ratio === null ? 0 : Math.min(ratio, 1);
 
   return (
-    <section className="border border-border bg-surface p-5">
+    <section className="flex flex-col border border-border bg-surface p-5">
       <ChartTitle className="mb-3.5">Budget Funding</ChartTitle>
-      <div className="flex items-center gap-6">
+      <div className="flex flex-1 items-center gap-6">
         <svg
           width={100}
           height={100}
@@ -106,7 +106,7 @@ export function FloatCard({
       <button
         type="button"
         onClick={() => openTile("Float", { type: "float" })}
-        className="border border-border bg-surface p-5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
+        className="flex flex-col border border-border bg-surface p-5 text-left transition-colors duration-[120ms] ease-standard hover:bg-fill-hover"
       >
         <ChartTitle>Float</ChartTitle>
         <span className="mt-1 block text-[28px] font-semibold leading-tight">

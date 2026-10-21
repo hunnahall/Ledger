@@ -120,7 +120,7 @@ export function DailySpendingCard({ months, decimalPlaces }: { months: MonthFigu
         onFocus={() => setHovered((h) => h ?? (days.length > 0 ? days.length - 1 : null))}
         onKeyDown={onKeyDown}
         onClick={() => active && openDay(active)}
-        className="relative block w-full flex-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="relative block min-h-36 w-full flex-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         style={{ cursor: active ? "pointer" : "default" }}
       >
         {active && (
@@ -143,7 +143,7 @@ export function DailySpendingCard({ months, decimalPlaces }: { months: MonthFigu
             </p>
           </div>
         )}
-        <svg viewBox={`0 0 ${width} ${H}`} preserveAspectRatio="none" className="block h-full min-h-36 w-full" aria-hidden="true">
+        <svg viewBox={`0 0 ${width} ${H}`} preserveAspectRatio="none" className="absolute inset-0 block h-full w-full" aria-hidden="true">
           {active && (
             <rect x={active.slot * SLOT} y={0} width={SLOT} height={H} className="fill-fill-hover" />
           )}

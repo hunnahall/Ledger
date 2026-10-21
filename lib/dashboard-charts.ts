@@ -50,7 +50,7 @@ export type PieSlice = {
   label: string;
   amount: number;
   share: number;
-  /** 1-8 index into the chart-1..8 series, or null for the grouped remainder (Other, in --fg-3). */
+  /** 1-12 index into the chart-1..12 series, or null for the grouped remainder (Other, in --fg-3). */
   tone: PieTone | null;
   /** This slice's stretch of the ring. */
   arc: RingArc;
