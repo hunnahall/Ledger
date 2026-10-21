@@ -38,6 +38,10 @@
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-chart-1: var(--chart-1);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
@@ -150,4 +154,28 @@
 }
 :root[data-theme="light"] {
   --chart-caution: var(--warning);
+}
+
+/* Heatmap steps, lightest for the smallest spending and darker as it grows.
+   On the dark theme a fainter mix of the color reads darker, so the order
+   runs the other way there. */
+:root {
+  --heat-1: var(--chart-1);
+  --heat-2: color-mix(in srgb, var(--chart-1) 80%, transparent);
+  --heat-3: color-mix(in srgb, var(--chart-1) 60%, transparent);
+  --heat-4: color-mix(in srgb, var(--chart-1) 40%, transparent);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --heat-1: color-mix(in srgb, var(--chart-1) 25%, transparent);
+    --heat-2: color-mix(in srgb, var(--chart-1) 50%, transparent);
+    --heat-3: color-mix(in srgb, var(--chart-1) 75%, transparent);
+    --heat-4: var(--chart-1);
+  }
+}
+:root[data-theme="light"] {
+  --heat-1: color-mix(in srgb, var(--chart-1) 25%, transparent);
+  --heat-2: color-mix(in srgb, var(--chart-1) 50%, transparent);
+  --heat-3: color-mix(in srgb, var(--chart-1) 75%, transparent);
+  --heat-4: var(--chart-1);
 }

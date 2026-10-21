@@ -10,13 +10,14 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
 // Four steps of the signature color, lightest for the smallest quarter of
-// spending days; days with nothing spent sit on the neutral track.
+// spending days and darker as spending grows (the --heat tokens flip the
+// mix on the dark theme); days with nothing spent sit on the neutral track.
 const LEVEL: Record<HeatLevel, string> = {
   0: "bg-fill-active",
-  1: "bg-chart-1/25",
-  2: "bg-chart-1/50",
-  3: "bg-chart-1/75",
-  4: "bg-chart-1",
+  1: "bg-heat-1",
+  2: "bg-heat-2",
+  3: "bg-heat-3",
+  4: "bg-heat-4",
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
