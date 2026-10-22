@@ -89,7 +89,7 @@ function ForecastDetailView({
 
   // The entry forms pick a month from exactly what the graph plots, in the
   // same order, rather than free-typing mm/yy — same months.length as
-  // projectForecast's default 12.
+  // projectForecast's default 18.
   const monthOptions = points.map((p) => ({ value: formatMonthYear(p.monthISO), label: monthLabel(p.monthISO) }));
 
   const entryBalances = projectEntryBalances({

@@ -20,7 +20,7 @@ export function projectForecast({
   monthlyTransfer,
   entries,
   startMonthISO,
-  months = 12,
+  months = 18,
 }: {
   startingBalance: number;
   monthlyTransfer: number;
