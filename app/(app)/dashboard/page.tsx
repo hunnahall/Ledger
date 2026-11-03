@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/queries/settings";
 import { currentMonthISO, todayISO } from "@/lib/dates";
-import { parseMonthSelection, selectableMonths, selectionLabel, selectionProgress } from "@/lib/dashboard-months";
+import {
+  DASHBOARD_MONTHS_COOKIE,
+  parseMonthSelection,
+  selectableMonths,
+  selectionLabel,
+  selectionProgress,
+} from "@/lib/dashboard-months";
 import { MonthPicker } from "@/components/dashboard/month-picker";
 import { PaceCard } from "@/components/dashboard/pace-card";
 import { CashFlowCard } from "@/components/dashboard/cash-flow-card";
@@ -21,7 +28,7 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ months?: string }>;
 }) {
-  const params = await searchParams;
+  const [params, cookieStore] = await Promise.all([searchParams, cookies()]);
   // Awaited before the rest: which month "this month" is depends on the
   // user's timezone, and every query below is scoped to the selection.
   const settings = await getSettings();
@@ -30,7 +37,12 @@ export default async function DashboardPage({
   // The current month plus the 3 full months before it: the same window
   // purge_expired_data() keeps, so every month offered still has data.
   const selectable = selectableMonths(current);
-  const months = parseMonthSelection(params.months, selectable);
+  // No ?months= (the nav link, a redirect): the choice made earlier this
+  // session, if any. A month that has since left the window drops out.
+  const months = parseMonthSelection(
+    params.months ?? cookieStore.get(DASHBOARD_MONTHS_COOKIE)?.value,
+    selectable,
+  );
 
   const data = await getDashboardData(months, selectable, today, settings.budget_type);
   const decimalPlaces = settings.decimal_places;

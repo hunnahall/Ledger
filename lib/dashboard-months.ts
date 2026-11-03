@@ -78,3 +78,11 @@ export function selectionProgress(months: string[], today: string): number {
   const elapsed = months.reduce((sum, m) => sum + daysElapsed(m, today), 0);
   return total > 0 ? elapsed / total : 0;
 }
+
+/**
+ * The Dashboard's month choice for the rest of the browser session, so
+ * leaving the Dashboard and coming back keeps it. A session cookie (no
+ * expiry, gone when the browser closes) holding the same value as ?months=;
+ * the page falls back to it when the URL has none.
+ */
+export const DASHBOARD_MONTHS_COOKIE = "dashboard_months";

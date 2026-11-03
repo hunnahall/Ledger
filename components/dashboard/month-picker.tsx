@@ -4,11 +4,20 @@ import { useOptimistic, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { shortMonthLabel } from "@/components/dashboard/format";
-import { selectionParam, toggleMonth } from "@/lib/dashboard-months";
+import { DASHBOARD_MONTHS_COOKIE, selectionParam, toggleMonth } from "@/lib/dashboard-months";
 
 // The months the Dashboard shows, oldest to newest, plus All. Each month
 // toggles in or out, so any mix can be shown; from All, a month narrows the
-// view to just that month. The choice lives in the URL (?months=).
+// view to just that month. The choice lives in the URL (?months=) and in a
+// session cookie, so it holds when the user leaves and comes back.
+// No expiry, so the browser drops it when it closes; the default (the
+// current month alone) clears it.
+function rememberSelection(value: string | null) {
+  document.cookie = value
+    ? `${DASHBOARD_MONTHS_COOKIE}=${value}; path=/; samesite=lax`
+    : `${DASHBOARD_MONTHS_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
 export function MonthPicker({ months, selected }: { months: string[]; selected: string[] }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -22,6 +31,7 @@ export function MonthPicker({ months, selected }: { months: string[]; selected: 
     const value = selectionParam(next, months);
     if (value) params.set("months", value);
     else params.delete("months");
+    rememberSelection(value);
     params.delete("month");
     const qs = params.toString();
     startTransition(() => {
