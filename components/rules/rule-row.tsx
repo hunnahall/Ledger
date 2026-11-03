@@ -66,7 +66,7 @@ export function RuleRow({
           defaultValue={rule.merchantNormalized}
           autoFocus
           onFocus={(e) => e.currentTarget.select()}
-          className="w-40"
+          className="w-64"
         />
         <span className="text-muted">then</span>
         <select

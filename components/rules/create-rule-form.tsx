@@ -48,6 +48,7 @@ export function CreateRuleForm({
           name="merchant"
           required
           placeholder="e.g. Trader Joe's"
+          className="w-64"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs text-muted">
@@ -71,6 +72,10 @@ export function CreateRuleForm({
       <Button type="submit" variant="primary" size="sm">
         Add rule
       </Button>
+      <p className="w-full text-xs text-muted">
+        Matches any part of the description. Combine phrases with AND, OR and NOT (in capitals) and
+        parentheses, and use * for any run of letters: (uber OR lyft) AND NOT eats, amzn*mktp.
+      </p>
       {state?.error && <p className="w-full text-xs text-danger">{state.error}</p>}
     </form>
   );

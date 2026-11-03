@@ -644,6 +644,7 @@ export type Database = {
           is_exclude: boolean
           is_income: boolean
           last_used_at: string
+          match_regex: string | null
           merchant_normalized: string
           source_id: string | null
           updated_at: string
@@ -657,6 +658,7 @@ export type Database = {
           is_exclude?: boolean
           is_income?: boolean
           last_used_at?: string
+          match_regex?: string | null
           merchant_normalized: string
           source_id?: string | null
           updated_at?: string
@@ -670,6 +672,7 @@ export type Database = {
           is_exclude?: boolean
           is_income?: boolean
           last_used_at?: string
+          match_regex?: string | null
           merchant_normalized?: string
           source_id?: string | null
           updated_at?: string

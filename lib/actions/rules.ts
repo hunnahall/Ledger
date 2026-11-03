@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/auth";
 import { revalidateRulePages } from "@/lib/actions/revalidate";
-import { normalizeMerchant } from "@/lib/transactions/normalize-merchant";
+import { parseRulePattern } from "@/lib/transactions/rule-pattern";
 import { resolveRuleTarget } from "@/lib/transactions/rule-target";
 import { learnRule } from "@/lib/actions/transactions";
 import { logChange } from "@/lib/actions/log";
@@ -35,20 +35,31 @@ export async function createRule(
   const target = resolveRuleTarget(formData);
   if ("error" in target) return target;
 
-  const merchantNormalized = normalizeMerchant(description);
-  if (!merchantNormalized) return { error: "Enter a merchant name." };
+  const parsed = parseRulePattern(description);
+  if ("error" in parsed) return parsed;
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   const failed = await learnRule(
     supabase,
-    merchantNormalized,
+    parsed.pattern,
     target.categoryId,
     target.isIncome,
     target.sourceId,
     target.isExclude,
   );
   if (failed) return failed;
+
+  // learn_rule only knows plain phrases; an AND/OR/NOT or * pattern also
+  // needs its compiled form, which apply_rules matches with.
+  if (parsed.regex) {
+    const { error } = await supabase
+      .from("rules")
+      .update({ match_regex: parsed.regex })
+      .eq("user_id", user.id)
+      .eq("merchant_normalized", parsed.pattern);
+    if (error) return { error: error.message };
+  }
 
   revalidatePath("/rules");
   return null;
@@ -65,8 +76,8 @@ export async function updateRule(
   const target = resolveRuleTarget(formData);
   if ("error" in target) return target;
 
-  const merchantNormalized = normalizeMerchant(description);
-  if (!merchantNormalized) return { error: "Enter a merchant pattern." };
+  const parsed = parseRulePattern(description);
+  if ("error" in parsed) return parsed;
 
   const { supabase, user } = await requireUser();
 
@@ -75,7 +86,8 @@ export async function updateRule(
   const { error } = await supabase
     .from("rules")
     .update({
-      merchant_normalized: merchantNormalized,
+      merchant_normalized: parsed.pattern,
+      match_regex: parsed.regex,
       category_id: target.categoryId,
       is_income: target.isIncome,
       is_exclude: target.isExclude,
@@ -104,7 +116,7 @@ export async function updateRule(
 }
 
 // Applies every learned rule to transactions that don't have one yet —
-// same substring match as auto-categorization at sync time (see
+// same match as auto-categorization at sync time (see
 // findMatchingRule), just runnable on demand so a newly created or edited
 // rule can retroactively pick up older transactions without waiting for
 // the next sync. Only fills in category_id/is_income (and source_id when
