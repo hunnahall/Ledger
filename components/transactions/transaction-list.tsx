@@ -24,6 +24,7 @@ import { AddIcon, SplitIcon } from "@/components/ui/icons";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ClearFiltersButton, DateRangeColumnFilter, SelectColumnFilter } from "./column-filter";
 import { SearchToggle } from "./search-toggle";
+import { refreshReviewCount } from "@/components/ui/review-count";
 import { Input } from "@/components/ui/input";
 
 export type TransactionRowData = {
@@ -305,6 +306,7 @@ export function TransactionList({
       startTransition(async () => {
         const result = await bulkUpdateTransactions(ids, { categoryId });
         setBulkError(result?.error ?? null);
+        refreshReviewCount();
       });
     },
     [selectedIds],
@@ -324,6 +326,7 @@ export function TransactionList({
           categoryId: null,
         });
         setBulkError(result?.error ?? null);
+        refreshReviewCount();
       });
     },
     [selectedIds],
@@ -337,6 +340,7 @@ export function TransactionList({
     startTransition(async () => {
       const result = await bulkUpdateTransactions(ids, { excludeFromBudget: true });
       setBulkError(result?.error ?? null);
+      refreshReviewCount();
     });
   }, [selectedIds]);
 
@@ -346,30 +350,30 @@ export function TransactionList({
     startTransition(async () => {
       const result = await bulkUpdateTransactions(ids, { isIncome: true });
       setBulkError(result?.error ?? null);
+      refreshReviewCount();
     });
   }, [selectedIds]);
 
   return (
     <div className="flex flex-col gap-3">
       {selectedIds.size > 0 && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
-          <div className="pointer-events-auto flex max-w-full items-center gap-3 border border-border bg-surface px-4 py-2 text-sm shadow-elevated">
-            <span className="font-medium whitespace-nowrap">
-              {selectedIds.size} selected
-            </span>
-            <span className="hidden text-xs text-muted sm:inline">
-              Change a category or source on any selected row to apply it to all
-            </span>
-            {isPending && <span className="text-xs text-muted">Saving</span>}
-            {bulkError && <span className="text-xs text-danger">{bulkError}</span>}
-            <button
-              type="button"
-              onClick={() => setSelectedIds(new Set())}
-              className="shrink-0 text-xs text-muted hover:underline"
-            >
-              Clear
-            </button>
-          </div>
+        // Just the Clear button, centered at the bottom. An ink fill (light on
+        // the dark theme) so it stands out on either ground.
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-20 flex flex-col items-center gap-2 px-4">
+          {bulkError && (
+            <p className="pointer-events-auto max-w-full border border-border bg-surface px-3 py-1.5 text-xs text-danger shadow-popover">
+              {bulkError}
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={isPending}
+            className="pointer-events-auto h-11 px-6 text-base shadow-popover"
+          >
+            {isPending ? "Saving" : `Clear ${selectedIds.size} selected`}
+          </Button>
         </div>
       )}
 
@@ -656,6 +660,7 @@ const TransactionRow = memo(function TransactionRow({
     }
     const result = await assignTransaction(txn.id, formData);
     setRowError(result?.error ?? null);
+    refreshReviewCount();
   }
 
   // "Add Rule": whether this category pick should also teach a rule,
@@ -778,6 +783,7 @@ const TransactionRow = memo(function TransactionRow({
       setIsIncome(false);
       const result = await markTransfer(txn.id, destination);
       setRowError(result?.error ?? null);
+      refreshReviewCount();
       return;
     }
 
@@ -907,6 +913,7 @@ const TransactionRow = memo(function TransactionRow({
     if (!ok) return;
     const result = await deleteTransaction(txn.id);
     setRowError(result?.error ?? null);
+    refreshReviewCount();
   }
 
   const typeLabel = txn.isTransferCopy

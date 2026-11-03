@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AddIcon } from "@/components/ui/icons";
+import { refreshReviewCount } from "@/components/ui/review-count";
 
 type Option = { id: string; name: string };
 // No "transfer" choice here — Source Transfers on the Budget page cover
@@ -96,6 +97,7 @@ function ManualTransactionForm({
 
     setPending(true);
     const result = await createManualTransaction(formData);
+    refreshReviewCount();
     setPending(false);
     if (result?.error) {
       setError(result.error);

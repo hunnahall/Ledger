@@ -6,7 +6,7 @@ import { TimezoneSync } from "@/components/settings/timezone-sync";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { getPaletteTargets } from "@/lib/queries/palette";
 import { getUnsourcedCount } from "@/lib/queries/transactions";
-import { ReviewCountSync } from "@/components/ui/review-count";
+import { ReviewCountRefresher, ReviewCountSync } from "@/components/ui/review-count";
 
 // None of these renders anything on first paint — TimezoneSync returns
 // null (it's an effect that offers the browser's zone once), and the palette
@@ -31,6 +31,7 @@ async function AppChrome() {
       <CommandPalette targets={paletteTargets} />
       {/* The Transactions nav badge (see SidebarLink). */}
       <ReviewCountSync count={unsourcedCount} />
+      <ReviewCountRefresher />
     </>
   );
 }

@@ -4,6 +4,7 @@ import {
   getSpendingRows,
   getSplitGroups,
   getTransferDestinations,
+  getUnsourcedCount,
 } from "@/lib/queries/transactions";
 import Link from "next/link";
 import {
@@ -20,6 +21,7 @@ import { TransactionList, type TransactionRowData } from "@/components/transacti
 import { AddTransactionButton } from "@/components/transactions/manual-transaction-form";
 import { ExportMenu } from "@/components/transactions/export-menu";
 import { SyncButton } from "@/components/transactions/sync-button";
+import { ReviewCountSync } from "@/components/ui/review-count";
 import { SpendingByDayChart } from "@/components/transactions/spending-by-day-chart";
 import { spendingByDay } from "@/lib/transactions/spending-by-day";
 
@@ -49,14 +51,16 @@ export default async function TransactionsPage({
     ...resolveSourceFilter(params.source_id),
   };
 
-  const [transactions, filterOptions, settings, spendingRows, splitGroups, transferDestinations] = await Promise.all([
-    getFilteredTransactions(filters),
-    getFilterOptions(),
-    getSettings(),
-    getSpendingRows(),
-    getSplitGroups(),
-    getTransferDestinations(),
-  ]);
+  const [transactions, filterOptions, settings, spendingRows, splitGroups, transferDestinations, unsourcedCount] =
+    await Promise.all([
+      getFilteredTransactions(filters),
+      getFilterOptions(),
+      getSettings(),
+      getSpendingRows(),
+      getSplitGroups(),
+      getTransferDestinations(),
+      getUnsourcedCount(),
+    ]);
   const decimalPlaces = settings.decimal_places;
 
   const transactionRows: TransactionRowData[] = transactions.map((txn) => ({
@@ -90,6 +94,8 @@ export default async function TransactionsPage({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Keeps the nav badge in step with edits made on this page. */}
+      <ReviewCountSync count={unsourcedCount} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1>Transactions</h1>

@@ -68,7 +68,6 @@ export function SearchToggle() {
             autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Description, note, amount, category, source"
             aria-label="Search any field"
             className="w-72"
           />

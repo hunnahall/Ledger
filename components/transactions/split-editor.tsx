@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
+import { refreshReviewCount } from "@/components/ui/review-count";
 
 type Option = { id: string; name: string };
 type Row = { amount: string; sourceId: string; categoryId: string; notes: string };
@@ -87,6 +88,7 @@ export function SplitEditor({
     }
     startTransition(async () => {
       const result = await saveSplits(transactionId, checked.rows);
+      refreshReviewCount();
       if (result?.error) setError(result.error);
       else {
         setError(null);
