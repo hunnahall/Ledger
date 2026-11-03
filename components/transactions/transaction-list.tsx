@@ -357,8 +357,8 @@ export function TransactionList({
   return (
     <div className="flex flex-col gap-3">
       {selectedIds.size > 0 && (
-        // Just the Clear button, centered at the bottom. An ink fill (light on
-        // the dark theme) so it stands out on either ground.
+        // Just the Clear button, centered at the bottom: the same outlined
+        // button as the page header's, one size up, with the floating shadow.
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-20 flex flex-col items-center gap-2 px-4">
           {bulkError && (
             <p className="pointer-events-auto max-w-full border border-border bg-surface px-3 py-1.5 text-xs text-danger shadow-popover">
@@ -367,10 +367,10 @@ export function TransactionList({
           )}
           <Button
             type="button"
-            variant="primary"
+            size="md"
             onClick={() => setSelectedIds(new Set())}
             disabled={isPending}
-            className="pointer-events-auto h-11 px-6 text-base shadow-popover"
+            className="pointer-events-auto shadow-popover"
           >
             {isPending ? "Saving" : `Clear ${selectedIds.size} selected`}
           </Button>
